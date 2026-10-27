@@ -588,6 +588,132 @@ route('DELETE', '/api/reviews/:id', ROLE('admin'), async (c) => {
   return { ok: true };
 });
 
+/* ---------- CMD-007 — فاز ۳ گام ۵: پیام/تیکت (tickets + ticket_messages + messages) ----------
+ * تیکت: پشتیبانی کاربر ↔ مدیر. وضعیت‌ها مطابق اسکیمای مرجع: open/review/answered/closed.
+ *   - ساخت تیکت = مشتری/وکیل (تراکنش اتمیک: رکورد تیکت + اولین پیام)؛ پاسخ = صاحب تیکت یا مدیر.
+ *   - گذار وضعیت: پاسخ مدیر ← answered؛ پاسخ صاحب تیکت روی answered ← open (نیاز به پیگیری دوباره)؛
+ *     تیکت بسته برای صاحب تیکت غیرقابل پاسخ است (مدیر می‌تواند یادداشت نهایی بگذارد).
+ * پیام: چتِ پرونده‌محور دقیقاً مطابق جدول messages (case_id الزامی در اسکیما) — گفتگوی
+ *   مشتری و وکیلِ تخصیص‌یافته از مرحله assigned به بعد؛ مدیر ناظر و مجاز به مشارکت.
+ * امنیت: متن تیکت/پاسخ/پیام با AES-256-GCM (encText/decText) — برچسب aad جدا برای هر جدول.
+ * حریم خصوصی: در تیکت نام فرستنده فقط برای مدیر می‌آید؛ در چت پرونده هم بدون افشای تماس.
+ * وابستگی ظریف: بدون تغییر اسکیما. «ارجاع به بخش» مدیر همان تغییر dept تیکت است.
+ * ========================================================================== */
+const TK_DEPTS = ['فنی', 'مالی', 'شکایات', 'عمومی', 'حقوقی'];
+const TK_PRIS = ['کم', 'متوسط', 'بالا'];
+const TK_ST = { open: ['باز', 1], review: ['در حال بررسی', 4], answered: ['پاسخ داده‌شده', 3], closed: ['بسته', 5] };
+const TK_LIMIT = 200, MSG_LIMIT = 300;
+
+route('GET', '/api/tickets', isAuth, async (c) => {
+  const SEL = 'SELECT t.*, u.name AS user_name, (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id)::int AS msg_count FROM tickets t LEFT JOIN users u ON u.id=t.user_id';
+  let rows;
+  if (c.user.role === 'admin') { // فیلترهای اختیاری مدیر: status/dept/priority
+    const w = [], a = [];
+    if (TK_ST[c.query.status]) { w.push('t.status=?'); a.push(c.query.status); }
+    if (TK_DEPTS.includes(c.query.dept)) { w.push('t.dept=?'); a.push(c.query.dept); }
+    if (TK_PRIS.includes(c.query.priority)) { w.push('t.priority=?'); a.push(c.query.priority); }
+    rows = await db.prepare(SEL + (w.length ? ' WHERE ' + w.join(' AND ') : '') + ' ORDER BY t.updated_at DESC, t.id DESC LIMIT ?').all(...a, TK_LIMIT);
+  } else rows = await db.prepare(SEL + ' WHERE t.user_id=? ORDER BY t.updated_at DESC, t.id DESC LIMIT ?').all(c.user.id, TK_LIMIT);
+  return { ok: true, rows: rows.map((r) => { const o = { id: r.id, subject: r.subject, dept: r.dept || '', priority: r.priority || '', status: r.status, created_at: r.created_at, updated_at: r.updated_at, msg_count: r.msg_count || 0 }; if (c.user.role === 'admin') o.user_name = r.user_name || ''; return o; }) };
+});
+
+route('POST', '/api/tickets', ROLE('client', 'lawyer'), async (c) => {
+  if (!(await rl('tkt:' + c.user.id, 5, 3600e3))) throw new HttpError(429, 'سقف ارسال تیکت در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const subject = str(c.body.subject, 3, 120, 'موضوع');
+  const dept = oneOf(c.body.dept, TK_DEPTS, 'بخش');
+  const priority = oneOf(c.body.priority, TK_PRIS, 'اولویت');
+  const body = str(c.body.body, 3, 3000, 'متن تیکت');
+  const n = now();
+  const tid = await tx(async (t) => { // اتمیک: تیکت + اولین پیام
+    const r = await t.sql.unsafe(toPg("INSERT INTO tickets(user_id,dept,priority,subject,status,created_at,updated_at) VALUES(?,?,?,?, 'open',?,?) RETURNING id"), [c.user.id, dept, priority, subject, n, n]);
+    await t.sql.unsafe(toPg('INSERT INTO ticket_messages(ticket_id,user_id,body_enc,created_at) VALUES(?,?,?,?)'), [r[0].id, c.user.id, sec.encText(body, 'ticket.msg'), n]);
+    return r[0].id;
+  });
+  await audit(c.user.id, 'ticket_create', 'ticket:' + tid, c.ip);
+  return { ok: true, id: tid };
+});
+
+route('GET', '/api/tickets/:id', isAuth, async (c) => {
+  const t = await db.prepare('SELECT t.*, u.name AS user_name FROM tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?').get(c.params.id);
+  if (!t) throw new HttpError(404, 'تیکت یافت نشد.');
+  const admin = c.user.role === 'admin';
+  if (!admin && t.user_id !== c.user.id) throw new HttpError(404, 'تیکت یافت نشد.'); // بدون افشای وجود تیکت دیگران
+  const ms = await db.prepare('SELECT m.*, u.role AS sender_role, u.name AS sender_name FROM ticket_messages m LEFT JOIN users u ON u.id=m.user_id WHERE m.ticket_id=? ORDER BY m.created_at, m.id').all(t.id);
+  return {
+    ok: true,
+    ticket: { id: t.id, subject: t.subject, dept: t.dept || '', priority: t.priority || '', status: t.status, created_at: t.created_at, updated_at: t.updated_at, user_name: admin ? (t.user_name || '') : '' },
+    rows: ms.map((m) => { const o = { id: m.id, mine: m.user_id === c.user.id, role: m.sender_role || '', body: sec.decText(m.body_enc, 'ticket.msg'), created_at: m.created_at }; if (admin) o.name = m.sender_name || ''; return o; })
+  };
+});
+
+route('POST', '/api/tickets/:id/replies', isAuth, async (c) => {
+  const body = str(c.body.body, 1, 3000, 'متن پاسخ');
+  if (!(await rl('tkr:' + c.user.id, 60, 600e3))) throw new HttpError(429, 'تعداد پیام‌ها زیاد است. کمی بعد تلاش کنید.');
+  const t = await db.prepare('SELECT * FROM tickets WHERE id=?').get(c.params.id);
+  if (!t) throw new HttpError(404, 'تیکت یافت نشد.');
+  const admin = c.user.role === 'admin';
+  if (!admin && t.user_id !== c.user.id) throw new HttpError(404, 'تیکت یافت نشد.'); // بدون افشا
+  if (!admin && t.status === 'closed') throw new HttpError(400, 'این تیکت بسته شده است؛ برای موضوع جدید تیکت جدیدی باز کنید.');
+  const n = now();
+  await db.prepare('INSERT INTO ticket_messages(ticket_id,user_id,body_enc,created_at) VALUES(?,?,?,?)').run(t.id, c.user.id, sec.encText(body, 'ticket.msg'), n);
+  /* پاسخ مدیر ← answered؛ ولی اگر تیکت بسته است بسته می‌ماند (یادداشت نهایی، بازگشایی نیست)؛
+   * پاسخ صاحب تیکت روی answered ← open (نیاز به پیگیری دوباره) */
+  const st = admin ? (t.status === 'closed' ? 'closed' : 'answered') : (t.status === 'answered' ? 'open' : t.status);
+  await db.prepare('UPDATE tickets SET status=?,updated_at=? WHERE id=?').run(st, n, t.id);
+  await audit(c.user.id, 'ticket_reply', 'ticket:' + t.id + ' status:' + st, c.ip);
+  return { ok: true, status: st };
+});
+
+route('PATCH', '/api/tickets/:id', ROLE('admin'), async (c) => {
+  const t = await db.prepare('SELECT * FROM tickets WHERE id=?').get(c.params.id);
+  if (!t) throw new HttpError(404, 'تیکت یافت نشد.');
+  const st = c.body.status != null ? oneOf(c.body.status, Object.keys(TK_ST), 'وضعیت') : t.status;
+  const dp = c.body.dept != null ? oneOf(c.body.dept, TK_DEPTS, 'بخش') : t.dept;
+  const pr = c.body.priority != null ? oneOf(c.body.priority, TK_PRIS, 'اولویت') : t.priority;
+  if (st === t.status && dp === t.dept && pr === t.priority) throw new HttpError(400, 'تغییری برای اعمال وجود ندارد.');
+  await db.prepare('UPDATE tickets SET status=?,dept=?,priority=?,updated_at=? WHERE id=?').run(st, dp, pr, now(), t.id);
+  await audit(c.user.id, 'ticket_update', 'ticket:' + t.id + ' status:' + st + (dp !== t.dept ? ' dept:' + dp : '') + (pr !== t.priority ? ' prio:' + pr : ''), c.ip);
+  return { ok: true };
+});
+
+/* چت پرونده‌محور — فهرست گفتگوها = پرونده‌های دارای وکیلِ تخصیص‌یافته (assigned/running/done) */
+route('GET', '/api/threads', ROLE('client', 'lawyer'), async (c) => {
+  const cond = c.user.role === 'client' ? 'cs.client_id=?' : 'cs.lawyer_id=?';
+  const rows = await db.prepare('SELECT cs.id, cs.title, cs.category, cs.status, cs.updated_at, (SELECT MAX(m.created_at) FROM messages m WHERE m.case_id=cs.id) AS last_at FROM cases cs WHERE ' + cond + " AND cs.status IN('assigned','running','done') ORDER BY COALESCE((SELECT MAX(m.created_at) FROM messages m WHERE m.case_id=cs.id), cs.updated_at) DESC, cs.id DESC LIMIT 50").all(c.user.id);
+  const out = [];
+  for (const r of rows) {
+    const last = r.last_at ? await db.prepare('SELECT user_id, body_enc FROM messages WHERE case_id=? AND created_at=? ORDER BY id DESC LIMIT 1').get(r.id, r.last_at) : null;
+    out.push({ case_id: r.id, title: r.title, category: r.category, status: r.status, last_at: r.last_at || r.updated_at, last_excerpt: last ? String(sec.decText(last.body_enc, 'case.msg')).slice(0, 80) : '', last_mine: last ? last.user_id === c.user.id : false });
+  }
+  return { ok: true, rows: out };
+});
+
+route('GET', '/api/messages', isAuth, async (c) => {
+  const caseId = int(ascii(c.query.case_id || ''), 1, 1e15, 'پرونده');
+  const cs = await db.prepare('SELECT id, client_id, lawyer_id, title, status FROM cases WHERE id=?').get(caseId);
+  if (!cs) throw new HttpError(404, 'پرونده یافت نشد.');
+  const u = c.user;
+  if (!(u.role === 'admin' || cs.client_id === u.id || (u.role === 'lawyer' && cs.lawyer_id === u.id))) throw new HttpError(404, 'پرونده یافت نشد.'); // بدون افشا
+  const rows = await db.prepare('SELECT m.*, u.role AS sender_role, u.name AS sender_name FROM messages m LEFT JOIN users u ON u.id=m.user_id WHERE m.case_id=? ORDER BY m.created_at, m.id LIMIT ?').all(cs.id, MSG_LIMIT);
+  return { ok: true, case: { id: cs.id, title: cs.title, status: cs.status }, rows: rows.map((m) => { const o = { id: m.id, mine: m.user_id === u.id, role: m.sender_role || '', body: sec.decText(m.body_enc, 'case.msg'), created_at: m.created_at }; if (u.role === 'admin') o.name = m.sender_name || ''; return o; }) };
+});
+
+route('POST', '/api/messages', isAuth, async (c) => {
+  if (!(await rl('msg:' + c.user.id, 30, 600e3))) throw new HttpError(429, 'تعداد پیام‌ها زیاد است. کمی بعد تلاش کنید.');
+  const caseId = int(ascii(c.body.case_id), 1, 1e15, 'پرونده');
+  const body = str(c.body.body, 1, 2000, 'متن پیام');
+  const cs = await db.prepare('SELECT id, client_id, lawyer_id, status FROM cases WHERE id=?').get(caseId);
+  if (!cs) throw new HttpError(404, 'پرونده یافت نشد.');
+  const u = c.user;
+  const isClient = u.role === 'client' && cs.client_id === u.id;
+  const isLawyer = u.role === 'lawyer' && cs.lawyer_id === u.id;
+  if (!(u.role === 'admin' || isClient || isLawyer)) throw new HttpError(404, 'پرونده یافت نشد.'); // بدون افشا
+  if ((isClient || isLawyer) && (!cs.lawyer_id || !['assigned', 'running', 'done'].includes(cs.status))) throw new HttpError(400, 'گفتگوی این پرونده هنوز فعال نیست؛ پس از تخصیص وکیل باز می‌شود.');
+  const r = await db.prepare('INSERT INTO messages(case_id,user_id,body_enc,created_at) VALUES(?,?,?,?) RETURNING id').run(cs.id, u.id, sec.encText(body, 'case.msg'), now());
+  await audit(u.id, 'message_send', 'case:' + cs.id + ' msg:' + r.lastInsertRowid, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);
