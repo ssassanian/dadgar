@@ -313,6 +313,14 @@ route('PATCH', '/api/cases/:id', ROLE('admin'), async (c) => {
     await db.prepare('UPDATE cases SET final_price=?,updated_at=? WHERE id=?').run(fp, now(), cs.id);
     await audit(c.user.id, 'case_final_price', 'case:' + cs.id, c.ip);
   }
+  if (c.body.status !== undefined) { /* CMD-006: گذار رو به جلو برای چرخه (assigned→running→done؛ done پایانی است) */
+    const st = oneOf(c.body.status, ['running', 'done'], 'وضعیت');
+    if (cs.status === 'done') throw new HttpError(400, 'این پرونده بسته شده است و قابل تغییر نیست.');
+    if (cs.status === 'waiting' || cs.status === 'proposing') throw new HttpError(400, 'پرونده هنوز وکیل تخصیص‌یافته ندارد.');
+    if (st === cs.status) throw new HttpError(400, 'پرونده در همین وضعیت است.');
+    await db.prepare('UPDATE cases SET status=?,updated_at=? WHERE id=?').run(st, now(), cs.id);
+    await audit(c.user.id, 'case_status', 'case:' + cs.id + ' -> ' + st, c.ip);
+  }
   return { ok: true };
 });
 
@@ -509,6 +517,75 @@ route('GET', '/api/users', ROLE('admin'), async (c) => {
   const role = oneOf(c.query.role || 'client', ['client', 'lawyer'], 'نقش');
   const rows = await db.prepare('SELECT id, name, role, created_at FROM users WHERE role=? ORDER BY name ASC, id ASC LIMIT 500').all(role);
   return { ok: true, rows };
+});
+
+/* ---------- CMD-006 — فاز ۳ گام ۴: نظرات (reviews) ----------
+ * سیاست خود پروژه (صفحه‌ی عمومی «نظرات موکلان»):
+ *   فقط موکلان پرونده‌ی بسته‌شده نظر ثبت می‌کنند؛ انتشار با رضایت صاحب نظر (consent)
+ *   و تایید مدیر سامانه (approved) انجام می‌شود؛ نام کامل و جزئیات پرونده منتشر نمی‌شود
+ *   (نام مشتری برای عموم/وکیل به سرواژه‌های «م. ر.» ماسک می‌شود؛ نام کامل فقط برای مدیر).
+ * وکیل صفحه‌ی نظرات خودش را می‌بیند (همه‌ی نظرات پرونده‌هایی که وکیل‌شان است + میانگین).
+ * ========================================================================== */
+const REV_LIMIT = 300;
+const maskName = (n) => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); return w.length ? w.map((x) => x[0] + '.').join(' ') : 'ناشناس'; };
+
+/* صفحه‌ی عمومی «نظرات موکلان» — بدون ورود؛ فقط تاییدشده + با رضایت */
+route('GET', '/api/reviews/public', {}, async () => {
+  const rows = await db.prepare('SELECT r.rating, r.body, r.created_at, cs.category, cl.name AS client_name FROM reviews r LEFT JOIN cases cs ON cs.id=r.case_id LEFT JOIN users cl ON cl.id=r.client_id WHERE r.approved=1 AND r.consent=1 ORDER BY r.created_at DESC, r.id DESC LIMIT 30').all();
+  const agg = await db.prepare('SELECT AVG(rating)::float AS avg, COUNT(*)::int AS cnt FROM reviews WHERE approved=1 AND consent=1').get();
+  return { ok: true, avg: agg.avg || 0, count: agg.cnt || 0, rows: rows.map((r) => ({ rating: r.rating, body: r.body || '', created_at: r.created_at, category: r.category || '', client_initial: maskName(r.client_name) })) };
+});
+
+/* فهرست نقش‌محور: مشتری = نظرات من + پرونده‌های قابل نظر؛ وکیل = نظرات پرونده‌های من (ماسک)؛ مدیر = همه (نام کامل) */
+route('GET', '/api/reviews', isAuth, async (c) => {
+  if (c.user.role === 'client') {
+    const rows = await db.prepare('SELECT r.id, r.case_id, r.rating, r.body, r.consent, r.approved, r.created_at, cs.title AS case_title FROM reviews r LEFT JOIN cases cs ON cs.id=r.case_id WHERE r.client_id=? ORDER BY r.created_at DESC, r.id DESC LIMIT ?').all(c.user.id, REV_LIMIT);
+    const cases = await db.prepare("SELECT cs.id, cs.title, cs.category FROM cases cs WHERE cs.client_id=? AND cs.status='done' AND cs.lawyer_id IS NOT NULL AND cs.id NOT IN (SELECT case_id FROM reviews WHERE client_id=?) ORDER BY cs.updated_at DESC, cs.id DESC LIMIT 50").all(c.user.id, c.user.id);
+    return { ok: true, rows: rows.map((r) => ({ id: r.id, case_id: r.case_id, rating: r.rating, body: r.body || '', consent: !!r.consent, approved: !!r.approved, created_at: r.created_at, case_title: r.case_title || '' })), cases };
+  }
+  if (c.user.role === 'lawyer') {
+    const rows = await db.prepare('SELECT r.*, cs.title AS case_title, cs.category, cl.name AS client_name FROM reviews r LEFT JOIN cases cs ON cs.id=r.case_id LEFT JOIN users cl ON cl.id=r.client_id WHERE r.lawyer_id=? ORDER BY r.created_at DESC, r.id DESC LIMIT ?').all(c.user.id, REV_LIMIT);
+    const agg = await db.prepare('SELECT AVG(rating)::float AS avg, COUNT(*)::int AS cnt FROM reviews WHERE lawyer_id=?').get(c.user.id);
+    return { ok: true, avg: agg.avg || 0, count: agg.cnt || 0, rows: rows.map((r) => ({ id: r.id, case_id: r.case_id, rating: r.rating, body: r.body || '', consent: !!r.consent, approved: !!r.approved, created_at: r.created_at, case_title: r.case_title || '', category: r.category || '', client_initial: maskName(r.client_name) })) };
+  }
+  const rows = await db.prepare('SELECT r.*, cs.title AS case_title, cs.category, cl.name AS client_name, lw.name AS lawyer_name FROM reviews r LEFT JOIN cases cs ON cs.id=r.case_id LEFT JOIN users cl ON cl.id=r.client_id LEFT JOIN users lw ON lw.id=r.lawyer_id ORDER BY r.created_at DESC, r.id DESC LIMIT ?').all(REV_LIMIT);
+  const agg = await db.prepare('SELECT AVG(rating)::float AS avg, COUNT(*)::int AS cnt FROM reviews').get();
+  return { ok: true, avg: agg.avg || 0, count: agg.cnt || 0, rows: rows.map((r) => ({ id: r.id, case_id: r.case_id, rating: r.rating, body: r.body || '', consent: !!r.consent, approved: !!r.approved, created_at: r.created_at, case_title: r.case_title || '', category: r.category || '', client_name: r.client_name || '', lawyer_name: r.lawyer_name || '' })) };
+});
+
+route('POST', '/api/reviews', ROLE('client'), async (c) => {
+  if (!(await rl('rev:' + c.user.id, 10, 3600e3))) throw new HttpError(429, 'سقف ثبت نظر در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const caseId = int(ascii(c.body.case_id), 1, 1e15, 'پرونده');
+  const rating = int(ascii(c.body.rating), 1, 5, 'امتیاز');
+  const body = str(c.body.body, 3, 2000, 'متن نظر');
+  const consent = c.body.consent ? 1 : 0;
+  const cs = await db.prepare('SELECT id, client_id, lawyer_id, status FROM cases WHERE id=?').get(caseId);
+  if (!cs || cs.client_id !== c.user.id) throw new HttpError(404, 'پرونده یافت نشد.'); // بدون افشای وجود پرونده‌ی دیگران
+  if (cs.status !== 'done') throw new HttpError(400, 'فقط پس از بسته‌شدن پرونده می‌توانید نظر ثبت کنید.');
+  if (!cs.lawyer_id) throw new HttpError(400, 'این پرونده وکیل تخصیص‌یافته ندارد.');
+  const dup = await db.prepare('SELECT id FROM reviews WHERE case_id=? AND client_id=?').get(cs.id, c.user.id);
+  if (dup) throw new HttpError(409, 'برای این پرونده قبلاً نظر ثبت شده است.');
+  const r = await db.prepare('INSERT INTO reviews(case_id,client_id,lawyer_id,rating,body,approved,consent,created_at) VALUES(?,?,?,?,?,0,?,?) RETURNING id').run(cs.id, c.user.id, cs.lawyer_id, rating, body, consent, now());
+  await audit(c.user.id, 'review_create', 'review:' + r.lastInsertRowid + ' case:' + cs.id, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+/* تایید/رد انتشار — فقط مدیر (میزان‌رسی؛ UI مدیر در گام لاگ/CMS طبق نقشه راه) */
+route('PATCH', '/api/reviews/:id', ROLE('admin'), async (c) => {
+  const ap = c.body.approved ? 1 : 0;
+  const rv = await db.prepare('SELECT * FROM reviews WHERE id=?').get(c.params.id);
+  if (!rv) throw new HttpError(404, 'نظر یافت نشد.'); // بدون افشا
+  await db.prepare('UPDATE reviews SET approved=? WHERE id=?').run(ap, rv.id);
+  await audit(c.user.id, ap ? 'review_approve' : 'review_unapprove', 'review:' + rv.id, c.ip);
+  return { ok: true };
+});
+
+route('DELETE', '/api/reviews/:id', ROLE('admin'), async (c) => {
+  const rv = await db.prepare('SELECT id FROM reviews WHERE id=?').get(c.params.id);
+  if (!rv) throw new HttpError(404, 'نظر یافت نشد.'); // بدون افشا
+  await db.prepare('DELETE FROM reviews WHERE id=?').run(rv.id);
+  await audit(c.user.id, 'review_delete', 'review:' + rv.id, c.ip);
+  return { ok: true };
 });
 
 /* ---------- API dispatcher (identical flow) ---------- */
