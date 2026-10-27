@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    { "src": "api/[[...path]].js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 30 } },
+    { "src": "api/html.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } },
+    { "src": "api/notfound.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/[[...path]].js" },
+    { "src": "/", "dest": "/api/html.js" },
+    { "src": "/(.*)", "dest": "/api/notfound.js" }
+  ]
+}

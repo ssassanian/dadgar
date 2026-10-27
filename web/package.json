@@ -1,0 +1,8 @@
+{
+  "name": "dadgar-web",
+  "version": "1.0.0",
+  "description": "Dadgar law institute website — Vercel+Supabase migration layer (CMD-002). Original source: ../dadgar (frozen reference).",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "dependencies": { "postgres": "^3.4.7" }
+}
