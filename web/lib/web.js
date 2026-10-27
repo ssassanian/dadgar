@@ -445,6 +445,72 @@ route('PATCH', '/api/appointments/:id', isAuth, async (c) => {
   return { ok: true };
 });
 
+/* ---------- CMD-005 — فاز ۳ گام ۳: مالی (invoices) ----------
+ * جدول invoices بدون تغییر اسکیما: id, case_id(NULL=فاکتور دستی), client_id, amount,
+ * status(pending|paid), created_at, paid_at.
+ * دسترسی: مشتری فقط فاکتورهای خودش؛ مدیر همه به‌همراه نام مشتری و نام وکیل (وکیل از طریق
+ * پرونده‌ی متصل به فاکتور)؛ وکیل صفحه مالی ندارد → 403.
+ * صدور فاکتور دستی و تعیین تکلیف پرداخت (ثبت پرداخت / بازکردن) فقط برای مدیر.
+ * مرزهای دوره‌ی شمسی (ثابت تهران UTC+3:30) با BK_MONTH_START هماهنگ است:
+ *   «این ماه» = آبان ۱۴۰۵ از BK_MONTH_START، «سه ماه» = از مهر ۱ (−۳۰ روز)، «امسال» = فروردین ۱.
+ * تصمیم‌های طراحی باز (ثبت‌شده در CMD-005؛ نیازمند دستور مدیر):
+ *   - اتصال درگاه پرداخت آنلاین (دکمه «پرداخت آنلاین» مشتری فعلاً نمایشی می‌ماند)
+ *   - خروجی PDF/اکسل گزارش درآمد و «دانلود PDF» فاکتور
+ *   - ستون «شرح/عنوان فاکتور» در اسکیما وجود ندارد؛ فرم صدور دستی = مشتری + مبلغ (case_id اختیاری)
+ * ========================================================================== */
+const INV_LIMIT = 300;
+route('GET', '/api/invoices', isAuth, async (c) => {
+  if (c.user.role === 'lawyer') throw new HttpError(403, 'دسترسی ندارید.');
+  const n = now();
+  const SEL = 'SELECT i.*, cl.name AS client_name, lw.name AS lawyer_name FROM invoices i LEFT JOIN users cl ON cl.id=i.client_id LEFT JOIN cases cs ON cs.id=i.case_id LEFT JOIN users lw ON lw.id=cs.lawyer_id';
+  let rows;
+  if (c.user.role === 'client') rows = await db.prepare(SEL + ' WHERE i.client_id=? ORDER BY i.created_at DESC, i.id DESC LIMIT ?').all(c.user.id, INV_LIMIT);
+  else rows = await db.prepare(SEL + ' ORDER BY i.created_at DESC, i.id DESC LIMIT ?').all(INV_LIMIT);
+  return {
+    ok: true, now: n, today_d: Math.min(31, Math.max(1, bkDayOf(n))),
+    rows: rows.map((r) => {
+      const o = { id: r.id, amount: r.amount, status: r.status, created_at: r.created_at, paid_at: r.paid_at, case_id: r.case_id || null };
+      if (c.user.role === 'admin') { o.client_name = r.client_name || ''; o.lawyer_name = r.lawyer_name || ''; }
+      return o;
+    })
+  };
+});
+
+route('POST', '/api/invoices', ROLE('admin'), async (c) => {
+  if (!(await rl('bill:' + c.user.id, 30, 3600e3))) throw new HttpError(429, 'سقف صدور فاکتور در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const clientId = int(ascii(c.body.client_id), 1, 1e15, 'مشتری');
+  const amount = int(ascii(c.body.amount), 1000, 10 * 1000 * 1000 * 1000, 'مبلغ فاکتور');
+  let caseId = null;
+  if (c.body.case_id != null && c.body.case_id !== '') {
+    caseId = int(ascii(c.body.case_id), 1, 1e15, 'پرونده');
+    const cs = await db.prepare('SELECT id FROM cases WHERE id=? AND client_id=?').get(caseId, clientId);
+    if (!cs) throw new HttpError(400, 'پرونده‌ی انتخاب‌شده متعلق به این مشتری نیست.');
+  }
+  const cl = await db.prepare("SELECT id FROM users WHERE id=? AND role='client'").get(clientId);
+  if (!cl) throw new HttpError(404, 'مشتری یافت نشد.');
+  const r = await db.prepare("INSERT INTO invoices(case_id,client_id,amount,status,created_at) VALUES(?,?,?,'pending',?) RETURNING id").run(caseId, clientId, amount, now());
+  await audit(c.user.id, 'invoice_create', 'invoice:' + r.lastInsertRowid, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+route('PATCH', '/api/invoices/:id', ROLE('admin'), async (c) => {
+  const st = oneOf(c.body.status, ['paid', 'pending'], 'وضعیت');
+  const inv = await db.prepare('SELECT * FROM invoices WHERE id=?').get(c.params.id);
+  if (!inv) throw new HttpError(404, 'فاکتور یافت نشد.'); // بدون افشای وجود فاکتور دیگران
+  if (st === 'paid' && inv.status !== 'pending') throw new HttpError(400, 'فقط فاکتور «در انتظار» قابل پرداخت است.');
+  if (st === 'pending' && inv.status !== 'paid') throw new HttpError(400, 'این فاکتور پرداخت‌نشده است؛ بازکردنی در کار نیست.');
+  await db.prepare('UPDATE invoices SET status=?, paid_at=? WHERE id=?').run(st, st === 'paid' ? now() : null, inv.id);
+  await audit(c.user.id, st === 'paid' ? 'invoice_mark_paid' : 'invoice_reopen', 'invoice:' + inv.id, c.ip);
+  return { ok: true };
+});
+
+/* فهرست حداقلی کاربران برای فرم «صدور فاکتور دستی» مدیر — فقط شناسه/نام/نقش، بدون اطلاعات تماس */
+route('GET', '/api/users', ROLE('admin'), async (c) => {
+  const role = oneOf(c.query.role || 'client', ['client', 'lawyer'], 'نقش');
+  const rows = await db.prepare('SELECT id, name, role, created_at FROM users WHERE role=? ORDER BY name ASC, id ASC LIMIT 500').all(role);
+  return { ok: true, rows };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);
