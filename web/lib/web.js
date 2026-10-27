@@ -13,7 +13,7 @@
  *  7) serveStatic فقط از پوشه dynamic/ سرو می‌کند (فقط index.html وجود دارد) — همان CSP nonce
  * ===================================================================== */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
-const cfg = require('./config'), sec = require('./security'), { db, now, audit } = require('./db.pg'), sendSms = require('./sms');
+const cfg = require('./config'), sec = require('./security'), { db, now, audit, tx, toPg } = require('./db.pg'), sendSms = require('./sms');
 const PUB = path.join(__dirname, '..', 'dynamic');
 const COOKIE = cfg.cookieSecure ? '__Host-sid' : 'sid';
 class HttpError extends Error { constructor(s, m) { super(m); this.s = s; } }
@@ -227,6 +227,154 @@ route('POST', '/api/auth/register', {}, async (c) => {
     await db.prepare("INSERT INTO users(role,name,phone_hash,phone_last4,phone_enc,password_hash,status,created_at) VALUES('client',?,?,?,?,?,'pending',?)").run(name, ph, phone.slice(-4), sec.encText(phone, 'user.phone'), hash, now());
   const code = await issueOtp(phone, c.ip); await audit(null, 'register_request', phone.slice(-4), c.ip);
   return Object.assign({ ok: true, expiresIn: 120 }, cfg.showOtp ? { devCode: code } : {}); // same answer whether or not the phone existed
+});
+
+/* ---------- CMD-003 — فاز ۳ گام ۱: چرخه پرونده (cases + proposals) ----------
+ * وضعیت‌ها مطابق اسکیمای مرجع: waiting → proposing → assigned → running → done
+ * «running/done» در گام‌های بعدی (گزارش کار/بستن پرونده) وصل می‌شوند.
+ * امنیت: توضیحات پرونده و یادداشت پیشنهاد با AES-256-GCM (encText) در دیتابیس ذخیره می‌شوند.
+ * حریم خصوصی: نام/شماره مشتری فقط به خودش و مدیر می‌رسد؛ وکیلِ ناشناس فقط خلاصه را می‌بیند.
+ * ========================================================================== */
+const CASES_PER = 10, EXCERPT_LEN = 160;
+
+function caseListRow(r, ctx) {
+  const o = { id: r.id, title: r.title, category: r.category, status: r.status, created_at: r.created_at, updated_at: r.updated_at, final_price: r.final_price, client_id: r.client_id, lawyer_id: r.lawyer_id, lawyer_name: r.lawyer_name || '' };
+  if (ctx.excerpt) o.excerpt = String(sec.decText(r.description_enc, 'case.description') || '').slice(0, EXCERPT_LEN);
+  if (ctx.clientInfo) { o.client_name = r.client_name || ''; o.client_phone = r.phone_last4 ? '0•••••' + r.phone_last4 : ''; }
+  return o;
+}
+
+route('GET', '/api/cases', isAuth, async (c) => {
+  const page = Math.max(1, int(ascii(c.query.page || '1') || '1', 1, 500, 'صفحه'));
+  const off = (page - 1) * CASES_PER;
+  const SEL = 'SELECT cs.*, cl.name AS client_name, cl.phone_last4, lw.name AS lawyer_name FROM cases cs LEFT JOIN users cl ON cl.id=cs.client_id LEFT JOIN users lw ON lw.id=cs.lawyer_id';
+  let rows, total, ctx = {};
+  if (c.user.role === 'client') {
+    total = (await db.prepare('SELECT COUNT(*) n FROM cases WHERE client_id=?').get(c.user.id)).n;
+    rows = await db.prepare(SEL + ' WHERE cs.client_id=? ORDER BY cs.created_at DESC, cs.id DESC LIMIT ? OFFSET ?').all(c.user.id, CASES_PER, off);
+  } else if (c.user.role === 'lawyer' && c.query.scope === 'open') {
+    // پرونده‌های درجریانِ پیشنهاد — بدون مشخصات مشتری، با خلاصه (سقف ۵۰)
+    rows = await db.prepare(SEL + " WHERE cs.status IN('waiting','proposing') ORDER BY cs.created_at DESC, cs.id DESC LIMIT 50").all();
+    total = rows.length;
+    ctx.excerpt = true;
+    return { ok: true, rows: rows.map((r) => caseListRow(r, ctx)), page: 1, pages: 1, total };
+  } else if (c.user.role === 'lawyer') {
+    total = (await db.prepare('SELECT COUNT(*) n FROM cases WHERE lawyer_id=?').get(c.user.id)).n;
+    rows = await db.prepare(SEL + ' WHERE cs.lawyer_id=? ORDER BY cs.created_at DESC, cs.id DESC LIMIT ? OFFSET ?').all(c.user.id, CASES_PER, off);
+  } else {
+    total = (await db.prepare('SELECT COUNT(*) n FROM cases').get()).n;
+    rows = await db.prepare(SEL + ' ORDER BY cs.created_at DESC, cs.id DESC LIMIT ? OFFSET ?').all(CASES_PER, off);
+    ctx.clientInfo = true;
+  }
+  return { ok: true, rows: rows.map((r) => caseListRow(r, ctx)), page, pages: Math.max(1, Math.ceil(total / CASES_PER)), total };
+});
+
+route('POST', '/api/cases', ROLE('client'), async (c) => {
+  if (!(await rl('case:' + c.user.id, 5, 3600e3))) throw new HttpError(429, 'سقف ثبت پرونده در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const category = oneOf(c.body.category, CATS, 'دسته‌بندی');
+  const title = str(c.body.title, 5, 120, 'عنوان پرونده');
+  const description = c.body.description == null ? '' : str(c.body.description, 0, 5000, 'توضیحات');
+  const n = now();
+  const r = await db.prepare("INSERT INTO cases(client_id,category,title,description_enc,status,created_at,updated_at) VALUES(?,?,?,?,'waiting',?,?) RETURNING id")
+    .run(c.user.id, category, title, sec.encText(description, 'case.description'), n, n);
+  await audit(c.user.id, 'case_create', 'case:' + r.lastInsertRowid, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+route('GET', '/api/cases/:id', isAuth, async (c) => {
+  const cs = await db.prepare('SELECT cs.*, cl.name AS client_name, cl.phone_last4, lw.name AS lawyer_name FROM cases cs LEFT JOIN users cl ON cl.id=cs.client_id LEFT JOIN users lw ON lw.id=cs.lawyer_id WHERE cs.id=?').get(c.params.id);
+  if (!cs) throw new HttpError(404, 'پرونده یافت نشد.');
+  const me = c.user;
+  let canSee = false, full = false;
+  if (me.role === 'admin') { canSee = true; full = true; }
+  else if (me.role === 'client') { canSee = cs.client_id === me.id; full = true; }
+  else if (me.role === 'lawyer') { canSee = cs.lawyer_id === me.id || cs.status === 'waiting' || cs.status === 'proposing'; full = cs.lawyer_id === me.id; }
+  if (!canSee) throw new HttpError(404, 'پرونده یافت نشد.'); // بدون افشای وجود پرونده
+  const o = { ok: true, id: cs.id, title: cs.title, category: cs.category, status: cs.status, created_at: cs.created_at, updated_at: cs.updated_at, final_price: cs.final_price, lawyer_name: cs.lawyer_name || '' };
+  if (full) o.description = sec.decText(cs.description_enc, 'case.description');
+  else o.excerpt = String(sec.decText(cs.description_enc, 'case.description') || '').slice(0, EXCERPT_LEN);
+  if (me.role === 'admin') { o.client_name = cs.client_name || ''; o.client_phone = cs.phone_last4 ? '0•••••' + cs.phone_last4 : ''; }
+  if (me.role === 'admin') {
+    const ps = await db.prepare('SELECT p.*, u.name AS lawyer_name FROM proposals p LEFT JOIN users u ON u.id=p.lawyer_id WHERE p.case_id=? ORDER BY p.created_at ASC, p.id ASC').all(cs.id);
+    o.proposals = ps.map((p) => ({ id: p.id, lawyer_name: p.lawyer_name || '', amount: p.amount, days: p.days, note: sec.decText(p.note_enc, 'proposal.note'), status: p.status, created_at: p.created_at }));
+  }
+  if (me.role === 'lawyer') {
+    const mine = await db.prepare('SELECT * FROM proposals WHERE case_id=? AND lawyer_id=?').get(cs.id, me.id);
+    o.my_proposal = mine ? { id: mine.id, amount: mine.amount, days: mine.days, note: sec.decText(mine.note_enc, 'proposal.note'), status: mine.status, created_at: mine.created_at } : null;
+  }
+  return o;
+});
+
+route('PATCH', '/api/cases/:id', ROLE('admin'), async (c) => {
+  const cs = await db.prepare('SELECT * FROM cases WHERE id=?').get(c.params.id);
+  if (!cs) throw new HttpError(404, 'پرونده یافت نشد.');
+  if (c.body.final_price !== undefined) {
+    const fp = int(c.body.final_price, 0, 10 * 1000 * 1000 * 1000, 'مبلغ نهایی');
+    await db.prepare('UPDATE cases SET final_price=?,updated_at=? WHERE id=?').run(fp, now(), cs.id);
+    await audit(c.user.id, 'case_final_price', 'case:' + cs.id, c.ip);
+  }
+  return { ok: true };
+});
+
+route('POST', '/api/cases/:id/proposals', ROLE('lawyer'), async (c) => {
+  const amount = int(c.body.amount, 1000, 10 * 1000 * 1000 * 1000, 'مبلغ پیشنهادی');
+  const days = int(c.body.days, 1, 3650, 'مدت زمان');
+  const note = c.body.note == null ? '' : str(c.body.note, 0, 2000, 'یادداشت');
+  const cs = await db.prepare('SELECT * FROM cases WHERE id=?').get(c.params.id);
+  if (!cs || (cs.status !== 'waiting' && cs.status !== 'proposing')) throw new HttpError(404, 'این پرونده در مرحله‌ی دریافت پیشنهاد نیست.');
+  if (await db.prepare('SELECT 1 FROM proposals WHERE case_id=? AND lawyer_id=?').get(cs.id, c.user.id)) throw new HttpError(409, 'شما قبلاً برای این پرونده پیشنهاد ثبت کرده‌اید؛ همان را ویرایش کنید.');
+  const r = await db.prepare("INSERT INTO proposals(case_id,lawyer_id,amount,days,note_enc,status,created_at) VALUES(?,?,?,?,?,'pending',?) RETURNING id")
+    .run(cs.id, c.user.id, amount, days, sec.encText(note, 'proposal.note'), now());
+  await db.prepare("UPDATE cases SET status='proposing',updated_at=? WHERE id=? AND status='waiting'").run(now(), cs.id);
+  await audit(c.user.id, 'proposal_create', 'case:' + cs.id, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+route('GET', '/api/proposals', ROLE('lawyer'), async (c) => {
+  const ps = await db.prepare('SELECT p.*, cs.title AS case_title, cs.status AS case_status FROM proposals p LEFT JOIN cases cs ON cs.id=p.case_id WHERE p.lawyer_id=? ORDER BY p.created_at DESC, p.id DESC LIMIT 100').all(c.user.id);
+  return { ok: true, rows: ps.map((p) => ({ id: p.id, case_id: p.case_id, case_title: p.case_title || '', case_status: p.case_status || '', amount: p.amount, days: p.days, status: p.status, created_at: p.created_at })) };
+});
+
+async function ownPendingProposal(c) {
+  const p = await db.prepare('SELECT p.*, cs.status AS case_status FROM proposals p LEFT JOIN cases cs ON cs.id=p.case_id WHERE p.id=? AND p.lawyer_id=?').get(c.params.id, c.user.id);
+  if (!p) throw new HttpError(404, 'پیشنهاد یافت نشد.');
+  if (p.status !== 'pending') throw new HttpError(400, 'فقط پیشنهاد «در انتظار» قابل تغییر است.');
+  if (p.case_status !== 'waiting' && p.case_status !== 'proposing') throw new HttpError(400, 'این پرونده دیگر در مرحله‌ی پیشنهاد نیست.');
+  return p;
+}
+
+route('PATCH', '/api/proposals/:id', ROLE('lawyer'), async (c) => {
+  const p = await ownPendingProposal(c);
+  const amount = int(c.body.amount, 1000, 10 * 1000 * 1000 * 1000, 'مبلغ پیشنهادی');
+  const days = int(c.body.days, 1, 3650, 'مدت زمان');
+  const note = c.body.note == null ? '' : str(c.body.note, 0, 2000, 'یادداشت');
+  await db.prepare('UPDATE proposals SET amount=?,days=?,note_enc=? WHERE id=?').run(amount, days, sec.encText(note, 'proposal.note'), p.id);
+  await audit(c.user.id, 'proposal_edit', 'case:' + p.case_id, c.ip);
+  return { ok: true };
+});
+
+route('DELETE', '/api/proposals/:id', ROLE('lawyer'), async (c) => {
+  const p = await ownPendingProposal(c);
+  await db.prepare('DELETE FROM proposals WHERE id=?').run(p.id);
+  // اگر آخرین پیشنهاد بود، پرونده به «در انتظار بررسی» برمی‌گردد
+  await db.prepare("UPDATE cases SET status='waiting',updated_at=? WHERE id=? AND status='proposing' AND NOT EXISTS(SELECT 1 FROM proposals WHERE case_id=?)").run(now(), p.case_id, p.case_id);
+  await audit(c.user.id, 'proposal_delete', 'case:' + p.case_id, c.ip);
+  return { ok: true };
+});
+
+route('POST', '/api/proposals/:id/accept', ROLE('admin'), async (c) => {
+  const p = await db.prepare('SELECT p.*, cs.status AS case_status FROM proposals p LEFT JOIN cases cs ON cs.id=p.case_id WHERE p.id=?').get(c.params.id);
+  if (!p) throw new HttpError(404, 'پیشنهاد یافت نشد.');
+  if (p.status !== 'pending') throw new HttpError(400, 'این پیشنهاد قبلاً تعیین تکلیف شده است.');
+  if (p.case_status !== 'waiting' && p.case_status !== 'proposing') throw new HttpError(400, 'این پرونده دیگر در مرحله‌ی پیشنهاد نیست.');
+  const n = now();
+  await tx(async (t) => { // اتمیک: تایید یکی، رد بقیه، تخصیص وکیل
+    await t.sql.unsafe(toPg("UPDATE proposals SET status='accepted' WHERE id=?"), [p.id]);
+    await t.sql.unsafe(toPg("UPDATE proposals SET status='rejected' WHERE case_id=? AND id<>? AND status='pending'"), [p.case_id, p.id]);
+    await t.sql.unsafe(toPg("UPDATE cases SET lawyer_id=?,final_price=?,status='assigned',updated_at=? WHERE id=?"), [p.lawyer_id, p.amount, n, p.case_id]);
+  });
+  await audit(c.user.id, 'proposal_accept', 'case:' + p.case_id + ' lawyer:' + p.lawyer_id, c.ip);
+  return { ok: true };
 });
 
 /* ---------- API dispatcher (identical flow) ---------- */

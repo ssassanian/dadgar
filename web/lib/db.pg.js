@@ -74,4 +74,4 @@ const audit = (uid, action, detail, ip) => db.prepare(
 /* tx در فاز ۱ و ۲ کد اصلی استفاده نمی‌شود؛ برای سازگاری آینده از sql.begin استفاده می‌کند */
 const tx = (fn) => sql.begin(async (tsx) => fn({ sql: tsx, now }));
 
-module.exports = { sql, db, now, audit, tx };
+module.exports = { sql, db, now, audit, tx, toPg };
