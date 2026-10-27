@@ -573,6 +573,40 @@ if(v===''){toast('مبلغ نهایی را وارد کنید');return}
 if(!/^\d+$/.test(v)){toast('مبلغ باید عدد باشد');return}
 busy(b,1);api('PATCH','cases/'+cid,{final_price:+v}).then(function(r){busy(b,0);if(r.ok){toast('قیمت نهایی ثبت شد');if(CL.cd&&CL.cd.id===cid)CL.cd.final_price=+v}else toast(r.j.error||'ثبت ناموفق بود.')})}
 
+/* ---------- CMD-004 فاز ۳ گام ۲ — نوبت‌دهی: صفحات واقعی (VR) ---------- */
+var BKAB1=Date.UTC(2026,9,22,20,30,0)/1000; /* ۱۴۰۵/۰۸/۰۱ ۰۰:۰۰ تهران (UTC+3:30 ثابت) — هماهنگ با web.js */
+var BKSLOTS=[['۰۹:۰۰',540],['۱۰:۳۰',630],['۱۲:۰۰',720],['۱۶:۰۰',960],['۱۷:۳۰',1050]];
+var BKST={booked:['رزرو‌شده',1],confirmed:['تایید‌شده',6],canceled:['لغو‌شده',5]};
+var AP={on:0,uid:null,rows:null,taken:null,now:0,today:1};
+function bkSt(s){var b=BKST[s]||BKST.booked;return tk(b[0],b[1])}
+function bkWhen(r){return (r.day>=1&&r.day<=30)?fa(r.day)+' آبان، ساعت '+r.slot:jdate(r.starts_at)}
+function apNeed(){if(AP.rows&&AP.uid===(U&&U.id))return 1;AP.uid=U&&U.id;apFetch();return 0}
+function apFetch(){api('GET','appointments').then(function(r){if(r.ok){AP.rows=r.j.rows;AP.taken=r.j.taken||[];AP.now=r.j.now;AP.today=r.j.today_d;render(0)}else toast(r.j.error||'دریافت نوبت‌ها ناموفق بود.')})}
+function apBusyDays(){var t={};for(var i=0;i<AP.taken.length;i++)t[AP.taken[i].d]=1;return t}
+function calR(mode){var bd=apBusyDays(),h='<div class="cal"><div class="chh">آبان ۱۴۰۵</div><div class="cgd">'+['ش','ی','د','س','چ','پ','ج'].map(function(d){return '<i>'+d+'</i>'}).join('')+'<i></i><i></i><i></i><i></i><i></i><i></i>';
+for(var n=1;n<=30;n++){var dis=(mode=='c')&&(((n+5)%7==6)||(AP.today&&n<AP.today));h+='<button class="dy'+(S.day==n?' on':'')+(bd[n]?' bz':'')+'" data-day="'+n+'"'+(dis?' disabled':'')+'>'+fa(n)+'</button>'}
+return h+'</div></div>'}
+function apSlotsHTML(){var tkd={};for(var i=0;i<AP.taken.length;i++)tkd[AP.taken[i].d+'|'+AP.taken[i].j]=1;
+return '<div class="sl">'+BKSLOTS.map(function(s){var past=S.day>0&&S.day<AP.today,past2=S.day>0&&S.day==AP.today&&(BKAB1+(S.day-1)*86400+s[1]*60)<=AP.now,dis=tkd[S.day+'|'+s[0]]||past||past2;
+return '<button data-slot="'+s[0]+'" class="'+(S.slot==s[0]?'on':'')+'"'+(dis?' disabled':'')+'>'+s[0]+'</button>'}).join('')+'</div>'}
+function bookedList(){var rs=(AP.rows||[]).filter(function(r){return r.status!='canceled'});
+return card('نوبت‌های رزرو‌شده',rs.length?rs.map(function(r){var can=r.starts_at>AP.now;
+return '<div class="pb"><span>'+bkWhen(r)+' · '+esc(r.kind)+' '+bkSt(r.status)+'</span><span class="row">'+(can?'<button class="btn sm n" data-bkx="'+r.id+'">لغو</button>':'')+'</span></div>'}).join(''):'<p style="opacity:.6">هنوز نوبتی رزرو نکرده‌اید.</p>')}
+VR.cBook=function(){AP.on=1;if(!apNeed())return listWait('رزرو نوبت');
+return '<h2 class="dh">رزرو نوبت</h2><div class="g2"><div class="card2"><div class="row" style="align-items:flex-start">'+calR('c')+'<div style="flex:1;min-width:230px"><h3>زمان‌های خالی</h3><div id="sl" data-bk="1">'+apSlotsHTML()+'</div><h3 style="margin-top:18px">نوع ملاقات</h3><div class="fc" data-ty>'+['حضوری','آنلاین','تلفنی'].map(function(x){return '<button data-ty="'+x+'" class="'+(S.ty==x?'on':'')+'">'+x+'</button>'}).join('')+'</div><div style="margin-top:18px">'+btn('تایید نوبت','','data-book')+'</div></div></div></div>'+bookedList()};
+function realBook(){if(!S.day||!S.slot){toast('روز و ساعت را انتخاب کنید');return}
+modal('تایید نوبت','نوبت '+S.ty+' در '+fa(S.day)+' آبان ساعت '+S.slot+' ثبت شود؟',function(){api('POST','appointments',{day:S.day,slot:S.slot,kind:S.ty}).then(function(r){if(r.ok){toast('نوبت شما ثبت شد');AP.rows=null;apFetch()}else toast(r.j.error||'ثبت نوبت ناموفق بود.')})})}
+function lawyerList(){var rs=(AP.rows||[]).filter(function(r){return r.status!='canceled'});
+return rs.length?rs.map(function(r){return '<div class="pb"><b>'+bkWhen(r)+'</b><span>مراجعه‌کننده #'+fa(r.client_id)+' · '+esc(r.kind)+' '+bkSt(r.status)+'</span></div>'}).join(''):'<p style="opacity:.6">فعلاً نوبتی ثبت نشده است.</p>'}
+VR.lCal=function(){AP.on=1;if(!apNeed())return listWait('تقویم من');
+return '<h2 class="dh">تقویم من</h2><div class="g2"><div class="card2"><h3>بازه‌های روز انتخابی</h3><div class="row" style="align-items:flex-start">'+calR('v')+'<div style="flex:1;min-width:230px"><b>'+(S.day?fa(S.day)+' آبان':'برای دیدن بازه‌ها یک روز را انتخاب کنید')+'</b><div style="margin:12px 0">'+apSlotsHTML()+'</div><small style="opacity:.65">بازه‌های اشغال‌شده بر اساس نوبت‌های ثبت‌شده غیرفعال‌اند؛ تعیین بازه‌های دلخواه وکیل نیازمند جدول «در دسترس» و تصمیم مدیر است.</small></div></div></div>'+card('نوبت‌های رزرو‌شده',lawyerList())+'</div>'};
+function aAppTbl(){var rs=AP.rows||[];if(!rs.length)return '<p style="opacity:.6">هنوز نوبتی ثبت نشده است.</p>';
+return '<p style="margin-bottom:10px">نام مشتری/وکیل فقط برای مدیر نمایش داده می‌شود. «جابجایی» نوبت پس از تصمیم طراحی (تقویم ویرایشی) اضافه می‌شود.</p>'+tbl(['زمان','مشتری','وکیل','وضعیت','عملیات'],rs.map(function(r){
+var ops=r.status=='canceled'?'—':'<span class="row">'+(r.status=='booked'?'<button class="btn sm" data-bkok="'+r.id+'">تایید</button>':'')+'<button class="btn sm n" data-bkx="'+r.id+'">رد</button></span>';
+return tr([bkWhen(r),esc(r.client_name||'—'),esc(r.lawyer_name||'—'),bkSt(r.status),ops])}))}
+VR.aApp=function(){AP.on=1;if(!apNeed())return listWait('مدیریت نوبت‌دهی');
+return '<h2 class="dh">مدیریت نوبت‌دهی</h2><div class="g2"><div class="card2"><h3>تقویم کلی دفتر</h3>'+calR('v')+'</div>'+card('نوبت‌ها',aAppTbl())+'</div>'};
+
 /* ---------- shell, router, events ---------- */
 function toast(m){var t=document.createElement('div');t.className='ts';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove()},3000)}
 function modal(t,m,ok){var d=document.createElement('div');d.className='md';d.innerHTML='<div role="dialog" aria-modal="true"><h3>'+t+'</h3><p>'+m+'</p><div class="row"><button class="btn sm" data-y>تایید<span class="ar">←</span></button><button class="btn sm o" style="color:var(--ink)" data-n>انصراف</button></div></div>';document.body.appendChild(d);d.addEventListener('click',function(e){if(e.target==d||e.target.closest('[data-n]'))d.remove();else if(e.target.closest('[data-y]')){d.remove();ok()}})}
@@ -595,10 +629,12 @@ if(a=t.closest('.top a[href^="#"]')){var hr=a.getAttribute('href');if(hr.length>
 if(a=t.closest('[data-ti]')){var p=a.dataset.ti.split(':'),g=a.parentNode;$$('button',g).forEach(function(b){b.classList.toggle('on',b==a)});$$('[data-tp]',g.parentNode).forEach(function(x){var q=x.dataset.tp.split(':');if(q[0]==p[0])x.classList.toggle('on',q[1]==p[1])});return}
 if(a=t.closest('[data-fc]')){$$('[data-fc]',a.parentNode).forEach(function(b){b.classList.toggle('on',b==a)});applyF(a.closest('.fl'));return}
 if(a=t.closest('[data-pg]')){S.pg=+a.dataset.pg;render(0);return}
+if(!DEMO&&AP.on&&(a=t.closest('[data-day]'))){var sl=$('#sl');if(!sl||sl.dataset.bk){S.day=+a.dataset.day;S.slot='';var g=a.closest('.cal');$$('.dy',g).forEach(function(b){b.classList.toggle('on',b==a)});if(sl)sl.innerHTML=apSlotsHTML();return}}
 if(a=t.closest('[data-day]')){S.day=+a.dataset.day;S.slot='';var g=a.closest('.cal');$$('.dy',g).forEach(function(b){b.classList.toggle('on',b==a)});var sl=$('#sl');if(sl)sl.innerHTML=slots();return}
 if(a=t.closest('[data-slot]')){S.slot=a.dataset.slot;$$('[data-slot]',a.parentNode).forEach(function(b){b.classList.toggle('on',b==a)});return}
 if(a=t.closest('button[data-ty]')){S.ty=a.dataset.ty;$$('button',a.parentNode).forEach(function(b){b.classList.toggle('on',b==a)});return}
 if(a=t.closest('[data-tg1]')){a.classList.toggle('on');return}
+if(!DEMO&&(a=t.closest('[data-book]'))){realBook();return}
 if(a=t.closest('[data-book]')){if(!S.day||!S.slot){toast('روز و ساعت را انتخاب کنید');return}modal('تایید نوبت','نوبت '+S.ty+' در '+fa(S.day)+' آبان ساعت '+S.slot+' ثبت شود؟',function(){toast('نوبت شما ثبت شد')});return}
 if(a=t.closest('[data-rt]')){S.rate=+a.dataset.rt;$$('[data-rt]',a.parentNode).forEach(function(b){b.classList.toggle('on',+b.dataset.rt<=S.rate)});return}
 if(a=t.closest('[data-wc]')){S.wd.cat=a.dataset.wc;render(0);return}
@@ -607,6 +643,8 @@ if(!DEMO&&(a=t.closest('[data-pr]'))){realProposalSubmit(a);return}
 if(!DEMO&&(a=t.closest('[data-dp]'))){var dpid=+a.dataset.dp;modal('حذف پیشنهاد','پیشنهاد حذف شود؟',function(){api('DELETE','proposals/'+dpid).then(function(r){if(r.ok){toast('پیشنهاد حذف شد');clin()}else toast(r.j.error||'حذف ناموفق بود.');render(0)})});return}
 if(!DEMO&&(a=t.closest('[data-fp]'))){realFinalPrice(a);return}
 if(!DEMO&&(a=t.closest('[data-ok]'))){var okid=+a.dataset.ok,oknm=a.dataset.nm||'';modal('تایید پیشنهاد','پیشنهاد '+oknm+' تایید و بقیه‌ی پیشنهادها رد شوند؟',function(){api('POST','proposals/'+okid+'/accept').then(function(r){if(r.ok){toast('پیشنهاد تایید شد؛ وکیل به پرونده تخصیص یافت.');clin();delete CL.cd}else toast(r.j.error||'تایید ناموفق بود.');render(0)})});return}
+if(!DEMO&&(a=t.closest('[data-bkok]'))){var bko=+a.dataset.bkok;modal('تایید نوبت','این نوبت تایید شود؟',function(){api('PATCH','appointments/'+bko,{status:'confirmed'}).then(function(r){if(r.ok){toast('نوبت تایید شد');AP.rows=null;apFetch()}else toast(r.j.error||'تایید ناموفق بود.')})});return}
+if(!DEMO&&(a=t.closest('[data-bkx]'))){var bkx=+a.dataset.bkx;modal('لغو نوبت','آیا از لغو این نوبت مطمئن هستید؟',function(){api('PATCH','appointments/'+bkx,{status:'canceled'}).then(function(r){if(r.ok){toast('نوبت لغو شد');AP.rows=null;apFetch()}else toast(r.j.error||'لغو ناموفق بود.')})});return}
 if(a=t.closest('[data-w]')){var k=a.dataset.w;if(S.w==2&&$('#wt')){S.wd.t=$('#wt').value;S.wd.d=$('#wds').value}if(k=='n'){if(S.w==1&&!S.wd.cat){toast('یک دسته‌بندی انتخاب کنید');return}S.w++}else if(k=='p')S.w--;else{toast('پرونده‌ی شما ثبت شد');S.w=1;S.wd={cat:'',t:'',d:'',f:0};location.hash='#/c/cases';return}render(0);return}
 if(a=t.closest('[data-ok]')){var id=+a.dataset.ok;modal('تایید پیشنهاد','پیشنهاد '+a.dataset.nm+' تایید و بقیه‌ی پیشنهادها رد شوند؟',function(){S.ap=id;render(0);toast('پیشنهاد تایید شد')});return}
 if(a=t.closest('[data-md]')){var q=a.dataset.md.split('|');modal(q[0],q[1],function(){toast(q[2])});return}

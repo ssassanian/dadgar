@@ -377,6 +377,74 @@ route('POST', '/api/proposals/:id/accept', ROLE('admin'), async (c) => {
   return { ok: true };
 });
 
+/* ---------- CMD-004 — فاز ۳ گام ۲: نوبت‌دهی (appointments) ----------
+ * تقویم مرجع همان تقویم نمایشی خود پروژه است: ماه «آبان ۱۴۰۵»، روزهای ۱..۳۰، ۵ بازه‌ی ثابت.
+ * starts_at = epoch-seconds لحظه‌ی تهران (UTC+03:30 ثابت — ایران از ۱۴۰۱ ساعت تابستانی ندارد).
+ * وضعیت‌ها مطابق UI مرجع: booked → confirmed (تایید مدیر) / canceled (لغو مشتری یا رد مدیر).
+ * حریم خصوصی: وکیل فقط «مراجعه‌کننده #id» می‌بیند؛ نام مشتری/وکیل فقط برای مدیر می‌آید.
+ * تصمیم طراحی (در انتظار تصمیم مدیر): تخصیص وکیل به نوبت و «بازه‌های در دسترس» وکیل نیازمند
+ * جدول جدید است (مانند گام CMS) — در این گام انجام نشد؛ در دسترس بودن بازه‌ها از نوبت‌های
+ * ثبت‌شده استخراج می‌شود و lawyer_id هنگام رزرو NULL می‌ماند.
+ * ========================================================================== */
+const BK_MONTH_START = Date.UTC(2026, 9, 23, 0, 0) / 1000 - 12600; /* ۱۴۰۵/۰۸/۰۱ ۰۰:۰۰ تهران */
+const BK_SLOTS = { '۰۹:۰۰': 540, '۱۰:۳۰': 630, '۱۲:۰۰': 720, '۱۶:۰۰': 960, '۱۷:۳۰': 1050 };
+const BK_KINDS = ['حضوری', 'آنلاین', 'تلفنی'];
+const bkDayOf = (t) => Math.floor((t - BK_MONTH_START) / 86400) + 1;
+const bkSlotLabel = (t) => { const m = (t - BK_MONTH_START) % 86400 / 60; for (const k in BK_SLOTS) if (BK_SLOTS[k] === m) return k; return ''; };
+
+route('GET', '/api/appointments', isAuth, async (c) => {
+  const role = c.user.role, n = now();
+  const SEL = 'SELECT a.*, cl.name AS client_name, lw.name AS lawyer_name FROM appointments a LEFT JOIN users cl ON cl.id=a.client_id LEFT JOIN users lw ON lw.id=a.lawyer_id';
+  let rows;
+  if (role === 'client') rows = await db.prepare(SEL + " WHERE a.client_id=? AND a.status<>'canceled' ORDER BY a.starts_at ASC, a.id ASC LIMIT 100").all(c.user.id);
+  else if (role === 'lawyer') rows = await db.prepare(SEL + " WHERE a.status<>'canceled' ORDER BY a.starts_at ASC, a.id ASC LIMIT 300").all();
+  else rows = await db.prepare(SEL + ' ORDER BY a.starts_at ASC, a.id ASC LIMIT 300').all();
+  /* taken = بازه‌های اشغال‌شدهٔ ماه جاری (برای غیرفعال‌سازی اسلات‌ها و علامت «پر» در تقویم) */
+  const tks = await db.prepare("SELECT DISTINCT starts_at FROM appointments WHERE status<>'canceled' AND starts_at>=? ORDER BY starts_at ASC LIMIT 400").all(BK_MONTH_START);
+  return {
+    ok: true, now: n, today_d: Math.min(31, Math.max(1, bkDayOf(n))),
+    rows: rows.map((r) => {
+      const o = { id: r.id, starts_at: r.starts_at, day: bkDayOf(r.starts_at), slot: bkSlotLabel(r.starts_at), kind: r.kind, status: r.status, created_at: r.created_at };
+      if (role !== 'client') o.client_id = r.client_id;
+      if (role === 'admin') { o.client_name = r.client_name || ''; o.lawyer_name = r.lawyer_name || ''; }
+      return o;
+    }),
+    taken: tks.map((r) => ({ d: bkDayOf(r.starts_at), j: bkSlotLabel(r.starts_at) })).filter((x) => x.j)
+  };
+});
+
+route('POST', '/api/appointments', ROLE('client'), async (c) => {
+  if (!(await rl('book:' + c.user.id, 5, 3600e3))) throw new HttpError(429, 'سقف رزرو نوبت در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const day = int(c.body.day, 1, 30, 'روز');
+  const slot = oneOf(str(c.body.slot, 4, 5, 'ساعت'), Object.keys(BK_SLOTS), 'ساعت');
+  const kind = oneOf(c.body.kind, BK_KINDS, 'نوع ملاقات');
+  const starts = BK_MONTH_START + (day - 1) * 86400 + BK_SLOTS[slot] * 60;
+  const n = now();
+  if (starts <= n) throw new HttpError(400, 'این زمان گذشته است؛ روز یا ساعت دیگری انتخاب کنید.');
+  if (await db.prepare("SELECT 1 FROM appointments WHERE starts_at=? AND status<>'canceled'").get(starts)) throw new HttpError(409, 'این بازه قبلاً رزرو شده است؛ بازه‌ی دیگری انتخاب کنید.');
+  const r = await db.prepare("INSERT INTO appointments(client_id,lawyer_id,starts_at,kind,status,created_at) VALUES(?,NULL,?,?,'booked',?) RETURNING id").run(c.user.id, starts, kind, n);
+  await audit(c.user.id, 'appointment_create', 'appt:' + r.lastInsertRowid, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+route('PATCH', '/api/appointments/:id', isAuth, async (c) => {
+  const st = oneOf(c.body.status, ['canceled', 'confirmed'], 'وضعیت');
+  const a = await db.prepare('SELECT * FROM appointments WHERE id=?').get(c.params.id);
+  if (!a) throw new HttpError(404, 'نوبت یافت نشد.');
+  if (c.user.role === 'client') {
+    if (a.client_id !== c.user.id) throw new HttpError(404, 'نوبت یافت نشد.'); // بدون افشای وجود نوبت دیگران
+    if (st !== 'canceled') throw new HttpError(403, 'دسترسی ندارید.');
+    if (a.status === 'canceled') throw new HttpError(400, 'این نوبت قبلاً لغو شده است.');
+    if (a.starts_at <= now()) throw new HttpError(400, 'زمان این نوبت گذشته است؛ امکان لغو نیست.');
+  } else if (c.user.role === 'admin') {
+    if (a.status === 'canceled') throw new HttpError(400, 'این نوبت قبلاً لغو/رد شده است.');
+    if (st === 'confirmed' && a.status !== 'booked') throw new HttpError(400, 'فقط نوبت «رزرو‌شده» قابل تایید است.');
+  } else throw new HttpError(403, 'دسترسی ندارید.');
+  await db.prepare('UPDATE appointments SET status=? WHERE id=?').run(st, a.id);
+  await audit(c.user.id, st === 'canceled' ? 'appointment_cancel' : 'appointment_confirm', 'appt:' + a.id, c.ip);
+  return { ok: true };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);

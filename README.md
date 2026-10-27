@@ -5,6 +5,7 @@ dadgar lotfi
 > 🌐 **سایت آنلاین است:** https://dadgar-aboalisinacom-7507.vercel.app
 > ✅ **REL-001 (v1.0.0):** سایت فاز ۲ آنلاین شد — ورود/نشست/پروفایل واقعی
 > ✅ **REL-002 (v1.1.0):** فاز ۳ گام ۱ — چرخه پرونده به دیتابیس وصل شد (۸ صفحه، ۹ API، AES-256-GCM)
+> ✅ **REL-003 (v1.2.0):** فاز ۳ گام ۲ — نوبت‌دهی به دیتابیس وصل شد (۳ صفحه، ۳ API، حریم خصوصی وکیل ناشناس)
 
 ---
 
@@ -32,6 +33,7 @@ dadgar lotfi
 |---|---|
 | [docs/releases/REL-001.md](docs/releases/REL-001.md) | خروجی شماره ۱ — آنلاین شدن سایت فاز ۲ روی Vercel+Supabase (تگ v1.0.0) |
 | [docs/releases/REL-002.md](docs/releases/REL-002.md) | خروجی شماره ۲ — فاز ۳ گام ۱: چرخه پرونده متصل به دیتابیس (تگ v1.1.0) |
+| [docs/releases/REL-003.md](docs/releases/REL-003.md) | خروجی شماره ۳ — فاز ۳ گام ۲: نوبت‌دهی متصل به دیتابیس (تگ v1.2.0) |
 | [docs/releases/keys-register.txt](docs/releases/keys-register.txt) | دفتر کلیدها و امضاها (طبق قانون Release) |
 
 ### آرشیو دستورات
@@ -41,6 +43,7 @@ dadgar lotfi
 | [docs/commands/CMD-001-2026-10-27-General-Rules.md](docs/commands/CMD-001-2026-10-27-General-Rules.md) | متن کامل دستور شماره ۱ — تصویب قانون عمومی و قانون خروجی + شروع مستندسازی |
 | [docs/commands/CMD-002-2026-10-27-Online-Deployment.md](docs/commands/CMD-002-2026-10-27-Online-Deployment.md) | متن کامل دستور شماره ۲ — آنلاین‌سازی سایت فاز ۲ + مهاجرت Vercel+Supabase |
 | [docs/commands/CMD-003-2026-10-28-Phase3-Step1-Case-Cycle.md](docs/commands/CMD-003-2026-10-28-Phase3-Step1-Case-Cycle.md) | متن کامل دستور شماره ۳ — فاز ۳ گام ۱: اتصال چرخه پرونده به دیتابیس |
+| [docs/commands/CMD-004-2026-10-28-Phase3-Step2-Appointments.md](docs/commands/CMD-004-2026-10-28-Phase3-Step2-Appointments.md) | متن کامل دستور شماره ۴ — فاز ۳ گام ۲: اتصال نوبت‌دهی به دیتابیس |
 
 ---
 
@@ -54,12 +57,12 @@ dadgar/
 │   ├── public/index.html            ← سایت کامل (SPA)
 │   ├── lib/ · scripts/ · test/
 │   └── README.md                    ← راهنمای اجرای خود پروژه
-├── web/                             ← لایه مهاجرت Vercel+Supabase (REL-001 تگ v1.0.0 + REL-002 تگ v1.1.0)
+├── web/                             ← لایه مهاجرت Vercel+Supabase (v1.0.0 + v1.1.0 + v1.2.0)
 │   ├── api/                         ← ۳ ورودی سرورلس (API / HTML با nonce / 404)
-│   ├── lib/                         ← db.pg.js (آداپتور Postgres) + web.js (پورت وفادار + API چرخه پرونده) + security/sms/config
-│   ├── dynamic/index.html           ← index.html مرجع + صفحات واقعی VR فاز ۳ (تزریق با scripts/inject-cycle.py)
+│   ├── lib/                         ← db.pg.js (آداپتور Postgres) + web.js (پورت وفادار + API چرخه پرونده + API نوبت‌دهی) + security/sms/config
+│   ├── dynamic/index.html           ← index.html مرجع + صفحات واقعی VR فاز ۳ (تزریق با scripts/inject-cycle.py و inject-book.py)
 │   ├── db/schema.sql                ← اسکیمای Postgres (پورت وفادار SQLite)
-│   ├── scripts/                     ← ابزار عملیاتی (create-admin.pg / هارنس تست)
+│   ├── scripts/                     ← ابزار عملیاتی (create-admin.pg / inject / تست API و e2e / هارنس)
 │   └── vercel.json
 └── docs/
     ├── 00-CONSTITUTION.md           ← قانون عمومی (DOC-000)
