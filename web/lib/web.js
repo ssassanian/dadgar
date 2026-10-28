@@ -805,6 +805,26 @@ route('DELETE', '/api/documents/:id', isAuth, async (c) => {
   return { ok: true };
 });
 
+/* ---------- CMD-009 — فاز ۳ گام ۷: لاگ مدیر (aLog) ----------
+ * جدول audit_log از فاز ۱ روی رویدادهای مهم پر می‌شود (append-only؛ بدون حذف/ویرایش).
+ * این مسیر فقط خواندنی است و فقط برای مدیر؛ q روی action/detail/نام کاربر (ILIKE) جست‌وجو می‌کند.
+ * ========================================================================== */
+route('GET', '/api/audit', ROLE('admin'), async (c) => {
+  const per = 10;
+  const page = Math.max(1, Math.min(200, int(c.query.page || 1, 1, 200, 'صفحه')));
+  const q = String(c.query.q || '').trim().slice(0, 64);
+  const action = String(c.query.action || '').trim().slice(0, 40);
+  const where = [], args = [];
+  if (action) { where.push('a.action = ?'); args.push(action); }
+  if (q) { where.push('(a.action ILIKE ? OR a.detail ILIKE ? OR u.name ILIKE ?)'); const like = '%' + q.replace(/[%_\\]/g, '\\$&') + '%'; args.push(like, like, like); }
+  const W = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const tot = await db.prepare('SELECT COUNT(*)::int AS cnt FROM audit_log a LEFT JOIN users u ON u.id=a.user_id ' + W).get(...args);
+  const pages = Math.max(1, Math.ceil((tot.cnt || 0) / per));
+  const pg = Math.min(page, pages);
+  const rows = await db.prepare('SELECT a.id, a.at, a.action, a.detail, a.ip, a.user_id, u.name AS user_name, u.role AS user_role FROM audit_log a LEFT JOIN users u ON u.id=a.user_id ' + W + ' ORDER BY a.at DESC, a.id DESC LIMIT ' + per + ' OFFSET ' + ((pg - 1) * per)).all(...args);
+  return { ok: true, rows, page: pg, pages, total: tot.cnt || 0 };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);
