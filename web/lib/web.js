@@ -245,6 +245,11 @@ function caseListRow(r, ctx) {
 }
 
 route('GET', '/api/cases', isAuth, async (c) => {
+  /* CMD-008: فهرست سبک پرونده‌های خود مشتری برای انتخابگر «بارگذاری سند» — فقط شناسه/عنوان/وضعیت */
+  if (c.query.select === '1' && c.user.role === 'client') {
+    const rows = await db.prepare('SELECT id, title, status, created_at FROM cases WHERE client_id=? ORDER BY created_at DESC, id DESC LIMIT 100').all(c.user.id);
+    return { ok: true, rows };
+  }
   const page = Math.max(1, int(ascii(c.query.page || '1') || '1', 1, 500, 'صفحه'));
   const off = (page - 1) * CASES_PER;
   const SEL = 'SELECT cs.*, cl.name AS client_name, cl.phone_last4, lw.name AS lawyer_name FROM cases cs LEFT JOIN users cl ON cl.id=cs.client_id LEFT JOIN users lw ON lw.id=cs.lawyer_id';
@@ -714,6 +719,92 @@ route('POST', '/api/messages', isAuth, async (c) => {
   return { ok: true, id: r.lastInsertRowid };
 });
 
+/* ---------- CMD-008 — فاز ۳ گام ۶: اسناد (documents) ----------
+ * جدول documents بدون تغییر اسکیما: id, case_id(NOT NULL→cases)، owner_id(بارگذار واقعی)،
+ * name_enc(نام فایل با AES-256-GCM)، mime، size، file(محتوای رمزنگاری‌شده با کلید فایل K.file)،
+ * created_at. مدل خود پروژه: سند به پرونده چسبیده است؛ «گاوصندوق اسناد» مشتری (cDocs) همه‌ی
+ * اسناد پرونده‌های او را نشان می‌دهد — از جمله مدارک/لایحه‌هایی که وکیل بارگذاری کرده است.
+ * آپلود = بدنه‌ی خام باینری (بدون multipart): فایل در body، نام فایل در هدر x-file-name
+ * (URL-encoded)؛ سقف ۴ مگابایت (زیر سقف بدنه‌ی سرورلس Vercel).
+ * دسترسی: مشتریِ صاحب پرونده و وکیلِ تخصیص‌یافته بارگذاری/دانلود می‌کنند؛ مدیر همه را می‌بیند
+ * و دانلود می‌کند (مدیر بارگذار نیست — owner_id همیشه بارگذار واقعی می‌ماند).
+ * حذف = فقط بارگذارِ سند یا مدیر؛ برای بقیه 404 ضدافشا (حتی در فهرست‌های دیگران).
+ * «سطح دسترسی» UI مرجع بدون ستون اسکیما از عضویت پرونده استنتاج می‌شود:
+ *   پرونده‌ی دارای وکیل = «اشتراک با وکیل»، بی‌وکیل = «محرمانه».
+ * امنیت دانلود: mime با لیست سفید پالایش می‌شود؛ دانلود همیشه attachment + nosniff؛
+ * محتوا با sec.encFile/decFile (AES-256-GCM، برچسب aad مستقل) رمزنگاری می‌شود.
+ * تصمیم‌های طراحی باز (ثبت‌شده در CMD-008؛ نیازمند دستور مدیر):
+ *   - انبار شیء (Supabase Storage) برای اسناد بزرگ‌تر از ۴ مگابایت
+ *   - صفحه‌ی اسناد وکیل/مدیر در جزئیات پرونده (lCase/aCase هنوز نمایشی‌اند)
+ *   - پیوست سند در چت/تیکت (تصمیم REL-006) و سطح دسترسی اختیاری per-document (ستون جدید)
+ * ========================================================================== */
+const DOC_LIMIT = 300, DOC_MAX = 4 * 1024 * 1024;
+/* لیست سفید mime — بقیه به application/octet-stream تبدیل می‌شوند (دانلود همیشه attachment است) */
+const DOC_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'application/rtf', 'application/zip', 'application/msword', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.wordprocessingml.template', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+const safeMime = (m) => DOC_MIMES.includes(m) ? m : 'application/octet-stream';
+
+/* فهرست نقش‌محور اسناد برای «گاوصندوق» — با عنوان پرونده و وضعیت اشتراک با وکیل
+ * نکته‌ی آداپتور: alias ستون‌های BIGINT باید هم‌نام ستون واقعی باشد تا در NUM_COLS به Number برگردد
+ * (documents ستون client_id/lawyer_id ندارد — پس alias بدون برخورد ایمن است). */
+route('GET', '/api/documents', isAuth, async (c) => {
+  const SEL = 'SELECT d.*, cs.title AS case_title, cs.client_id AS client_id, cs.lawyer_id AS lawyer_id FROM documents d LEFT JOIN cases cs ON cs.id=d.case_id';
+  let rows;
+  if (c.user.role === 'client') rows = await db.prepare(SEL + ' WHERE cs.client_id=? ORDER BY d.created_at DESC, d.id DESC LIMIT ?').all(c.user.id, DOC_LIMIT);
+  else if (c.user.role === 'lawyer') rows = await db.prepare(SEL + ' WHERE cs.lawyer_id=? ORDER BY d.created_at DESC, d.id DESC LIMIT ?').all(c.user.id, DOC_LIMIT);
+  else rows = await db.prepare(SEL + ' ORDER BY d.created_at DESC, d.id DESC LIMIT ?').all(DOC_LIMIT);
+  return {
+    ok: true,
+    rows: rows.map((d) => ({ id: d.id, case_id: d.case_id, case_title: d.case_title || '', name: sec.decText(d.name_enc, 'doc.name') || 'سند', mime: d.mime || '', size: d.size || 0, mine: d.owner_id === c.user.id, shared: !!d.lawyer_id, created_at: d.created_at }))
+  };
+});
+
+/* آپلود سند به پرونده — بدنه‌ی خام؛ رکورد «یافت نشد» برای پرونده‌ی غیر خودی (بدون افشا) */
+route('POST', '/api/cases/:id/documents', { auth: true, roles: ['client', 'lawyer'], raw: true }, async (c) => {
+  if (!(await rl('doc:' + c.user.id, 20, 3600e3))) throw new HttpError(429, 'سقف بارگذاری سند در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const cs = await db.prepare('SELECT id, client_id, lawyer_id FROM cases WHERE id=?').get(c.params.id);
+  if (!cs) throw new HttpError(404, 'پرونده یافت نشد.');
+  if (c.user.role === 'client' ? cs.client_id !== c.user.id : cs.lawyer_id !== c.user.id) throw new HttpError(404, 'پرونده یافت نشد.');
+  const buf = await readBody(c.req, DOC_MAX);
+  if (!buf.length) throw new HttpError(400, 'فایل سند خالی است.');
+  let rawName = '';
+  try { rawName = decodeURIComponent(String(c.req.headers['x-file-name'] || '')); } catch { }
+  const name = str(rawName.trim().slice(0, 200) || 'سند بدون نام', 1, 200, 'نام سند');
+  const mime = safeMime(String(c.req.headers['content-type'] || '').split(';')[0].trim().toLowerCase());
+  const r = await db.prepare('INSERT INTO documents(case_id,owner_id,name_enc,mime,size,file,created_at) VALUES(?,?,?,?,?,?,?) RETURNING id')
+    .run(cs.id, c.user.id, sec.encText(name, 'doc.name'), mime, buf.length, sec.encFile(buf, 'doc.content').toString('base64'), now());
+  await audit(c.user.id, 'doc_upload', 'case:' + cs.id + ' doc:' + r.lastInsertRowid + ' size:' + buf.length, c.ip);
+  return { ok: true, id: r.lastInsertRowid };
+});
+
+/* دانلود سند — فقط مشتریِ صاحب پرونده / وکیلِ تخصیص‌یافته / مدیر؛ همیشه attachment + nosniff */
+route('GET', '/api/documents/:id/file', isAuth, async (c) => {
+  const d = await db.prepare('SELECT d.*, cs.client_id AS client_id, cs.lawyer_id AS lawyer_id FROM documents d LEFT JOIN cases cs ON cs.id=d.case_id WHERE d.id=?').get(c.params.id);
+  if (!d) throw new HttpError(404, 'سند یافت نشد.');
+  const u = c.user;
+  if (!(u.role === 'admin' || (u.role === 'client' && d.client_id === u.id) || (u.role === 'lawyer' && d.lawyer_id === u.id))) throw new HttpError(404, 'سند یافت نشد.'); // بدون افشای وجود سند
+  let buf;
+  try { buf = sec.decFile(Buffer.from(d.file, 'base64'), 'doc.content'); } catch { throw new HttpError(500, 'سند قابل بازیابی نیست.'); }
+  const name = sec.decText(d.name_enc, 'doc.name') || ('document-' + d.id);
+  await audit(u.id, 'doc_download', 'case:' + d.case_id + ' doc:' + d.id, c.ip);
+  c.res.writeHead(200, {
+    'Content-Type': d.mime || 'application/octet-stream',
+    'Content-Length': buf.length,
+    'Content-Disposition': 'attachment; filename="doc-' + d.id + '"; filename*=UTF-8\'\'' + encodeURIComponent(name),
+    'Cache-Control': 'no-store'
+  });
+  return c.res.end(buf);
+});
+
+/* حذف سند — فقط بارگذارِ سند یا مدیر */
+route('DELETE', '/api/documents/:id', isAuth, async (c) => {
+  const d = await db.prepare('SELECT d.*, cs.client_id AS client_id, cs.lawyer_id AS lawyer_id FROM documents d LEFT JOIN cases cs ON cs.id=d.case_id WHERE d.id=?').get(c.params.id);
+  if (!d) throw new HttpError(404, 'سند یافت نشد.');
+  if (!(c.user.role === 'admin' || d.owner_id === c.user.id)) throw new HttpError(404, 'سند یافت نشد.'); // بدون افشا
+  await db.prepare('DELETE FROM documents WHERE id=?').run(d.id);
+  await audit(c.user.id, 'doc_delete', 'case:' + d.case_id + ' doc:' + d.id, c.ip);
+  return { ok: true };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);
@@ -737,7 +828,7 @@ async function api(req, res, url, ip) {
     }
     let body = {};
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(m) && !r.opts.raw) {
-      const b = await readBody(req, 100 * 1024);
+      const b = await readBody(req, r.opts.bodyLimit || 100 * 1024);
       if (b.length) {
         if (!/^application\/json/i.test(req.headers['content-type'] || '')) throw new HttpError(415, 'نوع محتوا پشتیبانی نمی‌شود.');
         try { body = JSON.parse(b.toString('utf8')); } catch { throw new HttpError(400, 'داده‌ی ارسالی نامعتبر است.'); }
