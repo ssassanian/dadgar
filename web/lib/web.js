@@ -825,6 +825,57 @@ route('GET', '/api/audit', ROLE('admin'), async (c) => {
   return { ok: true, rows, page: pg, pages, total: tot.cnt || 0 };
 });
 
+/* ---------- CMD-010 — فاز ۳ گام ۸: CMS/تنظیمات/سئو ----------
+ * جدول settings «افزوده‌ی ثبت‌شده» است (نه پورت مرجع — مستند در CMD-010): key-value سفید‌لیست‌شده.
+ * اگر هنوز روی دیتابیس اعمال نشده باشد (خطای 42P01 undefined_table) مسیرها شفاف degrade می‌شوند:
+ *   خواندن → ready:false با map خالی (UI مقادیر پیش‌فرض مرجع را نشان می‌دهد)
+ *   نوشتن → 503 با پیام صادقانه
+ * پس از اعمال web/db/settings-pending-ddl.sql هیچ تغییر کدی لازم نیست و مسیرها خودکار فعال می‌شوند.
+ * ========================================================================== */
+const SET_KEYS = { site_phone: 200, site_email: 200, site_address: 500, site_instagram: 100, site_telegram: 100, tariff_phone: 100, tariff_meeting: 100, tariff_contract: 100 };
+
+route('GET', '/api/settings', ROLE('admin'), async () => {
+  try {
+    const rows = await db.prepare('SELECT key, value, updated_at FROM settings').all();
+    const map = {}; rows.forEach((r) => { map[r.key] = r.value; });
+    return { ok: true, ready: true, map, updated_at: rows.reduce((m, r) => Math.max(m, r.updated_at || 0), 0) };
+  } catch (e) { if (e.code === '42P01') return { ok: true, ready: false, map: {} }; throw e; }
+});
+
+route('PUT', '/api/settings', ROLE('admin'), async (c) => {
+  const b = c.body || {}; const keys = Object.keys(b);
+  if (!keys.length) throw new HttpError(400, 'چیزی برای ذخیره ارسال نشده است.');
+  if (keys.length > 20) throw new HttpError(400, 'تعداد کلیدها بیش از حد مجاز است.');
+  for (const k of keys) {
+    if (!Object.prototype.hasOwnProperty.call(SET_KEYS, k)) throw new HttpError(400, 'کلید «' + k + '» پشتیبانی نمی‌شود.');
+    str(String(b[k] == null ? '' : b[k]), 0, SET_KEYS[k], 'مقدار ' + k);
+  }
+  const n = now();
+  try {
+    for (const k of keys) {
+      await db.prepare('INSERT INTO settings(key,value,updated_at,updated_by) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by')
+        .run(k, String(b[k] == null ? '' : b[k]), n, c.user.id);
+    }
+  } catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ذخیره‌ی تنظیمات هنوز فعال نشده است (جدول settings روی دیتابیس اعمال نشده — طبق CMD-010).'); throw e; }
+  await audit(c.user.id, 'settings_save', keys.join(','), c.ip);
+  return { ok: true };
+});
+
+route('GET', '/api/settings/public', {}, async () => {
+  try {
+    const rows = await db.prepare('SELECT key, value FROM settings').all();
+    const m = {}; rows.forEach((r) => { m[r.key] = r.value; });
+    return {
+      ok: true, ready: true,
+      contact: { phone: m.site_phone || '', email: m.site_email || '', address: m.site_address || '', instagram: m.site_instagram || '', telegram: m.site_telegram || '' },
+      tariffs: { phone: m.tariff_phone || '', meeting: m.tariff_meeting || '', contract: m.tariff_contract || '' }
+    };
+  } catch (e) {
+    if (e.code === '42P01') return { ok: true, ready: false, contact: { phone: '', email: '', address: '', instagram: '', telegram: '' }, tariffs: { phone: '', meeting: '', contract: '' } };
+    throw e;
+  }
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);

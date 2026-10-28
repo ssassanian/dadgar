@@ -32,7 +32,7 @@ sleep 2
 B=http://127.0.0.1:3207
 CJ=/tmp/dc_client.jar; LJ=/tmp/dc_lawyer.jar; AJ=/tmp/dc_admin.jar
 rm -f $CJ $LJ $AJ
-trap 'kill $SRV 2>/dev/null' EXIT
+trap 'kill $SRV 2>/dev/null || true' EXIT
 
 login() { # jar user pass -> csrf
   curl -s -c "$1" -X POST $B/api/auth/login -H "Content-Type: application/json" -H "Origin: $B" \

@@ -94,3 +94,9 @@ CREATE TABLE IF NOT EXISTS reviews(
 -- ---------- audit_log ----------
 CREATE TABLE IF NOT EXISTS audit_log(
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, at BIGINT NOT NULL, user_id BIGINT, action TEXT NOT NULL, detail TEXT, ip TEXT);
+
+-- ---------- settings ----------
+-- CMD-010 — افزوده‌ی ثبت‌شده (نه پورت مرجع؛ اسکیمای مرجع جدول تنظیمات ندارد).
+-- مدل key-value سفید‌لیست‌شده در سمت سرور (web/lib/web.js) برای aSet/aCms؛ سقف طول هر کلید در سرور.
+CREATE TABLE IF NOT EXISTS settings(
+  key TEXT PRIMARY KEY, value TEXT, updated_at BIGINT NOT NULL, updated_by BIGINT REFERENCES users(id));
