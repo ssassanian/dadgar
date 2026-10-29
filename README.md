@@ -69,23 +69,31 @@ dadgar/
 │   ├── public/index.html            ← سایت کامل (SPA)
 │   ├── lib/ · scripts/ · test/
 │   └── README.md                    ← راهنمای اجرای خود پروژه
-├── web/                             ← لایه مهاجرت Vercel+Supabase (v1.0.0 تا v1.6.0)
+├── web/                             ← لایه مهاجرت Vercel+Supabase (v1.0.0 تا v1.6.0) — Root Directory پروژه Vercel
 │   ├── api/                         ← ۳ ورودی سرورلس (API / HTML با nonce / 404)
 │   ├── lib/                         ← db.pg.js (آداپتور Postgres) + web.js (پورت وفادار + API چرخه پرونده + API نوبت‌دهی + API مالی + API نظرات + API پیام/تیکت + API اسناد) + security/sms/config
 │   ├── dynamic/index.html           ← index.html مرجع + صفحات واقعی VR فاز ۳ (تزریق با inject-cycle.py و inject-book.py و inject-bill.py و inject-rev.py و inject-msg.py و inject-docs.py)
 │   ├── db/schema.sql                ← اسکیمای Postgres (پورت وفادار SQLite)
 │   ├── scripts/                     ← ابزار عملیاتی (create-admin.pg / inject / تست API و e2e / هارنس)
 │   └── vercel.json
+├── mobile/                          ← اپ نیتیو موبایل Flutter (M0 — مونوریپو طبق CMD-016؛ ایزوله کامل از web/، اتصال فقط REST API — DOC-04 v2.1)
+│   ├── lib/ · test/ · assets/fonts/vazirmatn/
+│   └── pubspec.yaml                 ← پین Flutter 3.41.0 در CI
+├── .github/workflows/
+│   └── mobile-ci.yml                ← CI موبایل — فقط مسیر mobile/** (دست‌نخورده روی دیپلوی وب)
 └── docs/
     ├── 00-CONSTITUTION.md           ← قانون عمومی (DOC-000)
     ├── 01-RELEASE-RULES.md          ← قانون خروجی (DOC-001)
     ├── 02-COMMANDS-REGISTER.md      ← دفتر دستورات (DOC-002)
     ├── 03-ACTIVITY-LOG.md           ← گزارش فعالیت‌ها (DOC-003)
+    ├── 04-MOBILE-NATIVE-SPEC.md     ← سند فنی موبایل (DOC-04 v2.1)
     ├── releases/                    ← ثبت خروجی‌ها (REL-XXX) و دفتر کلیدها
     └── commands/
         ├── CMD-001-...-General-Rules.md
         ├── CMD-002-...-Online-Deployment.md
         └── CMD-003-...-Phase3-Step1-Case-Cycle.md
 ```
+
+> **مونوریپو (CMD-016 — 2026-10-29):** با تصمیم مدیر («یک ریپو باشه»)، اپ موبایل از مخزن جدا `ssassanian/dadgar-mobile` (بایگانی‌شده) به پوشه‌ی `mobile/` همین مخزن منتقل شد — جدایی دایرکتوری کامل، صفر فایل مشترک با `web/`، و CI فیلترشده بر اساس مسیر. متن کامل: [DOC-04 v2.1](docs/04-MOBILE-NATIVE-SPEC.md).
 
 > **قانون طلایی:** هیچ کاری بدون رعایت [قانون عمومی](docs/00-CONSTITUTION.md) انجام نمی‌شود. پیش از شروع هر کاری، ابتدا مستندات این مخزن بررسی می‌شود.

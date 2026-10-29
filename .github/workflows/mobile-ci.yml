@@ -1,0 +1,38 @@
+name: Mobile CI
+
+# CI مستقل موبایل (DOC-04 §۱۰، v2.1) — در مخزن واحد اما کاملاً مجزا از وب:
+# فقط تغییرات مسیر mobile/ را اجرا می‌کند و بیلد موبایل هیچ‌گاه به دیپلوی وب (Vercel) کاری ندارد.
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**']
+  pull_request:
+    paths: ['mobile/**']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter (pinned 3.41.0)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.0
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze (gate 1)
+        run: flutter analyze --fatal-infos
+
+      - name: Test (gate 2)
+        run: flutter test

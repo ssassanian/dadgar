@@ -1,0 +1,37 @@
+name: dadgar_mobile
+description: "اپلیکیشن نیتیو موبایل دادگر (Flutter) — مخزن جدا طبق قانون S-1؛ مرجع الزامی: DOC-04 نسخه 2.0 در مخزن dadgar"
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <5.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # intl همیشه با نسخه‌ای که flutter_localizations پین می‌کند حل می‌شود
+  intl: any
+  # استاندارد معماری DOC-04 §۴ (بند State)
+  flutter_riverpod: ^3.0.0
+  # کلاینت HTTP — تنها نقطه‌ی اتصال به API (فعال‌سازی واقعی در M1)
+  dio: ^5.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Bold.ttf
+          weight: 700
