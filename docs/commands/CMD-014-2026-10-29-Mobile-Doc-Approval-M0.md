@@ -87,8 +87,19 @@
 - باندل خود-خدمت برای گزینه‌ی push دستی مدیر آماده شد: `download/dadgar-mobile-M0.bundle`
 - تنها اقدام حل‌کننده (یکی از دو): **توکن classic با scope `repo`** (لینک مستقیم با تیک از پیش فعال) یا ویرایش توکن fine-grained با «All repositories» + `Contents: Read and write` + **Regenerate** و ارسال مقدار جدید
 
+### بررسی سومین توکن + کشف و رفع مسدودی production در Vercel (2026-10-29)
+
+مدیر همان توکن قبلی را به همراه توکن‌های Vercel و Supabase ارسال کرد؛ نتایج:
+
+1. **GitHub (توکن سوم = همان مقدار دوم):** فهرست قطعی `GET /user/repos` تنها `ssassanian/dadgar` را نشان می‌دهد؛ `GET dadgar-mobile` → 404، وجود مخزن با 422 قطعی، پروب کلید SSH → 403 — **مانع بدون تغییر است**
+2. **کشف مهم — production وب مسدود بود:** بررسی Vercel با توکن ارسالی مدیر نشان داد از `2026-10-28 13:50` به بعد تقریباً تمام استقرارهای production (main) با وضعیت **BLOCKED** مواجه‌اند؛ علت رسمی: «Vercel couldn't find a Git account for the commit author» — ایمیل نویسنده‌ی کامیت‌ها `z@container` (ایمیل محیط اجرا) به هیچ حساب Git متصل به Vercel نگاشت نمی‌شد؛ یعنی **سایت production از آن زمان به‌روز نبود**
+3. **رفع خودکار:** هویت git هر دو مخزن به `317955772+ssassanian@users.noreply.github.com` (ایمیل noreply همیشگی حساب ssassanian) اصلاح شد؛ کامیت مستندات همان لحظه استقرار جدید را راه می‌اندازد و نتیجه در گزارش مدیر ثبت می‌شود — از این پس تمام کامیت‌ها با این ایمیل authored می‌شوند
+4. **اعتبارسنجی توکن‌های سرویس:** Vercel ✓ (پروژه `dadgar`، id `prj_1HFWKgeVqwnZysjmxWUJYThDjRA5`)؛ Supabase ✓ (پروژه `dadgar`، ref `oyoywxgudbqmptwkxzpi`، region `eu-west-1`، وضعیت `ACTIVE_HEALTHY`)
+5. مانع dadgar-mobile پابرجاست؛ اقدام حل‌کننده همان دو گزینه: **توکن classic با scope `repo`** یا fine-grained با All repositories + `Contents: Read and write` + **Regenerate**
+
 ## نتیجه (موقت — تا رفع مانع)
 
 - معماری تاییدشده به کد اسکلت تبدیل شد؛ **صفر خط از کد وب لمس نشده** و صفر فایلی بین دو مخزن مشترک نیست (S-1/S-2 برقرار)
 - اسکلت با SDK پین‌شده‌ی CI (3.41.0) به‌طور کامل اعتبارسنجی شد: analyze پاک + تست سبز — **آمادگی قطعی برای CI سبز بار اول**
 - مولفه‌ی تنها مانده: Regenerate توکن با دسترسی dadgar-mobile → push → تگ M0.1.0 → بستن M0
+- وب production پس از کشف BLOCKED بودن استقرارها در Vercel، با اصلاح ایمیل نویسنده به noreply حساب ssassanian بازیابی شد (ACT-046)
