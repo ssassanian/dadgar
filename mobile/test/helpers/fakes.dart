@@ -1,4 +1,6 @@
 import 'package:dadgar_mobile/app/providers.dart';
+import 'package:dadgar_mobile/features/appointments/data/appointments_repository.dart';
+import 'package:dadgar_mobile/features/appointments/domain/appointment.dart';
 import 'package:dadgar_mobile/features/auth/application/app_lock_controller.dart';
 import 'package:dadgar_mobile/features/auth/application/auth_controller.dart';
 import 'package:dadgar_mobile/features/auth/data/auth_repository.dart';
@@ -75,11 +77,65 @@ final class FakeAuthRepository implements AuthRepository {
   }
 }
 
+/// مخزن نوبت‌دهی قابل تنظیم برای تست واحد — M3
+final class FakeAppointmentsRepository implements AppointmentsRepository {
+  FakeAppointmentsRepository({this.page, this.failWith});
+
+  /// پاسخ موفق GET — اگر null باشد و failWith هم null باشد، صفحه‌ی خالی می‌سازد
+  AppointmentsPage? page;
+
+  /// اگر تنظیم شود، همه‌ی متدها این شیء را پرتاب می‌کنند
+  Object? failWith;
+
+  int fetchCalls = 0;
+  int bookCalls = 0;
+  int statusCalls = 0;
+  final List<({int day, String slot, String kind})> bookArgs = [];
+  final List<({int id, String status})> statusArgs = [];
+
+  AppointmentsPage get _defaultPage => const AppointmentsPage(
+        rows: [],
+        taken: {},
+        serverNowSeconds: 0,
+        todayDay: 1,
+      );
+
+  @override
+  Future<AppointmentsPage> fetch() async {
+    fetchCalls++;
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return page ?? _defaultPage;
+  }
+
+  @override
+  Future<int> book({
+    required int day,
+    required String slot,
+    required String kind,
+  }) async {
+    bookCalls++;
+    bookArgs.add((day: day, slot: slot, kind: kind));
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return 101;
+  }
+
+  @override
+  Future<void> updateStatus({required int id, required String status}) async {
+    statusCalls++;
+    statusArgs.add((id: id, status: status));
+    final failure = failWith;
+    if (failure != null) throw failure;
+  }
+}
+
 /// ساخت ProviderContainer با فیک‌های نشست — کمکی مشترک تست‌ها
 ProviderContainer dadgarContainer({
   AuthStatus authStatus = const AuthUnauthenticated(),
   AppLockState lockState = const AppLockState(),
   FakeAuthRepository? repository,
+  FakeAppointmentsRepository? appointmentsRepository,
   TokenStore? tokenStore,
   bool realAuthController = false,
   bool realAppLockController = false,
@@ -90,6 +146,9 @@ ProviderContainer dadgarContainer({
     overrides: [
       tokenStoreProvider.overrideWithValue(store),
       authRepositoryProvider.overrideWithValue(effectiveRepo),
+      if (appointmentsRepository != null)
+        appointmentsRepositoryProvider
+            .overrideWithValue(appointmentsRepository),
       if (!realAuthController)
         authControllerProvider
             .overrideWith(() => FakeAuthController(authStatus)),

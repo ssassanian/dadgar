@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/appointments/presentation/appointments_screen.dart';
+import '../features/appointments/presentation/my_appointments_screen.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/lock_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
@@ -37,6 +39,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
       ),
+      GoRoute(
+        path: '/appointments',
+        builder: (context, state) => const AppointmentsScreen(),
+      ),
+      GoRoute(
+        path: '/appointments/mine',
+        builder: (context, state) => const MyAppointmentsScreen(),
+      ),
     ],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -53,7 +63,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         Authenticated() when lock.needsUnlock =>
           location == '/lock' ? null : '/lock',
         Authenticated() => switch (location) {
-            '/' || '/profile' => null,
+            '/' ||
+            '/profile' ||
+            '/appointments' ||
+            '/appointments/mine' =>
+              null,
             _ => '/',
           },
       };

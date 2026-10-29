@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/api/api_client.dart';
 import '../core/secure/biometric_auth.dart';
 import '../core/secure/token_store.dart';
+import '../features/appointments/application/appointments_controller.dart';
+import '../features/appointments/data/appointments_repository.dart';
 import '../features/auth/application/app_lock_controller.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/data/auth_repository.dart';
@@ -32,4 +35,17 @@ final authControllerProvider =
 final appLockControllerProvider =
     NotifierProvider<AppLockController, AppLockState>(
   AppLockController.new,
+);
+
+/// کلاینت API نوبت‌دهی — همان الگوی M1 (dio + Bearer؛ فعال‌سازی زنده با D-6)
+final appointmentsRepositoryProvider = Provider<AppointmentsRepository>(
+  (ref) => DioAppointmentsRepository(
+    client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
+  ),
+);
+
+/// وضعیت UI نوبت‌دهی — M3
+final appointmentsControllerProvider =
+    NotifierProvider<AppointmentsController, AppointmentsUi>(
+  AppointmentsController.new,
 );

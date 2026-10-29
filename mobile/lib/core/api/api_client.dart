@@ -12,6 +12,9 @@ abstract final class ApiEndpoints {
   static const String token = '/api/auth/token';
   static const String tokenRefresh = '/api/auth/token/refresh';
   static const String tokenRevoke = '/api/auth/token/revoke';
+
+  /// نوبت‌دهی — مسیر «موجود» سرور (CMD-004)؛ پذیرش Bearer پس از حکم D-6
+  static const String appointments = '/api/appointments';
 }
 
 /// خطای یکپارچه‌ی لایه‌ی API با پیام فارسی قابل نمایش به کاربر

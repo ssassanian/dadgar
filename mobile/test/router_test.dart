@@ -48,6 +48,8 @@ void main() {
     final container = dadgarContainer(
       authStatus: const Authenticated('مدیر'),
       lockState: const AppLockState(enabled: true, unlocked: true),
+      appointmentsRepository:
+          FakeAppointmentsRepository(), // جریان M3 بدون شبکه
     );
     addTearDown(container.dispose);
 
@@ -60,5 +62,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('سلام، مدیر'), findsOneWidget);
+  });
+
+  testWidgets('ردیف ۴ (M3): نشست معتبر → خانه کارت نوبت‌دهی دارد و مسیر '
+      '/appointments باز می‌شود', (tester) async {
+    final container = dadgarContainer(
+      authStatus: const Authenticated('مدیر'),
+      appointmentsRepository: FakeAppointmentsRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const DadgarApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('رزرو نوبت'), findsOneWidget);
+    await tester.tap(find.text('رزرو نوبت'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('نوبت‌دهی'), findsOneWidget);
   });
 }

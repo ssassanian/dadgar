@@ -56,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: DadgarTokens.s8),
                       const Text(
-                        'نسخه M1 فاز ۱ — اسکلت احراز هویت، خانه و پروفایل',
+                        'نسخه M3 — نوبت‌دهی با تقویم شمسی نیتیو افزوده شد',
                         style: TextStyle(
                           color: DadgarTokens.onPrimary,
                           fontSize: 13,
@@ -74,6 +74,20 @@ class HomeScreen extends ConsumerWidget {
                 const _StatusChip(
                   icon: Icons.sync_alt,
                   label: 'اتصال زنده به سرور: در انتظار حکم D-6',
+                ),
+                const SizedBox(height: DadgarTokens.s16),
+                _ActionCard(
+                  icon: Icons.calendar_month,
+                  title: 'رزرو نوبت',
+                  subtitle: 'تقویم شمسی + بازه‌های آزاد (M3)',
+                  onTap: () => context.go('/appointments'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.event_note_outlined,
+                  title: 'نوبت‌های من',
+                  subtitle: 'وضعیت نوبت‌ها و لغو (M3)',
+                  onTap: () => context.go('/appointments/mine'),
                 ),
                 const SizedBox(height: DadgarTokens.s24),
                 _PaletteCard(
@@ -140,6 +154,75 @@ final class _StatusChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// کارت اقدام خانه — ورود به ماژول‌ها (M3: نوبت‌دهی)
+final class _ActionCard extends StatelessWidget {
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: DadgarTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DadgarTokens.radius),
+        side: BorderSide(
+          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(DadgarTokens.s16),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: DadgarTokens.primary),
+              const SizedBox(width: DadgarTokens.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: DadgarTokens.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: DadgarTokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_left,
+                size: 20,
+                color: DadgarTokens.textSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
