@@ -23,9 +23,12 @@ CREATE TABLE IF NOT EXISTS users(
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username_nocase ON users(lower(username));
 
 -- ---------- sessions ----------
+-- CMD-026 (D-6 افزوده‌ی اول): ستون kind برای تفکیک نشست وب از توکن API موبایل:
+--   'web' (پیش‌فرض) | 'api-access' (۱۵ دقیقه) | 'api-refresh' (۳۰ روز، چرخشی)
 CREATE TABLE IF NOT EXISTS sessions(
   id TEXT PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  csrf TEXT NOT NULL, created_at BIGINT NOT NULL, last_seen BIGINT NOT NULL, expires_at BIGINT NOT NULL, ip TEXT, ua TEXT);
+  csrf TEXT NOT NULL, created_at BIGINT NOT NULL, last_seen BIGINT NOT NULL, expires_at BIGINT NOT NULL, ip TEXT, ua TEXT,
+  kind TEXT NOT NULL DEFAULT 'web');
 CREATE INDEX IF NOT EXISTS ix_sessions_user ON sessions(user_id);
 
 -- ---------- otp ----------

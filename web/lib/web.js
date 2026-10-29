@@ -88,7 +88,9 @@ function pub(u) {
 }
 async function startSession(res, user, req, ip) {
   const n = now(), t = sec.token(), csrf = sec.token();
-  await db.prepare('DELETE FROM sessions WHERE user_id=? AND id NOT IN (SELECT id FROM sessions WHERE user_id=? ORDER BY created_at DESC LIMIT 4)').run(user.id, user.id);
+  /* سقف ۴ نشست فقط برای نشست‌های وب — توکن‌های API (CMD-026) را حذف نمی‌کند */
+  try { await db.prepare("DELETE FROM sessions WHERE user_id=? AND kind='web' AND id NOT IN (SELECT id FROM sessions WHERE user_id=? AND kind='web' ORDER BY created_at DESC LIMIT 4)").run(user.id, user.id); }
+  catch (e) { if (e.code !== '42703') throw e; await db.prepare('DELETE FROM sessions WHERE user_id=? AND id NOT IN (SELECT id FROM sessions WHERE user_id=? ORDER BY created_at DESC LIMIT 4)').run(user.id, user.id); }
   /* پاکسازی‌های دوره‌ای (در نسخه اصلی: setInterval هر ۱۰ دقیقه) */
   await db.prepare('DELETE FROM sessions WHERE expires_at<?').run(n);
   await db.prepare('DELETE FROM otp WHERE created_at<?').run(n - 86400);
@@ -109,6 +111,28 @@ async function getSession(req) {
   if (!user || user.status !== 'active') return null;
   if (n - s.last_seen > 60) await db.prepare('UPDATE sessions SET last_seen=? WHERE id=?').run(n, id);
   return { id, csrf: s.csrf, user };
+}
+
+/* ---------- D-6 افزوده‌ی اول: نشست Bearer برای کلاینت غیرمرورگر (CMD-026 / DOC-04 §۵-۲) ----------
+ * توکن access کوتاه‌عمر (۱۵ دقیقه) در جدول sessions با kind='api-access' نگهداری می‌شود؛
+ * برخلاف نشست کوکی، بررسی بیکاری (idle) ندارد — انقضای مطلق کافی است.
+ * پیش از اعمال DDL ستون kind، این مسیر شفاف null برمی‌گرداند (خطای 42703 نادیده). */
+async function bearerSession(req) {
+  const h = String(req.headers.authorization || '');
+  if (!/^Bearer\s+\S+/i.test(h)) return null;
+  const t = h.replace(/^Bearer\s+/i, '').trim();
+  if (!t || t.length > 100) return null;
+  try {
+    const id = sec.sha(t);
+    const s = await db.prepare("SELECT * FROM sessions WHERE id=? AND kind='api-access'").get(id);
+    if (!s) return null;
+    const n = now();
+    if (s.expires_at < n) { await db.prepare('DELETE FROM sessions WHERE id=?').run(id); return null; }
+    const user = await db.prepare('SELECT * FROM users WHERE id=?').get(s.user_id);
+    if (!user || user.status !== 'active') return null;
+    /* refreshId = id ردیف refresh همان دستگاه (در ستون csrf ردیف access) — برای revoke بدون بدنه */
+    return { id, csrf: '', refreshId: s.csrf, user, bearer: true };
+  } catch (e) { if (e.code === '42703') return null; throw e; }
 }
 
 /* ---------- login throttling (persistent, identical logic) ---------- */
@@ -154,6 +178,98 @@ route('POST', '/api/auth/logout', { auth: true, allowMust: true }, async (c) => 
   await db.prepare('DELETE FROM sessions WHERE id=?').run(c.sess.id);
   setCookie(c.res, '', 0); await audit(c.user.id, 'logout', null, c.ip);
   return { ok: true };
+});
+
+/* ---------- D-6 افزوده‌ی اول — توکن موبایل (CMD-026 / DOC-04 §۵-۲) ----------
+ * POST /api/auth/token          ورود با همان حساب‌های موجود وب → جفت توکن:
+ *                               access (۱۵ دقیقه) + refresh (۳۰ روز، چرخشی)
+ * POST /api/auth/token/refresh  چرخش refresh — توکن قبلی و accessهای وابسته به آن باطل
+ * POST /api/auth/token/revoke   خروج همان دستگاه (با refresh بدنه یا Bearer)؛ scope=all = همه‌ی دستگاه‌ها
+ * ذخیره: جدول sessions موجود + ستون kind ('api-access'/'api-refresh'؛ پیش‌فرض 'web')
+ *         پیوند: csrfِ ردیف access = id ردیف refresh (csrf برای نشست API بی‌استفاده است)
+ * throttle: همان کانترهای login (کاربر + IP)؛ refresh سقف مستقل ۶۰/۱۰دقیقه
+ * degrade: پیش از اعمال DDL (42703) → 503 صادقانه (الگوی CMD-010) */
+const API_ACCESS_S = 15 * 60, API_REFRESH_S = 30 * 86400;
+const TOKEN_503 = () => new HttpError(503, 'احراز هویت توکنی هنوز فعال نشده است؛ DDL افزوده‌ی موبایل (CMD-026) روی دیتابیس اعمال نشده است.');
+
+async function issueApiTokens(user, req, ip, device) {
+  const n = now();
+  const dev = device ? str(String(device), 1, 80, 'دستگاه') : '';
+  const label = ('mobile' + (dev ? ':' + dev : '')).slice(0, 40) + '|' + String(req.headers['user-agent'] || '').slice(0, 150);
+  const refresh = sec.token(), access = sec.token(), rid = sec.sha(refresh);
+  await db.prepare("DELETE FROM sessions WHERE kind LIKE 'api-%' AND expires_at<?").run(n); // بهداشت
+  await db.prepare("INSERT INTO sessions(id,user_id,csrf,created_at,last_seen,expires_at,ip,ua,kind) VALUES(?,?,'',?,?,?,?,?,'api-refresh')").run(rid, user.id, n, n, n + API_REFRESH_S, ip, label);
+  await db.prepare("INSERT INTO sessions(id,user_id,csrf,created_at,last_seen,expires_at,ip,ua,kind) VALUES(?,?,?,?,?,?,?,?,'api-access')").run(sec.sha(access), user.id, rid, n, n, n + API_ACCESS_S, ip, label);
+  return { access, refresh };
+}
+
+route('POST', '/api/auth/token', {}, async (c) => {
+  if (!(await rl('login:' + c.ip, +process.env.LOGIN_RL_MAX || 30, 600e3))) throw new HttpError(429, 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.');
+  let username = str(c.body.username, 1, 64, 'نام کاربری').toLowerCase(); const password = str(c.body.password, 1, 200, 'رمز عبور', false);
+  let byPhone = null;
+  if (/^[0-9۰-۹٠-٩+\s-]{10,16}$/.test(username)) { try { byPhone = normPhone(username); username = byPhone; } catch { } } // شماره تماس هم پذیرفته می‌شود
+  const ku = 'u:' + username, ki = 'i:' + c.ip;
+  if ((await locked(ku)) || (await locked(ki))) { await audit(null, 'login_locked', username, c.ip); throw new HttpError(429, 'تلاش‌های ناموفق زیاد بود. چند دقیقه بعد دوباره تلاش کنید.'); }
+  const u = byPhone ? await db.prepare('SELECT * FROM users WHERE phone_hash=? AND password_hash IS NOT NULL').get(sec.hmac('phone:' + byPhone)) : await db.prepare('SELECT * FROM users WHERE lower(username)=lower(?) AND password_hash IS NOT NULL').get(username);
+  let ok = false;
+  if (u) ok = await sec.verifyPassword(password, u.password_hash); else await sec.dummyVerify(password);
+  if (!ok || u.status !== 'active') { await fail(ku, 5); await fail(ki, 25); await audit(u && u.id, 'login_fail', username, c.ip); throw new HttpError(401, 'نام کاربری یا رمز عبور اشتباه است.'); }
+  await clearFail(ku);
+  let pair;
+  try { pair = await issueApiTokens(u, c.req, c.ip, c.body.device); }
+  catch (e) { if (e.code === '42703') throw TOKEN_503(); throw e; }
+  await audit(u.id, 'login', 'mobile-token', c.ip);
+  return { ok: true, token_type: 'Bearer', access_token: pair.access, refresh_token: pair.refresh, expires_in: API_ACCESS_S, user: pub(u) };
+});
+
+route('POST', '/api/auth/token/refresh', {}, async (c) => {
+  if (!(await rl('refresh:' + c.ip, 60, 600e3))) throw new HttpError(429, 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.');
+  const t = str(c.body.refresh_token, 20, 100, 'توکن');
+  const id = sec.sha(t), n = now();
+  try {
+    const s = await db.prepare("SELECT * FROM sessions WHERE id=? AND kind='api-refresh'").get(id);
+    if (!s || s.expires_at < n) throw new HttpError(401, 'نشست منقضی شده است؛ دوباره وارد شوید.');
+    const u = await db.prepare('SELECT * FROM users WHERE id=?').get(s.user_id);
+    if (!u || u.status !== 'active') { await db.prepare("DELETE FROM sessions WHERE user_id=? AND kind LIKE 'api-%'").run(s.user_id); throw new HttpError(401, 'نشست منقضی شده است؛ دوباره وارد شوید.'); }
+    /* چرخش: refresh قبلی و همه‌ی accessهای وابسته به آن باطل می‌شوند */
+    await db.prepare("DELETE FROM sessions WHERE kind='api-access' AND csrf=?").run(id);
+    await db.prepare("DELETE FROM sessions WHERE id=? AND kind='api-refresh'").run(id);
+    const pair = await issueApiTokens(u, c.req, c.ip, c.body.device);
+    await audit(u.id, 'token_refresh', null, c.ip);
+    return { ok: true, token_type: 'Bearer', access_token: pair.access, refresh_token: pair.refresh, expires_in: API_ACCESS_S };
+  } catch (e) { if (e.code === '42703') throw TOKEN_503(); throw e; }
+});
+
+route('POST', '/api/auth/token/revoke', {}, async (c) => {
+  const scope = c.body.scope === 'all' ? 'all' : 'device';
+  try {
+    if (scope === 'all') {
+      if (!c.user || !c.sess || !c.sess.bearer) throw new HttpError(401, 'ابتدا وارد شوید.');
+      await db.prepare("DELETE FROM sessions WHERE user_id=? AND kind LIKE 'api-%'").run(c.user.id);
+      await audit(c.user.id, 'token_revoke', 'all', c.ip);
+      return { ok: true };
+    }
+    /* خروج همان دستگاه: با refresh_token بدنه (کلاینت موبایل هنگام خروج) یا با Bearer access */
+    const t = typeof c.body.refresh_token === 'string' ? c.body.refresh_token.trim() : '';
+    if (t) {
+      if (t.length > 100) throw new HttpError(400, 'توکن نامعتبر است.');
+      const id = sec.sha(t);
+      const s = await db.prepare("SELECT * FROM sessions WHERE id=? AND kind='api-refresh'").get(id);
+      if (s) {
+        await db.prepare("DELETE FROM sessions WHERE kind='api-access' AND csrf=?").run(id);
+        await db.prepare("DELETE FROM sessions WHERE id=? AND kind='api-refresh'").run(id);
+        await audit(s.user_id, 'token_revoke', 'device', c.ip);
+      }
+      return { ok: true }; // پاسخ یکسان چه توکن معتبر باشد چه نه — بدون افشا
+    }
+    if (c.user && c.sess && c.sess.bearer) {
+      await db.prepare("DELETE FROM sessions WHERE id=? AND kind='api-refresh'").run(c.sess.refreshId); // refresh همان دستگاه
+      await db.prepare('DELETE FROM sessions WHERE id=?').run(c.sess.id);
+      await audit(c.user.id, 'token_revoke', 'device', c.ip);
+      return { ok: true };
+    }
+    throw new HttpError(401, 'ابتدا وارد شوید.');
+  } catch (e) { if (e.code === '42703') throw TOKEN_503(); throw e; }
 });
 
 route('GET', '/api/me', {}, async (c) => {
@@ -890,12 +1006,16 @@ async function api(req, res, url, ip) {
     let r = null, params = {};
     for (const x of routes) { if (x.method !== m) continue; const mm = url.pathname.match(x.re); if (mm) { r = x; params = Object.fromEntries(x.keys.map((k, i) => [k, +mm[i + 1]])); break; } }
     if (!r) throw new HttpError(routes.some((x) => x.re.test(url.pathname)) ? 405 : 404, 'یافت نشد.');
-    const sess = await getSession(req), user = sess && sess.user;
+    /* نشست کوکی اول؛ در نبود آن، Bearer توکن موبایل (CMD-026) */
+    let sess = await getSession(req);
+    if (!sess) sess = await bearerSession(req);
+    const user = sess && sess.user;
     if (r.opts.auth) {
       if (!user) throw new HttpError(401, 'ابتدا وارد شوید.');
       if (r.opts.roles && !r.opts.roles.includes(user.role)) { await audit(user.id, 'forbidden', url.pathname, ip); throw new HttpError(403, 'دسترسی ندارید.'); }
       if (user.must_change && !r.opts.allowMust) throw new HttpError(403, 'must_change_password');
-      if (m !== 'GET' && !sec.safeEq(req.headers['x-csrf-token'] || '', sess.csrf)) throw new HttpError(403, 'درخواست نامعتبر است (CSRF).');
+      /* لایه‌ی ۲ CSRF فقط برای نشست کوکی — درخواست Bearer بدون کوکی است و نیازی ندارد */
+      if (m !== 'GET' && !sess.bearer && !sec.safeEq(req.headers['x-csrf-token'] || '', sess.csrf)) throw new HttpError(403, 'درخواست نامعتبر است (CSRF).');
     }
     let body = {};
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(m) && !r.opts.raw) {
