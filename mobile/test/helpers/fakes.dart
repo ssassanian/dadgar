@@ -5,6 +5,8 @@ import 'package:dadgar_mobile/features/appointments/domain/appointment.dart';
 import 'package:dadgar_mobile/features/auth/application/app_lock_controller.dart';
 import 'package:dadgar_mobile/features/auth/application/auth_controller.dart';
 import 'package:dadgar_mobile/features/auth/data/auth_repository.dart';
+import 'package:dadgar_mobile/features/billing/data/billing_repository.dart';
+import 'package:dadgar_mobile/features/billing/domain/invoice_models.dart';
 import 'package:dadgar_mobile/features/cases/data/cases_repository.dart';
 import 'package:dadgar_mobile/features/cases/domain/case_models.dart';
 import 'package:dadgar_mobile/core/secure/token_store.dart';
@@ -200,6 +202,27 @@ final class FakeCasesRepository implements CasesRepository {
   }
 }
 
+/// مخزن مالی قابل تنظیم برای تست واحد — M4
+final class FakeBillingRepository implements BillingRepository {
+  FakeBillingRepository({this.response, this.failWith});
+
+  /// پاسخ موفق GET /api/invoices
+  InvoicesResponse? response;
+
+  /// اگر تنظیم شود، fetchInvoices این شیء را پرتاب می‌کند
+  Object? failWith;
+
+  int calls = 0;
+
+  @override
+  Future<InvoicesResponse> fetchInvoices() async {
+    calls++;
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return response ?? const InvoicesResponse(rows: [], todayD: 1);
+  }
+}
+
 /// ساخت ProviderContainer با فیک‌های نشست — کمکی مشترک تست‌ها
 ProviderContainer dadgarContainer({
   AuthStatus authStatus = const AuthUnauthenticated(),
@@ -207,6 +230,7 @@ ProviderContainer dadgarContainer({
   FakeAuthRepository? repository,
   FakeAppointmentsRepository? appointmentsRepository,
   FakeCasesRepository? casesRepository,
+  FakeBillingRepository? billingRepository,
   TokenStore? tokenStore,
   bool realAuthController = false,
   bool realAppLockController = false,
@@ -222,6 +246,8 @@ ProviderContainer dadgarContainer({
             .overrideWithValue(appointmentsRepository),
       if (casesRepository != null)
         casesRepositoryProvider.overrideWithValue(casesRepository),
+      if (billingRepository != null)
+        billingRepositoryProvider.overrideWithValue(billingRepository),
       if (!realAuthController)
         authControllerProvider
             .overrideWith(() => FakeAuthController(authStatus)),

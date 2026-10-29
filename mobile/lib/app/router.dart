@@ -9,6 +9,7 @@ import '../features/auth/presentation/lock_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/otp_screen.dart';
 import '../features/auth/presentation/splash_view.dart';
+import '../features/billing/presentation/invoices_screen.dart';
 import '../features/cases/presentation/case_detail_screen.dart';
 import '../features/cases/presentation/cases_screen.dart';
 import '../features/cases/presentation/new_case_screen.dart';
@@ -65,6 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           return CaseDetailScreen(caseId: id);
         },
       ),
+      GoRoute(
+        path: '/invoices',
+        builder: (context, state) => const InvoicesScreen(),
+      ),
     ],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -86,7 +91,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             '/appointments' ||
             '/appointments/mine' ||
             '/cases' ||
-            '/cases/new' =>
+            '/cases/new' ||
+            '/invoices' =>
               null,
             final l when _isCaseDetail(l) => null,
             _ => '/',

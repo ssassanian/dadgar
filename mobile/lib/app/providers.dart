@@ -8,6 +8,8 @@ import '../features/appointments/data/appointments_repository.dart';
 import '../features/auth/application/app_lock_controller.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/data/auth_repository.dart';
+import '../features/billing/application/billing_controller.dart';
+import '../features/billing/data/billing_repository.dart';
 import '../features/cases/application/cases_controller.dart';
 import '../features/cases/data/cases_repository.dart';
 
@@ -72,3 +74,14 @@ final createCaseControllerProvider =
 /// جزئیات پرونده — FutureProvider.family بر شناسه (Riverpod 3) — M2
 /// (تعریف در cases_controller.dart؛ اینجا فقط ارجاع مستند)
 // caseDetailProvider در lib/features/cases/application/cases_controller.dart
+
+/// مخزن مالی — همان الگوی M2/M3 (dio + Bearer؛ فعال‌سازی زنده با D-6)
+final billingRepositoryProvider = Provider<BillingRepository>(
+  (ref) => DioBillingRepository(
+    client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
+  ),
+);
+
+/// وضعیت UI فهرست فاکتورها — M4
+final billingControllerProvider =
+    NotifierProvider<BillingController, BillingUi>(BillingController.new);

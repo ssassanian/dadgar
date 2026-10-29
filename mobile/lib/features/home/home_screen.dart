@@ -56,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: DadgarTokens.s8),
                       const Text(
-                        'نسخه M2 — پرونده‌ها: فهرست، جزئیات و ثبت پرونده افزوده شد',
+                        'نسخه M4 — مالی: فهرست فاکتورهای خود با تاریخ شمسی و وضعیت افزوده شد',
                         style: TextStyle(
                           color: DadgarTokens.onPrimary,
                           fontSize: 13,
@@ -102,6 +102,13 @@ class HomeScreen extends ConsumerWidget {
                   title: 'نوبت‌های من',
                   subtitle: 'وضعیت نوبت‌ها و لغو (M3)',
                   onTap: () => context.go('/appointments/mine'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'صورتحساب‌ها و پرداخت',
+                  subtitle: 'فاکتورهای من، مبلغ و وضعیت (M4)',
+                  onTap: () => context.go('/invoices'),
                 ),
                 const SizedBox(height: DadgarTokens.s24),
                 _PaletteCard(
