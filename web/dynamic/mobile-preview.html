@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دادگر — پیش‌نمایش اپ موبایل (M1 فاز ۱)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF7F2; --surface:#FFFFFF; --primary:#14345B; --on-primary:#FFFFFF;
+    --accent:#2E7D32; --text:#1A1C1E; --text2:#5A5F66; --error:#B3261E; --radius:12px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:'Vazirmatn',sans-serif; background:#e9e4da; color:var(--text); padding:32px 16px}
+  .page-head{max-width:1240px; margin:0 auto 24px; text-align:center}
+  .page-head h1{font-size:22px; font-weight:700; color:var(--primary)}
+  .page-head p{font-size:13px; color:var(--text2); margin-top:8px; line-height:2}
+  .page-head .badge{display:inline-block; background:var(--primary); color:#fff; font-size:12px; padding:4px 14px; border-radius:999px; margin-top:10px}
+  .row{display:flex; flex-wrap:wrap; gap:28px; justify-content:center; max-width:1240px; margin:0 auto}
+  .phone{width:300px; background:var(--surface); border-radius:28px; border:6px solid #243044; overflow:hidden; box-shadow:0 18px 40px rgba(20,52,91,.18); display:flex; flex-direction:column; height:600px}
+  .phone .cap{font-size:12px; color:var(--text2); text-align:center; padding:8px 10px; background:#f3efe7; border-bottom:1px solid rgba(90,95,102,.2)}
+  .screen{flex:1; overflow-y:auto; background:var(--bg); direction:rtl}
+  .appbar{background:var(--primary); color:var(--on-primary); padding:14px 16px; display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; font-weight:500; position:relative}
+  .appbar .act{position:absolute; inset-inline-start:12px; font-size:17px}
+  .appbar .lead{position:absolute; inset-inline-end:12px; font-size:17px}
+  .pad{padding:24px 24px 32px}
+  .center{display:flex; flex-direction:column; align-items:center; text-align:center}
+  .icon{font-size:52px; line-height:1}
+  h2.title{font-size:20px; font-weight:700; margin-top:10px}
+  .sub{font-size:12px; color:var(--text2); margin-top:6px}
+  .field{background:var(--surface); border:1px solid rgba(90,95,102,.35); border-radius:8px; padding:11px 12px; font-size:13px; color:var(--text); display:flex; align-items:center; gap:8px; margin-top:14px; text-align:right}
+  .field .lbl{color:var(--text2); font-size:12px}
+  .field .ph{margin-inline-start:auto; color:var(--text2); font-size:14px}
+  .btn{display:block; width:100%; background:var(--primary); color:var(--on-primary); border:none; border-radius:24px; padding:13px 16px; font-size:14px; font-weight:500; font-family:inherit; margin-top:22px; text-align:center}
+  .btn.disabled{background:rgba(20,52,91,.38)}
+  .btn.tonal{background:#F2E8E6; color:var(--error); font-weight:500}
+  .txtbtn{background:none; border:none; color:var(--primary); font-size:13px; font-family:inherit; margin-top:12px}
+  .card{background:var(--surface); border:1px solid rgba(90,95,102,.25); border-radius:var(--radius); padding:12px; font-size:11.5px; color:var(--text2); text-align:center; line-height:1.9; margin-top:16px}
+  .chip{background:var(--surface); border:1px solid rgba(90,95,102,.2); border-radius:var(--radius); padding:9px 12px; font-size:11.5px; color:var(--text2); display:flex; align-items:center; gap:8px; margin-top:8px; text-align:right}
+  .chip .ic{color:var(--accent); font-size:15px}
+  .hero{background:var(--primary); color:var(--on-primary); border-radius:var(--radius); padding:16px; text-align:right}
+  .hero .hi{font-size:16px; font-weight:700}
+  .hero .v{font-size:12px; margin-top:8px; opacity:.92}
+  .pal{border-radius:var(--radius); padding:14px 16px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:500; border:1px solid rgba(90,95,102,.2)}
+  .pal b{font-weight:700}
+  .tile{background:var(--surface); border:1px solid rgba(90,95,102,.2); border-radius:var(--radius); padding:12px 14px; display:flex; align-items:center; gap:12px; margin-top:22px; text-align:right}
+  .tile .fp{color:var(--primary); font-size:20px}
+  .tile .t{font-size:13px; font-weight:500}
+  .tile .s{font-size:11px; color:var(--text2); margin-top:3px}
+  .switch{margin-inline-start:auto; width:40px; height:22px; border-radius:999px; background:var(--accent); position:relative; flex-shrink:0}
+  .switch::after{content:''; position:absolute; top:2px; inset-inline-start:20px; width:18px; height:18px; border-radius:50%; background:#fff}
+  .avatar{width:64px; height:64px; border-radius:50%; background:var(--primary); color:#fff; font-size:24px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:4px}
+  .foot{max-width:1240px; margin:28px auto 0; text-align:center; font-size:12px; color:var(--text2); line-height:2.1}
+  .foot a{color:var(--primary); font-weight:500}
+  .note-err{color:var(--error); font-weight:500}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>اپ موبایل دادگر — پیش‌نمایش M1 فاز ۱ (احراز هویت، خانه، پروفایل)</h1>
+  <p>این فایل <b>پیش‌نمایش HTML وفادار به کد واقعی</b> است (توکن‌های پالت D-3، متن‌ها و ساختار، عیناً از <code>mobile/lib/</code> در کامیت <code>ebccbe7</code>).
+  اپ اصلی <b>نیتیو Flutter (اندروید/iOS)</b> است و در مرورگر اجرا نمی‌شود؛ نسخه‌ی نصب‌شدنی (APK/فروشگاه) طبق نقشه‌ی راه در فاز M7 منتشر می‌شود.</p>
+  <span class="badge">Mobile CI سبز — ۱۵/۱۵ تست پاس — کامیت ebccbe7 + 2d61757</span>
+</div>
+
+<div class="row">
+
+  <!-- ۱) ورود -->
+  <div class="phone">
+    <div class="cap">۱ — صفحه‌ی ورود (login_screen.dart)</div>
+    <div class="screen">
+      <div class="pad center">
+        <div class="icon">⚖️</div>
+        <h2 class="title">ورود به دادگر</h2>
+        <div class="sub">با همان حساب کاربری سایت دادگر وارد شوید</div>
+        <div style="width:100%">
+          <div class="field"><span>👤</span><span class="lbl">نام کاربری</span></div>
+          <div class="field"><span>🔒</span><span class="lbl">رمز عبور</span><span class="ph">👁</span></div>
+          <button class="btn">ورود</button>
+          <button class="txtbtn">ورود با کد یک‌بارمصرف (OTP)</button>
+          <div class="card">اتصال زنده به سرور پس از حکم مدیر بر D-6 فعال می‌شود (DOC-04 §۵) — کد موبایل آماده است.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ۲) OTP -->
+  <div class="phone">
+    <div class="cap">۲ — ورود با OTP (otp_screen.dart)</div>
+    <div class="screen">
+      <div class="appbar">ورود با OTP</div>
+      <div class="pad center">
+        <div class="icon">💬</div>
+        <div class="sub" style="font-size:13px; color:var(--text); margin-top:14px">کد یک‌بارمصرف به شماره موبایل شما پیامک می‌شود</div>
+        <div style="width:100%">
+          <div class="field"><span>📱</span><span class="lbl">شماره موبایل</span></div>
+          <button class="btn disabled">ارسال کد (به‌زودی)</button>
+          <div class="card">فعال‌سازی OTP موبایل در فاز ۲ M1 — نیازمند حکم مدیر بر D-6 (DOC-04 §۵-۲)</div>
+          <button class="txtbtn">بازگشت به ورود با رمز</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ۳) خانه -->
+  <div class="phone">
+    <div class="cap">۳ — خانه‌ی نشست‌دار (home_screen.dart)</div>
+    <div class="screen">
+      <div class="appbar">دادگر<span class="act">👤</span></div>
+      <div class="pad">
+        <div class="hero">
+          <div class="hi">سلام، کاربر دادگر</div>
+          <div class="v">نسخه M1 فاز ۱ — اسکلت احراز هویت، خانه و پروفایل</div>
+        </div>
+        <div class="chip"><span class="ic">🛡</span>توکن در Keystore/Keychain ذخیره می‌شود (§۸)</div>
+        <div class="chip"><span class="ic">🔄</span>اتصال زنده به سرور: در انتظار حکم D-6</div>
+        <div class="pal" style="background:var(--primary); color:#fff">سرمه‌ای حقوقی (primary) <b>#14345B</b></div>
+        <div class="pal" style="background:var(--bg)">روشن گرم (background) <b>#FAF7F2</b></div>
+        <div class="pal" style="background:var(--accent); color:#fff">سبز تایید (accent) <b>#2E7D32</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ۴) پروفایل -->
+  <div class="phone">
+    <div class="cap">۴ — پروفایل (profile_screen.dart)</div>
+    <div class="screen">
+      <div class="appbar">پروفایل<span class="lead">→</span></div>
+      <div class="pad center">
+        <div class="avatar">ک</div>
+        <h2 class="title" style="font-size:16px; margin-top:10px">کاربر دادگر</h2>
+        <div class="sub">نشست موبایل دادگر — احراز هویت با توکن Bearer</div>
+        <div style="width:100%">
+          <div class="tile"><span class="fp">指纹</span>
+            <span><span class="t">قفل اپ با بیومتریک</span><br><span class="s">هر بار بازکردن اپ، اثر انگشت/Face خواسته می‌شود (M1)</span></span>
+            <span class="switch"></span>
+          </div>
+          <button class="btn tonal" style="margin-top:22px">⎋ خروج از این دستگاه</button>
+          <div class="sub" style="font-size:10.5px; margin-top:10px">«خروج از همه‌ی دستگاه‌ها» در فازهای بعدی پروفایل کامل می‌شود</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ۵) قفل -->
+  <div class="phone">
+    <div class="cap">۵ — قفل بیومتریک (lock_screen.dart)</div>
+    <div class="screen">
+      <div class="pad center" style="justify-content:center; height:100%">
+        <div class="icon" style="font-size:58px">🔐</div>
+        <h2 class="title" style="font-size:18px">دادگر قفل است</h2>
+        <div class="sub">برای ادامه، هویت خود را تایید کنید</div>
+        <div style="width:100%">
+          <button class="btn">指纹 بازکردن با بیومتریک</button>
+          <button class="txtbtn">خروج از حساب و ورود با رمز</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  سایت زنده: <a href="https://dadgar-aboalisinacom-7507.vercel.app/">dadgar-aboalisinacom-7507.vercel.app</a>
+  &nbsp;•&nbsp; مخزن: <a href="https://github.com/ssassanian/dadgar">github.com/ssassanian/dadgar</a> (پوشه‌ی <code>mobile/</code>)<br>
+  برای فعال‌شدن اتصال زنده‌ی اپ به سرور، حکم D-6 (دو افزوده‌ی API) لازم است — <span class="note-err">در انتظار تصمیم مدیر</span>.
+</div>
+
+</body>
+</html>
