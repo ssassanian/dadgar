@@ -15,6 +15,9 @@ abstract final class ApiEndpoints {
 
   /// نوبت‌دهی — مسیر «موجود» سرور (CMD-004)؛ پذیرش Bearer پس از حکم D-6
   static const String appointments = '/api/appointments';
+
+  /// پرونده‌ها — مسیرهای «موجود» سرور (CMD-003)؛ پذیرش Bearer پس از حکم D-6
+  static const String cases = '/api/cases';
 }
 
 /// خطای یکپارچه‌ی لایه‌ی API با پیام فارسی قابل نمایش به کاربر

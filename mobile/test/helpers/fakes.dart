@@ -1,9 +1,12 @@
 import 'package:dadgar_mobile/app/providers.dart';
+import 'package:dadgar_mobile/core/api/api_client.dart';
 import 'package:dadgar_mobile/features/appointments/data/appointments_repository.dart';
 import 'package:dadgar_mobile/features/appointments/domain/appointment.dart';
 import 'package:dadgar_mobile/features/auth/application/app_lock_controller.dart';
 import 'package:dadgar_mobile/features/auth/application/auth_controller.dart';
 import 'package:dadgar_mobile/features/auth/data/auth_repository.dart';
+import 'package:dadgar_mobile/features/cases/data/cases_repository.dart';
+import 'package:dadgar_mobile/features/cases/domain/case_models.dart';
 import 'package:dadgar_mobile/core/secure/token_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -130,12 +133,80 @@ final class FakeAppointmentsRepository implements AppointmentsRepository {
   }
 }
 
+/// مخزن پرونده‌ها قابل تنظیم برای تست واحد — M2
+final class FakeCasesRepository implements CasesRepository {
+  FakeCasesRepository({this.pages = const {}, this.details = const {}, this.failWith});
+
+  /// پاسخ هر صفحه — کلید = شماره‌ی صفحه
+  final Map<int, CasesPage> pages;
+
+  /// پاسخ جزئیات — کلید = شناسه‌ی پرونده
+  final Map<int, CaseDetail> details;
+
+  /// اگر تنظیم شود، همه‌ی متدها این شیء را پرتاب می‌کنند
+  Object? failWith;
+
+  int pageCalls = 0;
+  int detailCalls = 0;
+  int createCalls = 0;
+  final List<({int page})> pageArgs = [];
+  final List<({int id})> detailArgs = [];
+  final List<({String category, String title, String description})>
+      createArgs = [];
+
+  CasesPage _emptyPage(int page) => CasesPage(
+        rows: const [],
+        page: page,
+        pages: 1,
+        total: 0,
+      );
+
+  @override
+  Future<CasesPage> fetchPage({required int page}) async {
+    pageCalls++;
+    pageArgs.add((page: page));
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return pages[page] ?? _emptyPage(page);
+  }
+
+  @override
+  Future<CaseDetail> fetchDetail({required int id}) async {
+    detailCalls++;
+    detailArgs.add((id: id));
+    final failure = failWith;
+    if (failure != null) throw failure;
+    final detail = details[id];
+    if (detail == null) {
+      throw const ApiException(
+        'پرونده یافت نشد.',
+        statusCode: 404,
+      );
+    }
+    return detail;
+  }
+
+  @override
+  Future<int> create({
+    required String category,
+    required String title,
+    required String description,
+  }) async {
+    createCalls++;
+    createArgs.add((category: category, title: title, description: description));
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return 201;
+  }
+}
+
 /// ساخت ProviderContainer با فیک‌های نشست — کمکی مشترک تست‌ها
 ProviderContainer dadgarContainer({
   AuthStatus authStatus = const AuthUnauthenticated(),
   AppLockState lockState = const AppLockState(),
   FakeAuthRepository? repository,
   FakeAppointmentsRepository? appointmentsRepository,
+  FakeCasesRepository? casesRepository,
   TokenStore? tokenStore,
   bool realAuthController = false,
   bool realAppLockController = false,
@@ -149,6 +220,8 @@ ProviderContainer dadgarContainer({
       if (appointmentsRepository != null)
         appointmentsRepositoryProvider
             .overrideWithValue(appointmentsRepository),
+      if (casesRepository != null)
+        casesRepositoryProvider.overrideWithValue(casesRepository),
       if (!realAuthController)
         authControllerProvider
             .overrideWith(() => FakeAuthController(authStatus)),

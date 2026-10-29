@@ -8,6 +8,8 @@ import '../features/appointments/data/appointments_repository.dart';
 import '../features/auth/application/app_lock_controller.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/data/auth_repository.dart';
+import '../features/cases/application/cases_controller.dart';
+import '../features/cases/data/cases_repository.dart';
 
 /// گراف وابستگی‌ها — نقطه‌ی واحد تزریق (M1)
 ///
@@ -49,3 +51,24 @@ final appointmentsControllerProvider =
     NotifierProvider<AppointmentsController, AppointmentsUi>(
   AppointmentsController.new,
 );
+
+/// مخزن پرونده‌ها — همان الگوی M3 (dio + Bearer؛ فعال‌سازی زنده با D-6)
+final casesRepositoryProvider = Provider<CasesRepository>(
+  (ref) => DioCasesRepository(
+    client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
+  ),
+);
+
+/// وضعیت UI فهرست پرونده‌ها — M2
+final casesControllerProvider =
+    NotifierProvider<CasesController, CasesUi>(CasesController.new);
+
+/// وضعیت UI ثبت پرونده جدید — M2
+final createCaseControllerProvider =
+    NotifierProvider<CreateCaseController, CreateCaseUi>(
+  CreateCaseController.new,
+);
+
+/// جزئیات پرونده — FutureProvider.family بر شناسه (Riverpod 3) — M2
+/// (تعریف در cases_controller.dart؛ اینجا فقط ارجاع مستند)
+// caseDetailProvider در lib/features/cases/application/cases_controller.dart

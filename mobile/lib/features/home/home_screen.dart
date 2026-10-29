@@ -56,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: DadgarTokens.s8),
                       const Text(
-                        'نسخه M3 — نوبت‌دهی با تقویم شمسی نیتیو افزوده شد',
+                        'نسخه M2 — پرونده‌ها: فهرست، جزئیات و ثبت پرونده افزوده شد',
                         style: TextStyle(
                           color: DadgarTokens.onPrimary,
                           fontSize: 13,
@@ -76,6 +76,20 @@ class HomeScreen extends ConsumerWidget {
                   label: 'اتصال زنده به سرور: در انتظار حکم D-6',
                 ),
                 const SizedBox(height: DadgarTokens.s16),
+                _ActionCard(
+                  icon: Icons.folder_outlined,
+                  title: 'پرونده‌های من',
+                  subtitle: 'فهرست و جزئیات پرونده‌ها (M2)',
+                  onTap: () => context.go('/cases'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.post_add_outlined,
+                  title: 'ثبت پرونده جدید',
+                  subtitle: 'دسته، عنوان و توضیحات (M2)',
+                  onTap: () => context.go('/cases/new'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
                 _ActionCard(
                   icon: Icons.calendar_month,
                   title: 'رزرو نوبت',
