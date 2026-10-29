@@ -1,0 +1,62 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/lock_screen.dart';
+import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/otp_screen.dart';
+import '../features/auth/presentation/splash_view.dart';
+import '../features/home/home_screen.dart';
+import '../features/profile/profile_screen.dart';
+import 'providers.dart';
+
+/// روتر اعلامی M1 با redirect مبتنی بر وضعیت نشست و قفل بیومتریک
+final routerProvider = Provider<GoRouter>((ref) {
+  final refresh = ValueNotifier<int>(0);
+  ref.listen(authControllerProvider, (_, __) => refresh.value++);
+  ref.listen(appLockControllerProvider, (_, __) => refresh.value++);
+  ref.onDispose(refresh.dispose);
+
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: refresh,
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashView(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(path: '/otp', builder: (context, state) => const OtpScreen()),
+      GoRoute(path: '/lock', builder: (context, state) => const LockScreen()),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+    ],
+    redirect: (context, state) {
+      final auth = ref.read(authControllerProvider);
+      final lock = ref.read(appLockControllerProvider);
+      final location = state.matchedLocation;
+
+      return switch (auth) {
+        // تا پایان بازیابی نشست، همه‌جا اسپلش
+        AuthUnknown() => location == '/splash' ? null : '/splash',
+        AuthUnauthenticated() => switch (location) {
+            '/login' || '/otp' => null,
+            _ => '/login',
+          },
+        Authenticated() when lock.needsUnlock =>
+          location == '/lock' ? null : '/lock',
+        Authenticated() => switch (location) {
+            '/' || '/profile' => null,
+            _ => '/',
+          },
+      };
+    },
+  );
+});

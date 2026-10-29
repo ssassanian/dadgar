@@ -1,0 +1,35 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/secure/biometric_auth.dart';
+import '../core/secure/token_store.dart';
+import '../features/auth/application/app_lock_controller.dart';
+import '../features/auth/application/auth_controller.dart';
+import '../features/auth/data/auth_repository.dart';
+
+/// گراف وابستگی‌ها — نقطه‌ی واحد تزریق (M1)
+///
+/// در تست‌ها، هر provider با فِیک معادلش بازنویسی می‌شود؛
+/// کد تولیدی هرگز مستقیماً پلتفرم را لمس نمی‌کند (قابلیت تست DOC-04 §۹).
+
+/// ذخیره‌ی امن توکن — Keystore/Keychain در دستگاه واقعی
+final tokenStoreProvider =
+    Provider<TokenStore>((ref) => SecureTokenStore());
+
+/// سرویس بیومتریک — local_auth در دستگاه واقعی
+final biometricAuthProvider =
+    Provider<BiometricAuth>((ref) => LocalAuthBiometric());
+
+/// مخزن احراز هویت — dio + ذخیره‌ی امن
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => DioAuthRepository(store: ref.watch(tokenStoreProvider)),
+);
+
+/// وضعیت نشست — splash → login/home
+final authControllerProvider =
+    NotifierProvider<AuthController, AuthStatus>(AuthController.new);
+
+/// قفل بیومتریک اپ — وضعیت فعال/باز
+final appLockControllerProvider =
+    NotifierProvider<AppLockController, AppLockState>(
+  AppLockController.new,
+);
