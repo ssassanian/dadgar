@@ -56,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: DadgarTokens.s8),
                       const Text(
-                        'نسخه M4 — مالی: فهرست فاکتورهای خود با تاریخ شمسی و وضعیت افزوده شد',
+                        'نسخه M5 — پیام/تیکت و اسناد افزوده شد؛ بسته‌ی M2..M5 کامل شد',
                         style: TextStyle(
                           color: DadgarTokens.onPrimary,
                           fontSize: 13,
@@ -109,6 +109,27 @@ class HomeScreen extends ConsumerWidget {
                   title: 'صورتحساب‌ها و پرداخت',
                   subtitle: 'فاکتورهای من، مبلغ و وضعیت (M4)',
                   onTap: () => context.go('/invoices'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.support_agent_outlined,
+                  title: 'تیکت‌های پشتیبانی',
+                  subtitle: 'ثبت تیکت و پیگیری پاسخ (M5)',
+                  onTap: () => context.go('/tickets'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.forum_outlined,
+                  title: 'گفتگو با وکیل',
+                  subtitle: 'گفتگوی پرونده‌های تخصیص‌یافته (M5)',
+                  onTap: () => context.go('/threads'),
+                ),
+                const SizedBox(height: DadgarTokens.s8),
+                _ActionCard(
+                  icon: Icons.folder_shared_outlined,
+                  title: 'گاوصندوق اسناد',
+                  subtitle: 'بارگذاری از دوربین، دانلود و حذف (M5)',
+                  onTap: () => context.go('/documents'),
                 ),
                 const SizedBox(height: DadgarTokens.s24),
                 _PaletteCard(

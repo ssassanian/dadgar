@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/time/jalali.dart';
@@ -27,6 +28,13 @@ class CaseDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('پرونده ${JalaliCalendar.toPersianDigits(caseId)}'),
+        actions: [
+          IconButton(
+            tooltip: 'بارگذاری سند',
+            onPressed: () => context.go('/cases/$caseId/upload'),
+            icon: const Icon(Icons.upload_outlined),
+          ),
+        ],
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),

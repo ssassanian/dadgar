@@ -13,7 +13,14 @@ import '../features/billing/presentation/invoices_screen.dart';
 import '../features/cases/presentation/case_detail_screen.dart';
 import '../features/cases/presentation/cases_screen.dart';
 import '../features/cases/presentation/new_case_screen.dart';
+import '../features/documents/presentation/documents_screen.dart';
+import '../features/documents/presentation/upload_doc_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/messages/presentation/chat_screen.dart';
+import '../features/messages/presentation/new_ticket_screen.dart';
+import '../features/messages/presentation/ticket_detail_screen.dart';
+import '../features/messages/presentation/tickets_screen.dart';
+import '../features/messages/presentation/threads_screen.dart';
 import '../features/profile/profile_screen.dart';
 import 'providers.dart';
 
@@ -70,6 +77,48 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/invoices',
         builder: (context, state) => const InvoicesScreen(),
       ),
+      GoRoute(
+        path: '/tickets',
+        builder: (context, state) => const TicketsScreen(),
+      ),
+      GoRoute(
+        path: '/tickets/new',
+        builder: (context, state) => const NewTicketScreen(),
+      ),
+      GoRoute(
+        path: '/tickets/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return TicketDetailScreen(ticketId: id);
+        },
+      ),
+      GoRoute(
+        path: '/threads',
+        builder: (context, state) => const ThreadsScreen(),
+      ),
+      GoRoute(
+        path: '/threads/:caseId',
+        builder: (context, state) {
+          final id =
+              int.tryParse(state.pathParameters['caseId'] ?? '') ?? 0;
+          return ChatScreen(caseId: id);
+        },
+      ),
+      GoRoute(
+        path: '/documents',
+        builder: (context, state) => const DocumentsScreen(),
+      ),
+      GoRoute(
+        path: '/documents/upload',
+        builder: (context, state) => const UploadDocScreen(),
+      ),
+      GoRoute(
+        path: '/cases/:id/upload',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return UploadDocScreen(caseId: id);
+        },
+      ),
     ],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -92,9 +141,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             '/appointments/mine' ||
             '/cases' ||
             '/cases/new' ||
-            '/invoices' =>
+            '/invoices' ||
+            '/tickets' ||
+            '/tickets/new' ||
+            '/threads' ||
+            '/documents' ||
+            '/documents/upload' =>
               null,
             final l when _isCaseDetail(l) => null,
+            final l when _isTicketDetail(l) => null,
+            final l when _isThreadChat(l) => null,
+            final l when _isCaseUpload(l) => null,
             _ => '/',
           },
       };
@@ -107,4 +164,27 @@ bool _isCaseDetail(String location) {
   if (!location.startsWith('/cases/')) return false;
   final rest = location.substring('/cases/'.length);
   return rest.isNotEmpty && int.tryParse(rest) != null;
+}
+
+/// مسیر جزئیات تیکت — '/tickets/12' (خود '/tickets' و '/tickets/new' نیست)
+bool _isTicketDetail(String location) {
+  if (!location.startsWith('/tickets/')) return false;
+  final rest = location.substring('/tickets/'.length);
+  return rest.isNotEmpty && int.tryParse(rest) != null;
+}
+
+/// مسیر چت پرونده — '/threads/34'
+bool _isThreadChat(String location) {
+  if (!location.startsWith('/threads/')) return false;
+  final rest = location.substring('/threads/'.length);
+  return rest.isNotEmpty && int.tryParse(rest) != null;
+}
+
+/// مسیر بارگذاری سند به پرونده — '/cases/7/upload'
+bool _isCaseUpload(String location) {
+  if (!location.startsWith('/cases/')) return false;
+  final rest = location.substring('/cases/'.length);
+  if (!rest.endsWith('/upload')) return false;
+  final id = rest.substring(0, rest.length - '/upload'.length);
+  return id.isNotEmpty && int.tryParse(id) != null;
 }

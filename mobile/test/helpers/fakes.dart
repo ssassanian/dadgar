@@ -8,6 +8,11 @@ import 'package:dadgar_mobile/features/auth/data/auth_repository.dart';
 import 'package:dadgar_mobile/features/billing/data/billing_repository.dart';
 import 'package:dadgar_mobile/features/billing/domain/invoice_models.dart';
 import 'package:dadgar_mobile/features/cases/data/cases_repository.dart';
+import 'package:dadgar_mobile/features/documents/data/documents_repository.dart';
+import 'package:dadgar_mobile/features/documents/domain/document_models.dart';
+import 'package:dadgar_mobile/features/messages/data/messages_repository.dart';
+import 'package:dadgar_mobile/features/messages/domain/chat_models.dart';
+import 'package:dadgar_mobile/features/messages/domain/ticket_models.dart';
 import 'package:dadgar_mobile/features/cases/domain/case_models.dart';
 import 'package:dadgar_mobile/core/secure/token_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -223,6 +228,167 @@ final class FakeBillingRepository implements BillingRepository {
   }
 }
 
+/// مخزن پیام/تیکت قابل تنظیم برای تست واحد — M5
+final class FakeMessagesRepository implements MessagesRepository {
+  FakeMessagesRepository({
+    this.tickets = const [],
+    this.ticketDetails = const {},
+    this.threads = const [],
+    this.envelopes = const {},
+    this.failWith,
+  });
+
+  List<TicketSummary> tickets;
+  final Map<int, TicketDetail> ticketDetails;
+  List<Thread> threads;
+  final Map<int, ChatEnvelope> envelopes;
+  Object? failWith;
+
+  int ticketCalls = 0;
+  int createTicketCalls = 0;
+  int replyCalls = 0;
+  int messageCalls = 0;
+  int sendCalls = 0;
+  final List<({String subject, String dept, String priority, String body})>
+      createTicketArgs = [];
+  final List<({int id, String body})> replyArgs = [];
+  final List<({int caseId, String body})> sendArgs = [];
+  int createdTicketId = 77;
+  String replyStatus = 'answered';
+
+  @override
+  Future<List<TicketSummary>> fetchTickets() async {
+    ticketCalls++;
+    final f = failWith;
+    if (f != null) throw f;
+    return List.unmodifiable(tickets);
+  }
+
+  @override
+  Future<int> createTicket({
+    required String subject,
+    required String dept,
+    required String priority,
+    required String body,
+  }) async {
+    createTicketCalls++;
+    createTicketArgs.add(
+      (subject: subject, dept: dept, priority: priority, body: body),
+    );
+    final f = failWith;
+    if (f != null) throw f;
+    return createdTicketId;
+  }
+
+  @override
+  Future<TicketDetail> fetchTicket({required int id}) async {
+    final f = failWith;
+    if (f != null) throw f;
+    final d = ticketDetails[id];
+    if (d == null) {
+      throw const ApiException('تیکت یافت نشد.', statusCode: 404);
+    }
+    return d;
+  }
+
+  @override
+  Future<String> replyTicket({required int id, required String body}) async {
+    replyCalls++;
+    replyArgs.add((id: id, body: body));
+    final f = failWith;
+    if (f != null) throw f;
+    return replyStatus;
+  }
+
+  @override
+  Future<List<Thread>> fetchThreads() async {
+    final f = failWith;
+    if (f != null) throw f;
+    return List.unmodifiable(threads);
+  }
+
+  @override
+  Future<ChatEnvelope> fetchMessages({required int caseId}) async {
+    messageCalls++;
+    final f = failWith;
+    if (f != null) throw f;
+    final e = envelopes[caseId];
+    if (e == null) {
+      throw const ApiException('پرونده یافت نشد.', statusCode: 404);
+    }
+    return e;
+  }
+
+  @override
+  Future<int> sendMessage({required int caseId, required String body}) async {
+    sendCalls++;
+    sendArgs.add((caseId: caseId, body: body));
+    final f = failWith;
+    if (f != null) throw f;
+    return 900;
+  }
+}
+
+/// مخزن اسناد قابل تنظیم برای تست واحد — M5
+final class FakeDocumentsRepository implements DocumentsRepository {
+  FakeDocumentsRepository({this.docs = const [], this.failWith});
+
+  List<DocSummary> docs;
+  Object? failWith;
+
+  int listCalls = 0;
+  int uploadCalls = 0;
+  int downloadCalls = 0;
+  int deleteCalls = 0;
+  final List<({int caseId, String name, String mime, List<int> bytes})>
+      uploadArgs = [];
+  final List<int> downloadIds = [];
+  final List<int> deleteIds = [];
+  int uploadedId = 55;
+  List<int> downloadedBytes = const [1, 2, 3];
+
+  @override
+  Future<List<DocSummary>> fetchDocuments() async {
+    listCalls++;
+    final f = failWith;
+    if (f != null) throw f;
+    return List.unmodifiable(docs);
+  }
+
+  @override
+  Future<int> upload({
+    required int caseId,
+    required String name,
+    required String mime,
+    required List<int> bytes,
+  }) async {
+    uploadCalls++;
+    uploadArgs.add(
+      (caseId: caseId, name: name, mime: mime, bytes: bytes),
+    );
+    final f = failWith;
+    if (f != null) throw f;
+    return uploadedId;
+  }
+
+  @override
+  Future<List<int>> download({required int id}) async {
+    downloadCalls++;
+    downloadIds.add(id);
+    final f = failWith;
+    if (f != null) throw f;
+    return downloadedBytes;
+  }
+
+  @override
+  Future<void> delete({required int id}) async {
+    deleteCalls++;
+    deleteIds.add(id);
+    final f = failWith;
+    if (f != null) throw f;
+  }
+}
+
 /// ساخت ProviderContainer با فیک‌های نشست — کمکی مشترک تست‌ها
 ProviderContainer dadgarContainer({
   AuthStatus authStatus = const AuthUnauthenticated(),
@@ -231,6 +397,8 @@ ProviderContainer dadgarContainer({
   FakeAppointmentsRepository? appointmentsRepository,
   FakeCasesRepository? casesRepository,
   FakeBillingRepository? billingRepository,
+  FakeMessagesRepository? messagesRepository,
+  FakeDocumentsRepository? documentsRepository,
   TokenStore? tokenStore,
   bool realAuthController = false,
   bool realAppLockController = false,
@@ -248,6 +416,10 @@ ProviderContainer dadgarContainer({
         casesRepositoryProvider.overrideWithValue(casesRepository),
       if (billingRepository != null)
         billingRepositoryProvider.overrideWithValue(billingRepository),
+      if (messagesRepository != null)
+        messagesRepositoryProvider.overrideWithValue(messagesRepository),
+      if (documentsRepository != null)
+        documentsRepositoryProvider.overrideWithValue(documentsRepository),
       if (!realAuthController)
         authControllerProvider
             .overrideWith(() => FakeAuthController(authStatus)),

@@ -12,6 +12,8 @@ import '../features/billing/application/billing_controller.dart';
 import '../features/billing/data/billing_repository.dart';
 import '../features/cases/application/cases_controller.dart';
 import '../features/cases/data/cases_repository.dart';
+import '../features/documents/data/documents_repository.dart';
+import '../features/messages/data/messages_repository.dart';
 
 /// گراف وابستگی‌ها — نقطه‌ی واحد تزریق (M1)
 ///
@@ -85,3 +87,17 @@ final billingRepositoryProvider = Provider<BillingRepository>(
 /// وضعیت UI فهرست فاکتورها — M4
 final billingControllerProvider =
     NotifierProvider<BillingController, BillingUi>(BillingController.new);
+
+/// مخزن پیام/تیکت — همان الگوی M2/M3 (dio + Bearer؛ فعال‌سازی زنده با D-6)
+final messagesRepositoryProvider = Provider<MessagesRepository>(
+  (ref) => DioMessagesRepository(
+    client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
+  ),
+);
+
+/// مخزن اسناد — همان الگوی M2/M3 (dio + Bearer؛ فعال‌سازی زنده با D-6)
+final documentsRepositoryProvider = Provider<DocumentsRepository>(
+  (ref) => DioDocumentsRepository(
+    client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
+  ),
+);

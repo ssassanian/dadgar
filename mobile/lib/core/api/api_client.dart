@@ -22,6 +22,15 @@ abstract final class ApiEndpoints {
   /// مالی — مسیر «موجود» سرور (CMD-005)؛ پذیرش Bearer پس از حکم D-6
   /// (نمای مشتری: فقط GET فاکتورهای خود؛ POST/PATCH مدیر در پنل وب می‌ماند)
   static const String invoices = '/api/invoices';
+
+  /// تیکت/پیام — مسیرهای «موجود» سرور (CMD-007)؛ پذیرش Bearer پس از حکم D-6
+  static const String tickets = '/api/tickets';
+  static const String threads = '/api/threads';
+  static const String messages = '/api/messages';
+
+  /// اسناد — مسیرهای «موجود» سرور (CMD-008)؛ پذیرش Bearer پس از حکم D-6
+  /// (آپلود: '/api/cases/:id/documents' از `cases` ساخته می‌شود)
+  static const String documents = '/api/documents';
 }
 
 /// خطای یکپارچه‌ی لایه‌ی API با پیام فارسی قابل نمایش به کاربر
