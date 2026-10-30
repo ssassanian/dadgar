@@ -22,7 +22,7 @@ sleep 2
 B=http://127.0.0.1:3201
 CJ=/tmp/bl_client.jar; LJ=/tmp/bl_lawyer.jar; AJ=/tmp/bl_admin.jar
 rm -f $CJ $LJ $AJ
-trap 'kill $SRV 2>/dev/null' EXIT
+trap 'kill $SRV $SRV2 $FAKE 2>/dev/null' EXIT
 
 login() { # jar user pass -> csrf
   curl -s -c "$1" -X POST $B/api/auth/login -H "Content-Type: application/json" -H "Origin: $B" \
@@ -140,6 +140,67 @@ curl -s -o /dev/null -w "pay-missing [%{http_code}]\n" -b $CJ -X POST $B/api/pay
 curl -s -w " [%{http_code}]\n" "$B/api/payments/callback" | python3 -c "
 import sys; t=sys.stdin.read(); assert '[404]' in t, t; print('callback بدون provider → 404 ضدافشا')"
 
+# --- CMD-029: ری‌استارت سرور با provider=زیبال + درگاه تقلبی (رفتار عین مستند زیبال) ---
+kill $SRV 2>/dev/null; wait $SRV 2>/dev/null || true
+node scripts/fake-zibal.js 3300 > /tmp/bill_fake.log 2>&1 &
+FAKE=$!
+PORT=3201 PAYMENT_PROVIDER=zibal PAYMENT_MERCHANT_ID=zibal PAYMENT_CALLBACK_BASE=http://127.0.0.1:3201 PAYMENT_API_BASE=http://127.0.0.1:3300 node scripts/dev-server.js > /tmp/bill_harness2.log 2>&1 &
+SRV2=$!
+sleep 2
+
+fmode() { curl -s "http://127.0.0.1:3300/__set?mode=$1" > /dev/null; }
+callback() { curl -s "$B/api/payments/callback?trackId=$1&success=1&status=1&orderId=inv-$2"; }
+
+echo "===== 12c) CMD-029 payments — زبال کامل (درگاه تقلبی) ====="
+P1=$(curl -s -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d "{\"invoice_id\":$I1}")
+TID1=$(echo "$P1" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok') and d['pay_url'].startswith('http://127.0.0.1:3300/start/'), d; assert d['track_id']>0, d; print(d['track_id'])")
+echo "pay-req OK | track: $TID1 | pay_url به درگاه تقلبی اشاره می‌کند"
+node -e "
+const {db}=require('./lib/db.pg');
+(async()=>{const r=await db.prepare('SELECT * FROM payment_requests WHERE track_id=$TID1').get();
+assert(r && r.status==='pending' && r.gateway==='zibal' && r.amount_rial===50000000 && Number(r.invoice_id)===$I1, r);
+console.log('payment_requests row OK | amount_rial=۵۰م (تومان×۱۰) | status=pending');process.exit(0)})().catch(e=>{console.error(e.message);process.exit(1)})"
+P2=$(curl -s -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d "{\"invoice_id\":$I1}")
+TID2=$(echo "$P2" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok'), d; print(d['track_id'])")
+if [ "$TID1" != "$TID2" ]; then echo "pay-req-again OK | track جدید: $TID2 (چند نشست مجاز)"; else echo "FAIL: track تکراری"; exit 1; fi
+curl -s -o /dev/null -w "callback-unknown [%{http_code}]\n" "$B/api/payments/callback?trackId=999999999999&success=1"
+fmode fail
+callback $TID2 $I1 | python3 -c "
+import sys; t=sys.stdin.read(); assert 'پرداخت ناموفق' in t and '[200]' not in t, t[:200]; print('callback-fail OK | success=1 نادیده — verify=202 → صفحه‌ی ناموفق + ردیف failed')"
+curl -s -b $CJ $B/api/invoices | python3 -c "
+import json,sys; d=json.load(sys.stdin); r=[x for x in d['rows'] if x['id']==$I1][0]; assert r['status']=='pending', r; print('invoice I1 هنوز pending')"
+fmode ok
+callback $TID1 $I1 | python3 -c "
+import sys; t=sys.stdin.read(); assert 'پرداخت با موفقیت انجام شد' in t and 'RF-TEST' in t, t[:200]; print('callback-ok OK | verify=100 → صفحه‌ی موفق + شماره مرجع')"
+curl -s -b $CJ $B/api/invoices | python3 -c "
+import json,sys,time; d=json.load(sys.stdin); r=[x for x in d['rows'] if x['id']==$I1][0]
+assert r['status']=='paid' and r['paid_at'] and abs(r['paid_at']-time.time())<120, r; print('invoice I1 → paid با paid_at (پرداخت درگاهی)')"
+PAID_AT=$(node -e "const {db}=require('./lib/db.pg');(async()=>{console.log((await db.prepare('SELECT paid_at FROM payment_requests WHERE track_id=$TID1').get()).paid_at);process.exit(0)})()")
+callback $TID1 $I1 | python3 -c "
+import sys; t=sys.stdin.read(); assert 'پرداخت با موفقیت انجام شد' in t, t[:200]; print('callback-replay OK | تکرار ایدمپوتنت — صفحه‌ی موفق دوباره')"
+PAID_AT2=$(node -e "const {db}=require('./lib/db.pg');(async()=>{console.log((await db.prepare('SELECT paid_at FROM payment_requests WHERE track_id=$TID1').get()).paid_at);process.exit(0)})()")
+if [ "$PAID_AT" = "$PAID_AT2" ]; then echo "paid_at بدون تغییر OK"; else echo "FAIL: paid_at تغییر کرد ($PAID_AT → $PAID_AT2)"; exit 1; fi
+PAUD=$(node -e "const {db}=require('./lib/db.pg');(async()=>{console.log((await db.prepare(\"SELECT COUNT(*) c FROM audit_log WHERE action='payment_paid'\").get()).c);process.exit(0)})()")
+if [ "$PAUD" = "1" ]; then echo "audit payment_paid = 1 OK (تکرار audit نساخت)"; else echo "FAIL: audit payment_paid=$PAUD"; exit 1; fi
+fmode mismatch
+P3=$(curl -s -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d "{\"invoice_id\":$I2}")
+TID3=$(echo "$P3" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok'), d; print(d['track_id'])")
+callback $TID3 $I2 | python3 -c "
+import sys; t=sys.stdin.read(); assert 'مغایرت مبلغ' in t, t[:200]; print('callback-mismatch OK | مبلغ درگاه ≠ فاکتور → ردیف mismatch + audit، فاکتور پرداخت نشد')"
+curl -s -b $CJ $B/api/invoices | python3 -c "
+import json,sys; d=json.load(sys.stdin); r=[x for x in d['rows'] if x['id']==$I2][0]; assert r['status']=='pending', r; print('invoice I2 هنوز pending (تحویل در مغایرت ممنوع)')"
+fmode already
+P4=$(curl -s -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d "{\"invoice_id\":$I3}")
+TID4=$(echo "$P4" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok'), d; print(d['track_id'])")
+callback $TID4 $I3 | python3 -c "
+import sys; t=sys.stdin.read(); assert 'پرداخت با موفقیت انجام شد' in t, t[:200]; print('callback-201 OK | verify=201 با ردیف pending → تحویل یک‌بار (تکمیل جریان قطع‌شده)')"
+PAUD2=$(node -e "const {db}=require('./lib/db.pg');(async()=>{console.log((await db.prepare(\"SELECT COUNT(*) c FROM audit_log WHERE action='payment_paid'\").get()).c);process.exit(0)})()")
+if [ "$PAUD2" = "2" ]; then echo "audit payment_paid = 2 OK"; else echo "FAIL: audit payment_paid=$PAUD2"; exit 1; fi
+MM=$(node -e "const {db}=require('./lib/db.pg');(async()=>{console.log((await db.prepare(\"SELECT COUNT(*) c FROM audit_log WHERE action='payment_mismatch'\").get()).c);process.exit(0)})()")
+if [ "$MM" = "1" ]; then echo "audit payment_mismatch = 1 OK"; else echo "FAIL: audit payment_mismatch=$MM"; exit 1; fi
+curl -s -o /dev/null -w "pay-guest2   [%{http_code}]\n" -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -d '{\"invoice_id\":1}'
+curl -s -o /dev/null -w "pay-lawyer2  [%{http_code}]\n" -b $LJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $LC" -d "{\"invoice_id\":$I2}"
+
 echo "===== 13) audit log entries ====="
 node -e "
 const {db}=require('./lib/db.pg');
@@ -149,7 +210,7 @@ if(+m.invoice_create!==3||+m.invoice_mark_paid!==1||+m.invoice_reopen!==1) throw
 console.log('AUDIT OK');process.exit(0)})().catch(e=>{console.error(e.message);process.exit(1)})"
 
 echo "===== 14) cleanup + zero invoices left ====="
-kill $SRV 2>/dev/null
+kill $SRV $SRV2 $FAKE 2>/dev/null || true
 node /home/z/my-project/scripts/cleanup-bill.js
 node /home/z/my-project/scripts/cleanup-cycle.js
 node -e "

@@ -640,23 +640,37 @@ route('GET', '/api/users', ROLE('admin'), async (c) => {
   return { ok: true, rows };
 });
 
-/* ---------- CMD-028 — درگاه پرداخت آنلاین (اسکلت بی‌طرف) ----------
- * تصمیم مدیر در CMD-028: «اسکلت بی‌طرف» — انتخاب درگاه به دستور بعدی موکول
- * شد؛ این گام فقط زیرساخت بی‌طرف می‌سازد و هیچ پرداخت جعلی ثبت نمی‌شود.
+/* ---------- CMD-028 + CMD-029 — درگاه پرداخت آنلاین (زبال) ----------
+ * CMD-028: اسکلت بی‌طرف (تصمیم مدیر) — CMD-029: انتخاب مدیر «زیبال» و اتصال کامل.
  *   POST /api/payments/request  (isAuth؛ وکیل 403 مثل مالی)
- *     مشتری فقط برای فاکتور «در انتظار» خودش. تا وقتی PAYMENT_PROVIDER در env
- *     تنظیم نشده، پاسخ 503 با عین پیام صادقانه‌ی دکمه‌ی «پرداخت آنلاین» است.
+ *     مشتری فقط برای فاکتور «در انتظار» خودش: ساخت درخواست نزد زیبال (مبلغ ریال =
+ *     تومان×۱۰)، ذخیره‌ی track_id در payment_requests و بازگرداندن pay_url به کلاینت.
  *   GET /api/payments/callback
- *     نقطه‌ی بازگشت درگاه — بدون provider وجود ندارد (404 ضدافشا).
- * چرخه‌ی طراحی‌شده برای provider آینده (پیاده‌سازی در دستور بعدی):
- *   request → ساخت session نزد درگاه → pay_url به کلاینت → پرداخت کاربر →
- *   callback → verify سمت سرور با کلید پذیرنده (هرگز سمت کلاینت) →
- *   UPDATE invoices SET status='paid', paid_at → audit 'invoice_pay_gateway'.
- * کلیدهای env (web/.env.example): PAYMENT_PROVIDER / PAYMENT_MERCHANT_ID /
- *   PAYMENT_CALLBACK_BASE — کلید پذیرنده فقط در env سرور؛ هرگز در کد/موبایل.
+ *     ریدایرکت مرورگر از زیبال (trackId/success/status/orderId). قواعد:
+ *     - همیشه verify سمت سرور با merchant (success=1 صرفا راهنمای کاربر است).
+ *     - result 100/201 قابل قبول؛ 201 = تکرار ایدمپوتنت (تحویل دوباره ممنوع).
+ *     - مبلغ verify باید با amount_rial ثبت‌شده یکی باشد؛ مغایرت → mismatch + audit.
+ *     - تایید نهایی اتمیک: invoices→paid + payment_requests→paid + audit 'payment_paid'.
+ *     - پاسخ: صفحه‌ی HTML نتیجه (کاربر از مرورگر بانک اینجا می‌رسد) — JSON نیست.
+ * واحد پول: سامانه «تومان» — زیبال «ریال» (مستند رسمی)؛ ضریب ۱۰ فقط در مرز درگاه.
+ * کلیدها فقط در env سرور: PAYMENT_PROVIDER / PAYMENT_MERCHANT_ID / PAYMENT_CALLBACK_BASE
+ * (+ PAYMENT_API_BASE فقط هارنس محلی) — هرگز در کد/موبایل/لاگ. بدون provider: 503 صادقانه.
  * ========================================================================== */
 const PAYMENT_UNSET = 'درگاه پرداخت هنوز متصل نشده است؛ پس از تصمیم مدیر فعال می‌شود.';
+const PAYMENT_INCOMPLETE = 'درگاه پرداخت کامل پیکربندی نشده است.';
 const payProvider = () => String((cfg.pay && cfg.pay.provider) || '').trim().toLowerCase();
+const payConfigOk = () => !!(cfg.pay && cfg.pay.merchantId && /^https?:\/\//.test(String(cfg.pay.callbackBase || '')));
+
+/* صفحه‌ی نتیجه‌ی پرداخت — بدون منبع خارجی (CSP-سازگار)؛ مستقیم روی res نوشته می‌شود */
+function payPage(res, kind, title, message, detail) {
+  const color = kind === 'ok' ? '#0a7d43' : kind === 'warn' ? '#a35a00' : '#b3261e';
+  const icon = kind === 'ok' ? '✓' : kind === 'warn' ? '!' : '✕';
+  const rows = (detail || []).map((d) => `<div class="r"><span>${d[0]}</span><b>${d[1]}</b></div>`).join('');
+  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font-family:Vazirmatn,Tahoma,sans-serif;background:#f6f7f9;margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{background:#fff;border-radius:14px;padding:28px 24px;max-width:380px;width:calc(100% - 32px);box-shadow:0 2px 14px rgba(0,0,0,.08);text-align:center}.i{width:52px;height:52px;border-radius:50%;background:${color};color:#fff;font-size:28px;line-height:52px;margin:0 auto 14px}.t{font-size:18px;font-weight:700;color:#15202b;margin:0 0 8px}.m{font-size:14px;color:#51606f;line-height:1.9;margin:0 0 18px}.r{display:flex;justify-content:space-between;font-size:13px;padding:7px 4px;border-bottom:1px solid #eef1f4;color:#51606f}.r b{color:#15202b}.h{font-size:12px;color:#8a97a5;margin-top:18px}</style></head><body><div class="c"><div class="i">${icon}</div><p class="t">${title}</p><p class="m">${message}</p>${rows}<p class="h">سامانه‌ی دادگر — می‌توانید به اپلیکیشن بازگردید.</p></div></body></html>`;
+  const b = Buffer.from(html);
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': b.length, 'Cache-Control': 'no-store' });
+  res.end(b);
+}
 
 route('POST', '/api/payments/request', isAuth, async (c) => {
   if (c.user.role === 'lawyer') throw new HttpError(403, 'دسترسی ندارید.');
@@ -664,15 +678,69 @@ route('POST', '/api/payments/request', isAuth, async (c) => {
   const inv = await db.prepare('SELECT * FROM invoices WHERE id=?').get(invoiceId);
   if (!inv || inv.client_id !== c.user.id) throw new HttpError(404, 'فاکتور یافت نشد.'); // بدون افشای فاکتور دیگران
   if (inv.status !== 'pending') throw new HttpError(400, 'این فاکتور پرداخت‌شده است.');
-  if (!payProvider()) throw new HttpError(503, PAYMENT_UNSET);
-  /* نقطه‌ی اتصال provider — رسیدن به این خط یعنی env تنظیم شده اما ماژول
-     درگاه هنوز پیاده نشده است؛ تا CMD بعدی همان پیام صادقانه */
-  throw new HttpError(503, PAYMENT_UNSET);
+  const provider = payProvider();
+  if (!provider) throw new HttpError(503, PAYMENT_UNSET);
+  if (provider !== 'zibal') throw new HttpError(503, 'این درگاه پرداخت پشتیبانی نمی‌شود.');
+  if (!payConfigOk()) throw new HttpError(503, PAYMENT_INCOMPLETE);
+  const zibal = require('./pay.zibal');
+  const amountRial = Number(inv.amount) * 10; /* تومان → ریال (مرز واحد پول — یک‌جا و ثبت‌شده) */
+  let zr;
+  try {
+    zr = await zibal.createRequest(cfg.pay, {
+      amountRial,
+      callbackUrl: String(cfg.pay.callbackBase).replace(/\/+$/, '') + '/api/payments/callback',
+      orderId: 'inv-' + inv.id,
+      description: 'فاکتور شماره ' + inv.id + ' — سامانه دادگر',
+    });
+  } catch (e) {
+    if (e.payGateway) throw new HttpError(502, 'ارتباط با درگاه پرداخت برقرار نشد.');
+    console.error('[payments] request rejected:', e.payResult, e.payMessage); // بدون merchant
+    throw new HttpError(502, 'درگاه پرداخت درخواست را نپذیرفت.');
+  }
+  await db.prepare("INSERT INTO payment_requests(invoice_id,client_id,gateway,track_id,amount_rial,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(inv.id, c.user.id, 'zibal', zr.trackId, amountRial, now());
+  await audit(c.user.id, 'payment_request', 'invoice:' + inv.id + ' track:' + zr.trackId, c.ip);
+  return { ok: true, pay_url: zr.payUrl, track_id: zr.trackId };
 });
 
 route('GET', '/api/payments/callback', {}, async (c) => {
-  if (!payProvider()) throw new HttpError(404, 'یافت نشد.');
-  throw new HttpError(503, PAYMENT_UNSET); /* تا پیاده‌سازی verify در دستور بعدی */
+  const provider = payProvider();
+  if (!provider) throw new HttpError(404, 'یافت نشد.'); // بدون provider این نقطه وجود ندارد (ضدافشا)
+  const tid = Number(String(c.query.trackId || '').replace(/\D/g, ''));
+  const row = tid > 0 ? await db.prepare('SELECT * FROM payment_requests WHERE track_id=?').get(tid) : null;
+  if (!row || row.gateway !== provider) throw new HttpError(404, 'یافت نشد.'); // trackId ناشناخته — ضدافشا
+  const inv = await db.prepare('SELECT * FROM invoices WHERE id=?').get(row.invoice_id);
+  if (!inv) throw new HttpError(404, 'یافت نشد.');
+  const amountFa = () => new Intl.NumberFormat('fa-IR').format(Number(inv.amount));
+  if (!payConfigOk()) return payPage(c.res, 'warn', 'درگاه پیکربندی نیست', 'پیکربندی درگاه پرداخت ناقص است؛ وضعیت پرداخت بعدا در اپلیکیشن بررسی می‌شود.');
+  const zibal = require('./pay.zibal');
+  let v;
+  try {
+    v = await zibal.verify(cfg.pay, row.track_id); /* همیشه verify سمت سرور — success=1 ملاک نیست */
+  } catch (e) {
+    if (e.payGateway) return payPage(c.res, 'warn', 'در حال بررسی', 'وضعیت پرداخت در حال بررسی است؛ چند لحظه دیگر وضعیت فاکتور را در اپلیکیشن ببینید.');
+    throw e;
+  }
+  if (v.result !== zibal.RESULT_OK && v.result !== zibal.RESULT_ALREADY) {
+    await db.prepare("UPDATE payment_requests SET status='failed' WHERE id=? AND status='pending'").run(row.id);
+    return payPage(c.res, 'fail', 'پرداخت ناموفق', 'پرداخت انجام نشد یا لغو شد؛ می‌توانید از اپلیکیشن دوباره تلاش کنید.');
+  }
+  if (v.amount != null && v.amount !== Number(row.amount_rial)) {
+    await db.prepare("UPDATE payment_requests SET status='mismatch' WHERE id=? AND status='pending'").run(row.id);
+    await audit(row.client_id, 'payment_mismatch', 'invoice:' + row.invoice_id + ' track:' + row.track_id + ' expected:' + row.amount_rial + ' got:' + v.amount, c.ip);
+    return payPage(c.res, 'fail', 'مغایرت مبلغ', 'مبلغ پرداخت‌شده با فاکتور هم‌خوانی ندارد؛ وجه پرداختی طبق روال بانکی بازگشت داده می‌شود.');
+  }
+  /* تایید نهایی اتمیک و ایدمپوتنت — result=201 (تکرار) هم همین مسیر را می‌رود */
+  let delivered = false;
+  await tx(async (t) => {
+    const u1 = await t.sql.unsafe(toPg("UPDATE invoices SET status='paid', paid_at=? WHERE id=? AND status='pending'"), [now(), row.invoice_id]);
+    await t.sql.unsafe(toPg("UPDATE payment_requests SET status='paid', ref_number=?, card_number=?, paid_at=? WHERE id=? AND status<>'paid'"), [v.refNumber, v.cardNumber, now(), row.id]);
+    delivered = u1.count > 0;
+  });
+  if (delivered) await audit(row.client_id, 'payment_paid', 'invoice:' + row.invoice_id + ' track:' + row.track_id + ' ref:' + (v.refNumber || '-'), c.ip);
+  const det = [['فاکتور', String(row.invoice_id)], ['مبلغ', amountFa() + ' تومان']];
+  if (v.refNumber) det.push(['شماره مرجع', v.refNumber]);
+  if (v.cardNumber) det.push(['کارت', v.cardNumber]);
+  return payPage(c.res, 'ok', 'پرداخت با موفقیت انجام شد', 'وضعیت فاکتور در اپلیکیشن به‌روزرسانی می‌شود.', det);
 });
 
 /* ---------- CMD-006 — فاز ۳ گام ۴: نظرات (reviews) ----------

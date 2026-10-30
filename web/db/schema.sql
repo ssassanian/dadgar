@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS invoices(
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, case_id BIGINT REFERENCES cases(id), client_id BIGINT NOT NULL REFERENCES users(id),
   amount BIGINT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at BIGINT NOT NULL, paid_at BIGINT);
 
+-- ---------- payment_requests (CMD-029 — درگاه پرداخت آنلاین) ----------
+-- هر ردیف یک نشست پرداخت نزد درگاه (زيبال و در آینده providerهای دیگر)؛
+-- track_id کلید یکتای درگاه است؛ amount_rial مبلغ ارسالی به درگاه (تومان×۱۰).
+-- status: pending → paid | failed (پرداخت نشده) | mismatch (مغایرت مبلغ).
+CREATE TABLE IF NOT EXISTS payment_requests(
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  invoice_id BIGINT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  client_id BIGINT NOT NULL REFERENCES users(id),
+  gateway TEXT NOT NULL, track_id BIGINT NOT NULL UNIQUE, amount_rial BIGINT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', ref_number TEXT, card_number TEXT,
+  created_at BIGINT NOT NULL, paid_at BIGINT);
+
 -- ---------- reviews ----------
 CREATE TABLE IF NOT EXISTS reviews(
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, case_id BIGINT NOT NULL REFERENCES cases(id), client_id BIGINT NOT NULL REFERENCES users(id),

@@ -40,7 +40,8 @@ function toPg(query) {
 /* ستون‌های BIGINT که باید به Number برگردند تا رفتار JSON با SQLite اصلی یکسان بماند */
 const NUM_COLS = new Set(['id','user_id','client_id','lawyer_id','case_id','ticket_id','owner_id',
   'created_at','updated_at','expires_at','last_seen','last_login','first_at','locked_until',
-  'starts_at','paid_at','at','amount','final_price','size','window_start']);
+  'starts_at','paid_at','at','amount','final_price','size','window_start',
+  'invoice_id','track_id','amount_rial']); /* CMD-029 — payment_requests */
 function fixRow(row) {
   if (!row || typeof row !== 'object') return row;
   for (const k in row) if (NUM_COLS.has(k) && typeof row[k] === 'string' && /^-?\d+$/.test(row[k])) row[k] = Number(row[k]);
