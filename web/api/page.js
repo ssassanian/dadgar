@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
   const html = fs.readFileSync(TEMPLATE, 'utf8')
     .replaceAll('%%TITLE%%', title)
     .replace('%%LEAD%%', lead)
-    .replace('%%SECTIONS%%', sections.map((x, i) => `<article><span>۰${i + 1}</span><h2>${x}</h2><p>${sectionCopy[i]}</p><a class="card-link" href="/contact">دریافت راهنمایی</a></article>`).join(''))
+    .replace('%%SECTIONS%%', sections.map((x, i) => `<article><span>۰${i + 1}</span><h2>${x}</h2><p>${sectionCopy[i]}</p><a class="card-link" href="/contact">دریافت راهنمایی</a></article>`).join('') + (pathname === '/sitemap' ? Object.entries(require('../lib/pages').pages).filter(([route]) => route !== '/sitemap').map(([route, data], i) => `<article><span>${String(i + 1).padStart(2, '۰')}</span><h2>${data[0]}</h2><p>${data[1]}</p><a class="card-link" href="${route}">نمایش صفحه</a></article>`).join('') : ''))
     .replace('%%CTA%%', '<a class="btn" href="/contact">ثبت درخواست مشاوره</a>')
     .replace('%%PATH%%', pathname);
   res.statusCode = 200; res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(html);
