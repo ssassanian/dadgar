@@ -1,0 +1,12 @@
+{
+  "name": "dadgar-project",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node web/scripts/dev-server.js",
+    "start": "node web/scripts/dev-server.js"
+  }
+}
