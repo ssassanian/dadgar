@@ -9,9 +9,16 @@ module.exports = async (req, res) => {
   const page = pageFor(pathname);
   if (!page) { res.statusCode = 404; res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end('<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><title>صفحه پیدا نشد</title><body style="font-family: sans-serif;padding:4rem"><h1>صفحه پیدا نشد</h1><a href="/">بازگشت به صفحه اصلی</a></body></html>'); }
   const [title, lead, ...sections] = page;
+  const customCopy = pathname === '/about'
+    ? [
+        'دادگر با هدف ساده‌کردن مسیر دریافت خدمات حقوقی و نزدیک‌کردن تخصص به زندگی روزمره شکل گرفته است.',
+        'شفافیت، محرمانگی و مسئولیت‌پذیری، پایه تصمیم‌ها و تجربه‌ای است که برای هر موکل طراحی می‌کنیم.',
+        'تیم ما از وکلا و مشاورانی تشکیل شده که تجربه عملی را با ارتباط روشن و پیگیری منظم همراه می‌کنند.'
+      ]
+    : null;
   const sectionCopy = sections.map((section, index) => {
     const endings = ['را با اطلاعات روشن و قابل اتکا شروع کنید.', 'را متناسب با شرایط و هدف خود بررسی می‌کنیم.', 'را با پاسخ‌گویی شفاف و همراهی تخصصی پیش می‌بریم.'];
-    return `${section} ${endings[index % endings.length]}`;
+    return customCopy?.[index] || `${section} ${endings[index % endings.length]}`;
   });
   const html = fs.readFileSync(TEMPLATE, 'utf8')
     .replaceAll('%%TITLE%%', title)
