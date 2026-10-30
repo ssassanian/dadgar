@@ -14,6 +14,7 @@ import '../../../design/tokens.dart';
 import '../application/billing_controller.dart';
 import '../data/billing_contract.dart';
 import '../domain/invoice_models.dart';
+import '../pdf/invoice_pdf.dart';
 
 /// صفحه‌ی فاکتورهای من
 class InvoicesScreen extends ConsumerWidget {
@@ -99,8 +100,9 @@ final class _SummaryBar extends StatelessWidget {
 }
 
 /// کارت فاکتور — شماره/تاریخ شمسی/مبلغ/وضعیت (همان ستون‌های وب)
-/// + دکمه‌ی «پرداخت آنلاین» صادقانه برای وضعیت «در انتظار»
-final class _InvoiceCard extends StatelessWidget {
+/// + دکمه‌ی «پرداخت آنلاین» زنده (CMD-028: POST /api/payments/request —
+/// تا انتخاب درگاه سرور 503 با عین پیام صادقانه می‌دهد) و دکمه‌ی PDF (M6)
+final class _InvoiceCard extends ConsumerWidget {
   const _InvoiceCard({required this.row});
 
   final Invoice row;
@@ -111,8 +113,47 @@ final class _InvoiceCard extends StatelessWidget {
         _ => DadgarTokens.textSecondary,
       };
 
+  Future<void> _pay(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(billingControllerProvider.notifier);
+    final result = await controller.requestPayment(row.id);
+    if (!context.mounted) return;
+    switch (result) {
+      case PayNotConfigured(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case PayUrlReady(:final url):
+        await ref.read(payUrlLauncherProvider)(url);
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _sharePdf(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final (regular, bold) = await InvoicePdf.loadFonts();
+      final bytes = await InvoicePdf.build(
+        invoice: row,
+        regular: regular,
+        bold: bold,
+      );
+      await ref.read(pdfShareProvider)(InvoicePdf.fileName(row), bytes);
+    } on Object {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('ساخت PDF ناموفق بود — دوباره تلاش کنید.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final created = JalaliCalendar.fromEpochSeconds(row.createdAt);
     return Material(
       color: DadgarTokens.surface,
@@ -149,6 +190,15 @@ final class _InvoiceCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'PDF فاکتور',
+                  onPressed: () => _sharePdf(context, ref),
+                  icon: const Icon(
+                    Icons.picture_as_pdf_outlined,
+                    size: 18,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
                 Text(
                   'فاکتور ${BillingContract.toPersianDigits(row.id)}',
                   style: const TextStyle(
@@ -203,15 +253,7 @@ final class _InvoiceCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'درگاه پرداخت هنوز متصل نشده است؛ '
-                        'پس از تصمیم مدیر فعال می‌شود.',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  ),
+                  onPressed: () => _pay(context, ref),
                   icon: const Icon(Icons.payment_outlined, size: 18),
                   label: const Text('پرداخت آنلاین'),
                 ),

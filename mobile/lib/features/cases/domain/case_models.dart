@@ -103,6 +103,7 @@ final class CaseDetail {
     this.lawyerName = '',
     this.description,
     this.excerpt,
+    this.proposals = const [],
   });
 
   final int id;
@@ -120,6 +121,10 @@ final class CaseDetail {
   /// خلاصه — برای نقش‌های بدون دسترسی کامل
   final String? excerpt;
 
+  /// پیشنهادهای وکلا — فقط در payload مدیر می‌آید (CMD-003 در web.js)؛
+  /// M6 (CMD-028): پایه‌ی اقدامات مدیر در موبایل (تایید پیشنهاد)
+  final List<Proposal> proposals;
+
   CaseStatus get statusValue => CaseStatus(status);
 
   static CaseDetail fromJson(Map<String, dynamic> json) {
@@ -136,6 +141,60 @@ final class CaseDetail {
       lawyerName: json['lawyer_name'] as String? ?? '',
       description: json['description'] as String?,
       excerpt: json['excerpt'] as String?,
+      proposals: (json['proposals'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(Proposal.fromJson)
+          .toList(growable: false),
+    );
+  }
+}
+
+/// یک پیشنهاد وکیل — ردیف `proposals[]` در جزئیات پرونده (payload مدیر):
+/// {id, lawyer_name, amount, days, note, status, created_at}
+final class Proposal {
+  const Proposal({
+    required this.id,
+    required this.lawyerName,
+    required this.amount,
+    required this.days,
+    required this.note,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String lawyerName;
+
+  /// مبلغ پیشنهادی — تومان
+  final int amount;
+
+  /// مدت اجرا — روز
+  final int days;
+  final String note;
+
+  /// pending | accepted | rejected
+  final String status;
+
+  /// epoch-seconds
+  final int createdAt;
+
+  /// برچسب فارسی وضعیت — ناشناخته = مقدار خام
+  String get statusLabelFa => switch (status) {
+        'pending' => 'در انتظار',
+        'accepted' => 'تایید‌شده',
+        'rejected' => 'رد شده',
+        _ => status,
+      };
+
+  static Proposal fromJson(Map<String, dynamic> json) {
+    return Proposal(
+      id: (json['id'] as num).toInt(),
+      lawyerName: json['lawyer_name'] as String? ?? '',
+      amount: (json['amount'] as num? ?? 0).toInt(),
+      days: (json['days'] as num? ?? 0).toInt(),
+      note: json['note'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+      createdAt: (json['created_at'] as num? ?? 0).toInt(),
     );
   }
 }

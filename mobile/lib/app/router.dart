@@ -9,6 +9,7 @@ import '../features/auth/presentation/lock_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/otp_screen.dart';
 import '../features/auth/presentation/splash_view.dart';
+import '../features/billing/presentation/admin_billing_screen.dart';
 import '../features/billing/presentation/invoices_screen.dart';
 import '../features/cases/presentation/case_detail_screen.dart';
 import '../features/cases/presentation/cases_screen.dart';
@@ -78,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const InvoicesScreen(),
       ),
       GoRoute(
+        path: '/admin/billing',
+        builder: (context, state) => const AdminBillingScreen(),
+      ),
+      GoRoute(
         path: '/tickets',
         builder: (context, state) => const TicketsScreen(),
       ),
@@ -142,6 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             '/cases' ||
             '/cases/new' ||
             '/invoices' ||
+            '/admin/billing' ||
             '/tickets' ||
             '/tickets/new' ||
             '/threads' ||

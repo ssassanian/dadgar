@@ -1,9 +1,10 @@
-/// مدل دامنه‌ی مالی — M4 (DOC-04 §۱۱ ردیف M4)
+/// مدل دامنه‌ی مالی — M4 (DOC-04 §۱۱ ردیف M4) + M6 (CMD-028: پنل مدیر)
 ///
-/// شکل داده دقیقاً همان پاسخ `GET /api/invoices` سرور برای نقش مشتری است
-/// (CMD-005)؛ هیچ دانه‌ی داده‌ی جدیدی از سمت موبایل اختراع نمی‌شود (S-4).
-/// نمای مشتری نام مشتری/وکیل نمی‌گیرد (حریم خصوصی CMD-005)؛ `case_id`
-/// null یعنی فاکتور دستیِ بدون اتصال به پرونده.
+/// شکل داده دقیقاً همان پاسخ `GET /api/invoices` سرور است (CMD-005)؛ هیچ
+/// دانه‌ی داده‌ی جدیدی از سمت موبایل اختراع نمی‌شود (S-4). نمای مشتری نام
+/// مشتری/وکیل نمی‌گیرد (حریم خصوصی CMD-005) — این فیلدها فقط در payload
+/// مدیر می‌آیند و برای نقش‌های دیگر خالی می‌مانند. `case_id` null یعنی
+/// فاکتور دستیِ بدون اتصال به پرونده.
 library;
 
 /// وضعیت فاکتور — دو مقدار سرور با چرخه‌ی گذار مدیر:
@@ -20,7 +21,7 @@ extension type const InvoiceStatus(String value) {
       };
 }
 
-/// یک ردیف فاکتور — خروجی `GET /api/invoices` (نمای مشتری)
+/// یک ردیف فاکتور — خروجی `GET /api/invoices` (نمای مشتری/مدیر)
 final class Invoice {
   const Invoice({
     required this.id,
@@ -29,6 +30,8 @@ final class Invoice {
     required this.createdAt,
     required this.paidAt,
     required this.caseId,
+    this.clientName = '',
+    this.lawyerName = '',
   });
 
   final int id;
@@ -46,6 +49,10 @@ final class Invoice {
   /// null = فاکتور دستی بدون پرونده‌ی متصل
   final int? caseId;
 
+  /// فقط payload مدیر (CMD-005) — مشتری این فیلدها را هرگز نمی‌گیرد
+  final String clientName;
+  final String lawyerName;
+
   InvoiceStatus get statusValue => InvoiceStatus(status);
 
   static Invoice fromJson(Map<String, dynamic> json) {
@@ -59,6 +66,24 @@ final class Invoice {
           : (json['paid_at'] as num).toInt(),
       caseId:
           json['case_id'] == null ? null : (json['case_id'] as num).toInt(),
+      clientName: json['client_name'] as String? ?? '',
+      lawyerName: json['lawyer_name'] as String? ?? '',
+    );
+  }
+}
+
+/// کاربر حداقلی — ردیف `GET /api/users?role=client` سرور (CMD-005):
+/// «فقط شناسه/نام/نقش، بدون اطلاعات تماس» — فرم صدور فاکتور مدیر
+final class MinUser {
+  const MinUser({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  static MinUser fromJson(Map<String, dynamic> json) {
+    return MinUser(
+      id: (json['id'] as num).toInt(),
+      name: json['name'] as String? ?? '',
     );
   }
 }
@@ -86,4 +111,26 @@ final class InvoicesResponse {
       todayD: (json['today_d'] as num? ?? 1).toInt(),
     );
   }
+}
+
+/// نتیجه‌ی درخواست پرداخت — POST /api/payments/request (CMD-028)
+///
+/// اسکلت بی‌طرف: تا انتخاب درگاه توسط مدیر، سرور 503 صادقانه می‌دهد
+/// (همان پیام دکمه)؛ پس از فعال‌سازی، pay_url بازگشت داده می‌شود.
+sealed class PayRequestResult {
+  const PayRequestResult();
+}
+
+/// درگاه متصل نیست — پیام صادقانه‌ی سرور (عین دکمه)
+final class PayNotConfigured extends PayRequestResult {
+  const PayNotConfigured(this.message);
+
+  final String message;
+}
+
+/// درگاه فعال — آدرس پرداخت برای بازکردن (CMD بعدی)
+final class PayUrlReady extends PayRequestResult {
+  const PayUrlReady(this.url);
+
+  final String url;
 }

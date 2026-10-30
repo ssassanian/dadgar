@@ -308,3 +308,102 @@ final caseDetailProvider =
   },
   retry: (retryCount, error) => null,
 );
+
+/// وضعیت UI اقدامات مدیر روی یک پرونده — M6 (CMD-028)
+final class CaseActionsUi {
+  const CaseActionsUi({
+    this.targetCaseId = 0,
+    this.busy = false,
+    this.message,
+    this.isError = false,
+  });
+
+  /// پرونده‌ی هدف — صفحه‌ی جزئیات هنگام init تنظیم می‌کند
+  final int targetCaseId;
+  final bool busy;
+  final String? message;
+  final bool isError;
+
+  CaseActionsUi copyWith({
+    int? targetCaseId,
+    bool? busy,
+    String? message,
+    bool? isError,
+    bool clearMessage = false,
+  }) {
+    return CaseActionsUi(
+      targetCaseId: targetCaseId ?? this.targetCaseId,
+      busy: busy ?? this.busy,
+      message: clearMessage ? null : (message ?? this.message),
+      isError: isError ?? this.isError,
+    );
+  }
+}
+
+/// کنترلر اقدامات مدیر — تایید پیشنهاد + گذار وضعیت (CMD-028)
+///
+/// پس از هر موفقیت، جزئیات پرونده invalidه می‌شود تا proposals/lawyer_name/
+/// status تازه از سرور بیاید. قانون‌گذاری سمت سرور است (ROLE('admin')).
+final class CaseActionsController extends Notifier<CaseActionsUi> {
+  CasesRepository get _repo => ref.read(casesRepositoryProvider);
+
+  @override
+  CaseActionsUi build() => const CaseActionsUi();
+
+  /// تنظیم پرونده‌ی هدف — توسط صفحه‌ی جزئیات هنگام ساخته‌شدن
+  void setTarget(int caseId) {
+    if (state.targetCaseId != caseId) {
+      state = state.copyWith(targetCaseId: caseId, clearMessage: true);
+    }
+  }
+
+  String _honestMessage(ApiException e) {
+    if (e.statusCode == 401) {
+      return 'اتصال زنده به سرور پس از حکم مدیر بر D-6 فعال می‌شود — '
+          'کد موبایل آماده است';
+    }
+    return e.message;
+  }
+
+  /// تایید پیشنهاد وکیل — اتمیک سمت سرور
+  Future<bool> acceptProposal(int proposalId) async {
+    state = state.copyWith(busy: true, clearMessage: true);
+    try {
+      await _repo.acceptProposal(proposalId: proposalId);
+      state = state.copyWith(
+        busy: false,
+        isError: false,
+        message: 'پیشنهاد تایید شد و وکیل تخصیص یافت.',
+      );
+      ref.invalidate(caseDetailProvider(state.targetCaseId));
+      return true;
+    } on ApiException catch (e) {
+      state = state.copyWith(busy: false, message: _honestMessage(e), isError: true);
+      return false;
+    }
+  }
+
+  /// گذار وضعیت — فقط رو به جلو (running | done) طبق قرارداد سرور
+  Future<bool> setStatus(String status) async {
+    state = state.copyWith(busy: true, clearMessage: true);
+    try {
+      await _repo.setCaseStatus(id: state.targetCaseId, status: status);
+      state = state.copyWith(
+        busy: false,
+        isError: false,
+        message: 'وضعیت پرونده به «${CasesContract.labelOfStatus(status)}» تغییر کرد.',
+      );
+      ref.invalidate(caseDetailProvider(state.targetCaseId));
+      return true;
+    } on ApiException catch (e) {
+      state = state.copyWith(busy: false, message: _honestMessage(e), isError: true);
+      return false;
+    }
+  }
+}
+
+/// provider اقدامات مدیر — سراسری با target قابل تنظیم (الگوی تک‌صفحه‌ای)
+final caseActionsProvider =
+    NotifierProvider<CaseActionsController, CaseActionsUi>(
+  CaseActionsController.new,
+);

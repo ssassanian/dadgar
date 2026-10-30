@@ -1,4 +1,10 @@
+import 'dart:typed_data';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api/api_client.dart';
 import '../core/secure/biometric_auth.dart';
@@ -100,4 +106,28 @@ final documentsRepositoryProvider = Provider<DocumentsRepository>(
   (ref) => DioDocumentsRepository(
     client: ApiClient(tokenStore: ref.watch(tokenStoreProvider)),
   ),
+);
+
+/// M6 (CMD-028) — لانچر آدرس پرداخت درگاه (فقط https بیرونی)
+/// در تست‌ها override می‌شود تا پلتفرم لمس نشود (§۹)
+final payUrlLauncherProvider = Provider<Future<void> Function(String url)>(
+  (ref) => (url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  },
+);
+
+/// M6 (CMD-028) — اشتراک‌گذاری PDF فاکتور (share sheet سیستم)
+/// در تست‌ها override می‌شود؛ ذخیره‌ی موقت + SharePlus (API نسخه ۱۱)
+final pdfShareProvider =
+    Provider<Future<void> Function(String fileName, Uint8List bytes)>(
+  (ref) => (fileName, bytes) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path, mimeType: 'application/pdf')]),
+    );
+  },
 );

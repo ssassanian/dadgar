@@ -29,6 +29,13 @@ abstract interface class CasesRepository {
     required String title,
     required String description,
   });
+
+  /// M6 (CMD-028) — تایید پیشنهاد وکیل (فقط مدیر): اتمیک — تایید یکی،
+  /// رد بقیه، تخصیص وکیل + final_price = مبلغ پیشنهاد + status='assigned'
+  Future<void> acceptProposal({required int proposalId});
+
+  /// M6 (CMD-028) — گذار رو به جلوی وضعیت (فقط مدیر): running | done
+  Future<void> setCaseStatus({required int id, required String status});
 }
 
 final class DioCasesRepository implements CasesRepository {
@@ -113,6 +120,44 @@ final class DioCasesRepository implements CasesRepository {
         throw const ApiException('پاسخ سرور کامل نبود');
       }
       return id.toInt();
+    } on ApiException {
+      rethrow;
+    } on Object catch (e) {
+      throw ApiException.from(e);
+    }
+  }
+
+  @override
+  Future<void> acceptProposal({required int proposalId}) async {
+    try {
+      final response = await _dio.post<dynamic>(
+        '${ApiEndpoints.proposals}/$proposalId/accept',
+      );
+      final code = response.statusCode ?? 0;
+      if (code < 200 || code >= 300) {
+        throw _serverError(response, 'تایید پیشنهاد ناموفق بود');
+      }
+    } on ApiException {
+      rethrow;
+    } on Object catch (e) {
+      throw ApiException.from(e);
+    }
+  }
+
+  @override
+  Future<void> setCaseStatus({
+    required int id,
+    required String status,
+  }) async {
+    try {
+      final response = await _dio.patch<dynamic>(
+        '${ApiEndpoints.cases}/$id',
+        data: {'status': status},
+      );
+      final code = response.statusCode ?? 0;
+      if (code < 200 || code >= 300) {
+        throw _serverError(response, 'تغییر وضعیت پرونده ناموفق بود');
+      }
     } on ApiException {
       rethrow;
     } on Object catch (e) {

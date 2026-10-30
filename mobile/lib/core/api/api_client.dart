@@ -19,9 +19,20 @@ abstract final class ApiEndpoints {
   /// پرونده‌ها — مسیرهای «موجود» سرور (CMD-003)؛ پذیرش Bearer پس از حکم D-6
   static const String cases = '/api/cases';
 
-  /// مالی — مسیر «موجود» سرور (CMD-005)؛ پذیرش Bearer پس از حکم D-6
-  /// (نمای مشتری: فقط GET فاکتورهای خود؛ POST/PATCH مدیر در پنل وب می‌ماند)
+  /// مالی — مسیرهای «موجود» سرور (CMD-005)؛ پذیرش Bearer پس از حکم D-6
+  /// (نمای مشتری: GET فاکتورها + درخواست پرداخت؛ POST/PATCH مدیر از M6/CMD-028
+  /// با همان نقش‌بندی سرور — نقش از GET /api/me کشف می‌شود)
   static const String invoices = '/api/invoices';
+
+  /// M6 (CMD-028) — مسیرهای «موجود» سرور برای پنل مدیریتی موبایل:
+  /// GET /api/me (کشف نقش نشست؛ پاسخ 200 با user:null برای مهمان)
+  /// GET /api/users?role=client|lawyer (فقط مدیر؛ فهرست حداقلی فرم صدور)
+  /// POST /api/payments/request (درخواست پرداخت فاکتور خودی — اسکلت بی‌طرف)
+  /// POST /api/proposals/:id/accept (تایید پیشنهاد وکیل — فقط مدیر)
+  static const String me = '/api/me';
+  static const String users = '/api/users';
+  static const String paymentRequest = '/api/payments/request';
+  static const String proposals = '/api/proposals';
 
   /// تیکت/پیام — مسیرهای «موجود» سرور (CMD-007)؛ پذیرش Bearer پس از حکم D-6
   static const String tickets = '/api/tickets';

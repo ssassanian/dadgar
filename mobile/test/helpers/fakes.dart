@@ -4,7 +4,9 @@ import 'package:dadgar_mobile/features/appointments/data/appointments_repository
 import 'package:dadgar_mobile/features/appointments/domain/appointment.dart';
 import 'package:dadgar_mobile/features/auth/application/app_lock_controller.dart';
 import 'package:dadgar_mobile/features/auth/application/auth_controller.dart';
+import 'package:dadgar_mobile/features/auth/application/session_controller.dart';
 import 'package:dadgar_mobile/features/auth/data/auth_repository.dart';
+import 'package:dadgar_mobile/features/auth/domain/session_user.dart';
 import 'package:dadgar_mobile/features/billing/data/billing_repository.dart';
 import 'package:dadgar_mobile/features/billing/domain/invoice_models.dart';
 import 'package:dadgar_mobile/features/cases/data/cases_repository.dart';
@@ -48,6 +50,21 @@ final class FakeAuthRepository implements AuthRepository {
   String? storedUsername;
   int loginCalls = 0;
   int logoutCalls = 0;
+
+  /// M6 (CMD-028) — پاسخ GET /api/me (null = مهمان/خطا)
+  SessionUser? me;
+  int fetchMeCalls = 0;
+
+  @override
+  Future<SessionUser?> fetchMe() async {
+    fetchMeCalls++;
+    final failure = failWith;
+    if (failure != null) {
+      // کشف نقش حیاتی نیست — خطا = null (مثل پیاده‌سازی واقعی)
+      return null;
+    }
+    return me;
+  }
 
   @override
   Future<String> login({
@@ -156,10 +173,14 @@ final class FakeCasesRepository implements CasesRepository {
   int pageCalls = 0;
   int detailCalls = 0;
   int createCalls = 0;
+  int acceptProposalCalls = 0;
+  int setCaseStatusCalls = 0;
   final List<({int page})> pageArgs = [];
   final List<({int id})> detailArgs = [];
   final List<({String category, String title, String description})>
       createArgs = [];
+  final List<int> acceptProposalArgs = [];
+  final List<({int id, String status})> setCaseStatusArgs = [];
 
   CasesPage _emptyPage(int page) => CasesPage(
         rows: const [],
@@ -205,19 +226,51 @@ final class FakeCasesRepository implements CasesRepository {
     if (failure != null) throw failure;
     return 201;
   }
+
+  @override
+  Future<void> acceptProposal({required int proposalId}) async {
+    acceptProposalCalls++;
+    acceptProposalArgs.add(proposalId);
+    final failure = failWith;
+    if (failure != null) throw failure;
+  }
+
+  @override
+  Future<void> setCaseStatus({required int id, required String status}) async {
+    setCaseStatusCalls++;
+    setCaseStatusArgs.add((id: id, status: status));
+    final failure = failWith;
+    if (failure != null) throw failure;
+  }
 }
 
-/// مخزن مالی قابل تنظیم برای تست واحد — M4
+/// مخزن مالی قابل تنظیم برای تست واحد — M4 + M6 (CMD-028)
 final class FakeBillingRepository implements BillingRepository {
   FakeBillingRepository({this.response, this.failWith});
 
   /// پاسخ موفق GET /api/invoices
   InvoicesResponse? response;
 
-  /// اگر تنظیم شود، fetchInvoices این شیء را پرتاب می‌کند
+  /// اگر تنظیم شود، همه‌ی متدها این شیء را پرتاب می‌کنند
   Object? failWith;
 
   int calls = 0;
+
+  // ── M6 (CMD-028) ──
+  int issueCalls = 0;
+  int statusCalls = 0;
+  int clientsCalls = 0;
+  int requestPaymentCalls = 0;
+  final List<({int clientId, int amount})> issueArgs = [];
+  final List<({int id, String status})> statusArgs = [];
+  final List<int> requestPaymentArgs = [];
+  int issuedId = 33;
+  List<MinUser> clients = const [];
+
+  /// نتیجه‌ی درخواست پرداخت — پیش‌فرض: 503 صادقانه (تا انتخاب درگاه)
+  PayRequestResult paymentResult = const PayNotConfigured(
+    'درگاه پرداخت هنوز متصل نشده است؛ پس از تصمیم مدیر فعال می‌شود.',
+  );
 
   @override
   Future<InvoicesResponse> fetchInvoices() async {
@@ -225,6 +278,46 @@ final class FakeBillingRepository implements BillingRepository {
     final failure = failWith;
     if (failure != null) throw failure;
     return response ?? const InvoicesResponse(rows: [], todayD: 1);
+  }
+
+  @override
+  Future<int> issueInvoice({
+    required int clientId,
+    required int amount,
+  }) async {
+    issueCalls++;
+    issueArgs.add((clientId: clientId, amount: amount));
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return issuedId;
+  }
+
+  @override
+  Future<void> setInvoiceStatus({
+    required int id,
+    required String status,
+  }) async {
+    statusCalls++;
+    statusArgs.add((id: id, status: status));
+    final failure = failWith;
+    if (failure != null) throw failure;
+  }
+
+  @override
+  Future<List<MinUser>> fetchClients() async {
+    clientsCalls++;
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return clients;
+  }
+
+  @override
+  Future<PayRequestResult> requestPayment({required int invoiceId}) async {
+    requestPaymentCalls++;
+    requestPaymentArgs.add(invoiceId);
+    final failure = failWith;
+    if (failure != null) throw failure;
+    return paymentResult;
   }
 }
 
@@ -402,6 +495,10 @@ ProviderContainer dadgarContainer({
   TokenStore? tokenStore,
   bool realAuthController = false,
   bool realAppLockController = false,
+
+  /// M6 (CMD-028) — کاربر نشست ثابت برای sessionMeProvider
+  /// (null = از فیک مخزن auth خوانده می‌شود — پیش‌فرض بدون نقش)
+  SessionUser? sessionUser,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
   final effectiveRepo = repository ?? FakeAuthRepository(store: store);
@@ -409,6 +506,8 @@ ProviderContainer dadgarContainer({
     overrides: [
       tokenStoreProvider.overrideWithValue(store),
       authRepositoryProvider.overrideWithValue(effectiveRepo),
+      if (sessionUser != null)
+        sessionMeProvider.overrideWith((ref) => sessionUser),
       if (appointmentsRepository != null)
         appointmentsRepositoryProvider
             .overrideWithValue(appointmentsRepository),

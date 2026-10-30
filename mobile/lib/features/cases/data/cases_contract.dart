@@ -61,6 +61,20 @@ abstract final class CasesContract {
   static const String rateLimitMessage =
       'سقف ثبت پرونده در یک ساعت تکمیل شده است. بعداً تلاش کنید.';
 
+  /// ─── M6 (CMD-028) — پیام‌های عین سرور برای اقدامات مدیر ───
+  /// PATCH /api/cases/:id (گذار رو به جلو assigned→running→done؛ done پایانی)
+  static const String caseDoneLockedMessage =
+      'این پرونده بسته شده است و قابل تغییر نیست.';
+  static const String caseNoLawyerYetMessage =
+      'پرونده هنوز وکیل تخصیص‌یافته ندارد.';
+  static const String caseSameStatusMessage = 'پرونده در همین وضعیت است.';
+  /// POST /api/proposals/:id/accept (اتمیک: تایید یکی، رد بقیه، تخصیص وکیل)
+  static const String proposalNotFoundMessage = 'پیشنهاد یافت نشد.';
+  static const String proposalAlreadyDecidedMessage =
+      'این پیشنهاد قبلاً تعیین تکلیف شده است.';
+  static const String caseNotInProposalStageMessage =
+      'این پرونده دیگر در مرحله‌ی پیشنهاد نیست.';
+
   /// اعتبارسنجی سمت کاربر — آینه‌ی قواعد سرور برای جلوگیری از POST بی‌فایده.
   /// خطا = پیام فارسی؛ درست = null
   static String? validateTitle(String value) {

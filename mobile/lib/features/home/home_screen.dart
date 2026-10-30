@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../design/tokens.dart';
 import '../auth/application/auth_controller.dart';
+import '../auth/application/session_controller.dart';
 
 /// صفحه‌ی خانه M1 — خوش‌آمد نشست + وضعیت فاز + پیش‌نمایش پالت D-3
 class HomeScreen extends ConsumerWidget {
@@ -17,6 +18,9 @@ class HomeScreen extends ConsumerWidget {
       Authenticated(:final username) => username,
       _ => 'کاربر دادگر',
     };
+    // M6 (CMD-028) — کشف نقش نشست: کارت پنل مدیریت فقط برای مدیر
+    final meAsync = ref.watch(sessionMeProvider);
+    final isAdmin = meAsync.value?.isAdmin ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('دادگر'),
@@ -56,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: DadgarTokens.s8),
                       const Text(
-                        'نسخه M5 — پیام/تیکت و اسناد افزوده شد؛ بسته‌ی M2..M5 کامل شد',
+                        'نسخه M6 — پنل مدیریتی، PDF فاکتور و اسکلت درگاه (CMD-028)',
                         style: TextStyle(
                           color: DadgarTokens.onPrimary,
                           fontSize: 13,
@@ -111,6 +115,15 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () => context.go('/invoices'),
                 ),
                 const SizedBox(height: DadgarTokens.s8),
+                if (isAdmin) ...[
+                  _ActionCard(
+                    icon: Icons.admin_panel_settings_outlined,
+                    title: 'پنل مدیریت مالی',
+                    subtitle: 'صدور فاکتور، ثبت پرداخت و بازکردن (M6)',
+                    onTap: () => context.go('/admin/billing'),
+                  ),
+                  const SizedBox(height: DadgarTokens.s8),
+                ],
                 _ActionCard(
                   icon: Icons.support_agent_outlined,
                   title: 'تیکت‌های پشتیبانی',

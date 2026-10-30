@@ -2,8 +2,9 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/secure/token_store.dart';
+import '../domain/session_user.dart';
 
-/// قرارداد لایه‌ی data احراز هویت — M1 (DOC-04 §۱۱)
+/// قرارداد لایه‌ی data احراز هویت — M1 (DOC-04 §۱۱) + M6 (CMD-028)
 abstract interface class AuthRepository {
   /// ورود با همان حساب‌های موجود وب؛ خروجی = نام کاربری نشست
   Future<String> login({required String username, required String password});
@@ -13,6 +14,10 @@ abstract interface class AuthRepository {
 
   /// خروج: ابطال توکن همان دستگاه (best-effort) + پاکسازی ذخیره‌ی امن
   Future<void> logout();
+
+  /// M6 (CMD-028) — کشف نقش نشست از GET /api/me
+  /// null = مهمان/نشست نامعتبر (سرور با 200 و user:null پاسخ می‌دهد)
+  Future<SessionUser?> fetchMe();
 }
 
 /// پیاده‌سازی dio — مسیرها از ApiEndpoints (DOC-04 §۵-۲)
@@ -130,5 +135,20 @@ final class DioAuthRepository implements AuthRepository {
       }
     }
     await _store.clear();
+  }
+
+  @override
+  Future<SessionUser?> fetchMe() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(ApiEndpoints.me);
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return null;
+      final user = data['user'];
+      if (user is! Map<String, dynamic>) return null; // مهمان: user:null
+      return SessionUser.fromJson(user);
+    } on Object {
+      // کشف نقش حیاتی نیست — خطا = بدون نقش (کارت‌های مدیریتی مخفی می‌مانند)
+      return null;
+    }
   }
 }

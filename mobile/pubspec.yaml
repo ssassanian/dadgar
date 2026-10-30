@@ -27,6 +27,13 @@ dependencies:
   image_picker: ^1.1.2
   # M5 (تصمیم ثبت‌شده CMD-025): ذخیره‌ی سند دانلودشده در پوشه‌ی اسناد اپ — افزونه‌ی رسمی flutter.dev
   path_provider: ^2.1.4
+  # M6 (CMD-028): تولید PDF فاکتور — بسته‌ی استاندارد dart (RTL با فونت باندل‌شده‌ی Vazirmatn)
+  pdf: ^3.11.0
+  # M6 (CMD-028): اشتراک‌گذاری PDF فاکتور (share sheet سیستم)
+  share_plus: ^11.0.0
+  # M6 (CMD-028): بازکردن pay_url درگاه پس از فعال‌سازی (فقط https؛ لانچر تزریقی برای تست)
+  url_launcher: ^6.3.0
+  image: 4.5.4
 
 dev_dependencies:
   flutter_test:
