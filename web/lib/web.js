@@ -640,6 +640,41 @@ route('GET', '/api/users', ROLE('admin'), async (c) => {
   return { ok: true, rows };
 });
 
+/* ---------- CMD-028 — درگاه پرداخت آنلاین (اسکلت بی‌طرف) ----------
+ * تصمیم مدیر در CMD-028: «اسکلت بی‌طرف» — انتخاب درگاه به دستور بعدی موکول
+ * شد؛ این گام فقط زیرساخت بی‌طرف می‌سازد و هیچ پرداخت جعلی ثبت نمی‌شود.
+ *   POST /api/payments/request  (isAuth؛ وکیل 403 مثل مالی)
+ *     مشتری فقط برای فاکتور «در انتظار» خودش. تا وقتی PAYMENT_PROVIDER در env
+ *     تنظیم نشده، پاسخ 503 با عین پیام صادقانه‌ی دکمه‌ی «پرداخت آنلاین» است.
+ *   GET /api/payments/callback
+ *     نقطه‌ی بازگشت درگاه — بدون provider وجود ندارد (404 ضدافشا).
+ * چرخه‌ی طراحی‌شده برای provider آینده (پیاده‌سازی در دستور بعدی):
+ *   request → ساخت session نزد درگاه → pay_url به کلاینت → پرداخت کاربر →
+ *   callback → verify سمت سرور با کلید پذیرنده (هرگز سمت کلاینت) →
+ *   UPDATE invoices SET status='paid', paid_at → audit 'invoice_pay_gateway'.
+ * کلیدهای env (web/.env.example): PAYMENT_PROVIDER / PAYMENT_MERCHANT_ID /
+ *   PAYMENT_CALLBACK_BASE — کلید پذیرنده فقط در env سرور؛ هرگز در کد/موبایل.
+ * ========================================================================== */
+const PAYMENT_UNSET = 'درگاه پرداخت هنوز متصل نشده است؛ پس از تصمیم مدیر فعال می‌شود.';
+const payProvider = () => String((cfg.pay && cfg.pay.provider) || '').trim().toLowerCase();
+
+route('POST', '/api/payments/request', isAuth, async (c) => {
+  if (c.user.role === 'lawyer') throw new HttpError(403, 'دسترسی ندارید.');
+  const invoiceId = int(ascii(c.body.invoice_id), 1, 1e15, 'فاکتور');
+  const inv = await db.prepare('SELECT * FROM invoices WHERE id=?').get(invoiceId);
+  if (!inv || inv.client_id !== c.user.id) throw new HttpError(404, 'فاکتور یافت نشد.'); // بدون افشای فاکتور دیگران
+  if (inv.status !== 'pending') throw new HttpError(400, 'این فاکتور پرداخت‌شده است.');
+  if (!payProvider()) throw new HttpError(503, PAYMENT_UNSET);
+  /* نقطه‌ی اتصال provider — رسیدن به این خط یعنی env تنظیم شده اما ماژول
+     درگاه هنوز پیاده نشده است؛ تا CMD بعدی همان پیام صادقانه */
+  throw new HttpError(503, PAYMENT_UNSET);
+});
+
+route('GET', '/api/payments/callback', {}, async (c) => {
+  if (!payProvider()) throw new HttpError(404, 'یافت نشد.');
+  throw new HttpError(503, PAYMENT_UNSET); /* تا پیاده‌سازی verify در دستور بعدی */
+});
+
 /* ---------- CMD-006 — فاز ۳ گام ۴: نظرات (reviews) ----------
  * سیاست خود پروژه (صفحه‌ی عمومی «نظرات موکلان»):
  *   فقط موکلان پرونده‌ی بسته‌شده نظر ثبت می‌کنند؛ انتشار با رضایت صاحب نظر (consent)

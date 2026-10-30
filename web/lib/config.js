@@ -27,5 +27,13 @@ module.exports = {
   showOtp: !prod && process.env.DEV_SHOW_OTP === '1',
   sessionIdleMs: 30 * 60 * 1000,
   sessionMaxMs: 12 * 60 * 60 * 1000,
-  maxUpload: 10 * 1024 * 1024
+  maxUpload: 10 * 1024 * 1024,
+  /* CMD-028 — درگاه پرداخت (اسکلت بی‌طرف): تا انتخاب درگاه توسط مدیر،
+     provider خالی می‌ماند و همه‌ی مسیرهای پرداخت پیام صادقانه می‌دهند.
+     کلید پذیرنده فقط در env سرور (Vercel) — هرگز در کد یا موبایل. */
+  pay: {
+    provider: process.env.PAYMENT_PROVIDER || '',
+    merchantId: process.env.PAYMENT_MERCHANT_ID || '',
+    callbackBase: process.env.PAYMENT_CALLBACK_BASE || ''
+  }
 };

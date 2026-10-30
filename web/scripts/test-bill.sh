@@ -131,6 +131,15 @@ curl -s -o /dev/null -w "no-csrf [%{http_code}]\n" -b $AJ -X POST $B/api/invoice
 curl -s -o /dev/null -w "guest-GET    [%{http_code}]\n" $B/api/invoices
 curl -s -o /dev/null -w "guest-PATCH  [%{http_code}]\n" -X PATCH $B/api/invoices/$I1 -H "Content-Type: application/json" -H "Origin: $B" -d '{"status":"paid"}'
 
+echo "===== 12b) CMD-028 payments scaffold (بدون provider — مسیر صادقانه) ====="
+curl -s -w " [%{http_code}]\n" -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d "{\"invoice_id\":$I1}" | python3 -c "
+import sys; t=sys.stdin.read(); assert 'درگاه پرداخت هنوز متصل نشده است' in t and '[503]' in t, t; print('own pending invoice → 503 با عین پیام صادقانه درگاه')"
+curl -s -o /dev/null -w "pay-guest   [%{http_code}]\n" -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -d '{"invoice_id":1}'
+curl -s -o /dev/null -w "pay-lawyer  [%{http_code}]\n" -b $LJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $LC" -d "{\"invoice_id\":$I1}"
+curl -s -o /dev/null -w "pay-missing [%{http_code}]\n" -b $CJ -X POST $B/api/payments/request -H "Content-Type: application/json" -H "Origin: $B" -H "x-csrf-token: $CC" -d '{"invoice_id":999999999}'
+curl -s -w " [%{http_code}]\n" "$B/api/payments/callback" | python3 -c "
+import sys; t=sys.stdin.read(); assert '[404]' in t, t; print('callback بدون provider → 404 ضدافشا')"
+
 echo "===== 13) audit log entries ====="
 node -e "
 const {db}=require('./lib/db.pg');
