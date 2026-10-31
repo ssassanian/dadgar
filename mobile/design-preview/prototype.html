@@ -1,0 +1,654 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMD-041 — سیم‌کشی صفحات موبایل دادگر (پروتوتایپ کلیک‌پذیر)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+/* ===== سبک صفحه‌ی گالری (مستقل از app.css) ===== */
+body { background:#efece6; }
+.wrap { max-width:1240px; margin:0 auto; padding:40px 24px 80px; }
+.wrap > h1 { font-size:26px; font-weight:700; margin:0 0 6px; }
+.lede { color:var(--muted); max-width:88ch; }
+.badge { display:inline-block; background:#e7ecf4; color:var(--data); border-radius:999px; padding:2px 12px; font-size:12.5px; margin:0 0 14px 6px; }
+.note { background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-top:26px; }
+.note ul { margin:8px 0; padding-right:22px; } .note li { margin:4px 0; }
+code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
+
+/* ===== صحنه: گوشی + نقشه‌ی سیم‌کشی ===== */
+.stage { display:flex; gap:44px; justify-content:center; align-items:flex-start; flex-wrap:wrap; margin-top:20px; }
+.phone { position:relative; border:6px solid #243044; border-radius:30px; overflow:hidden; background:var(--ground); box-shadow:0 18px 40px rgba(20,52,91,.16); flex:none; }
+.phone .screen { height:844px; }
+.map { width:660px; max-width:92vw; background:#fff; border:1px solid var(--border); border-radius:14px; padding:18px 20px; }
+.map-t { font-size:16px; font-weight:700; margin:0 0 4px; }
+.map-s { font-size:12.5px; color:var(--muted); margin:0 0 12px; line-height:1.9; }
+.legend { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+#live { background:var(--data-soft); border-radius:10px; padding:10px 12px; font-size:12.5px; min-height:42px; line-height:1.9; }
+.map-meta { display:flex; align-items:center; gap:10px; margin:10px 0 12px; font-size:12.5px; color:var(--muted); }
+#mtable { border-collapse:collapse; width:100%; font-size:12.3px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+#mtable th, #mtable td { text-align:right; padding:6px 9px; border-top:1px solid var(--rule); vertical-align:top; }
+#mtable th { background:#f6f2ea; font-weight:600; font-size:11.5px; color:var(--muted); }
+#mtable tr:first-child th { border-top:0; }
+#mtable tr.hit { background:var(--data-soft); }
+
+/* ===== افزوده‌های خانه v2 (از home-v2.html — همان توکن‌ها) ===== */
+.bell { position:relative; }
+.bell .bdot { position:absolute; top:9px; inset-inline-start:9px; width:7px; height:7px; border-radius:50%; background:var(--negative); border:1.5px solid var(--ground); }
+.hero-hear { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:16px; margin-top:14px; }
+.hero-hear .hh-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.hero-hear h2 { font-size:17.5px; font-weight:700; margin-top:10px; line-height:1.55; }
+.hero-hear .hh-sub { font-size:13px; color:var(--muted); margin-top:2px; }
+.hero-hear .journey { margin-top:14px; }
+.btn-row { display:flex; gap:8px; margin-top:14px; }
+.btn-row .btn { flex:1; margin-top:0; }
+.btn-row .btn.sq { flex:none; width:56px; padding:0; }
+.qa { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+.qa .qa-i { display:flex; flex-direction:column; align-items:center; gap:7px; padding:13px 6px 11px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); font-size:12.5px; color:var(--text); min-height:44px; cursor:pointer; }
+.qa .qa-i svg { width:22px; height:22px; stroke:var(--data); stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.lawyer { display:flex; gap:12px; align-items:center; }
+.lawyer .av { width:46px; height:46px; border-radius:50%; background:var(--data-soft); color:var(--data); display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; flex:none; }
+.lawyer .lw-msg { margin-top:12px; }
+.lw-msg { background:var(--raised); border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.9; }
+.lw-msg .m-meta { color:var(--faint); font-size:11px; margin-top:5px; }
+.money { display:flex; align-items:center; gap:10px; padding:13px 14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); font-size:13px; color:var(--text); margin-top:12px; }
+.money .fig { margin-inline-start:auto; font-weight:700; font-size:14px; }
+
+/* ===== افزوده‌های ورود v2 (از login-v2.html — همان توکن‌ها) ===== */
+.brand { display:flex; flex-direction:column; align-items:center; text-align:center; padding:10px 0 4px; }
+.brand .mono { width:64px; height:64px; border-radius:18px; background:var(--primary); color:var(--primary-ink); display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:700; }
+.brand h2 { font-size:20px; font-weight:700; margin-top:10px; }
+.brand .tag { font-size:12.5px; color:var(--muted); margin-top:3px; }
+.caps { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.cap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:12px 13px; display:flex; gap:10px; align-items:flex-start; min-height:64px; }
+.cap svg { width:21px; height:21px; flex:none; stroke:var(--data); stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; margin-top:2px; }
+.cap .ct { font-size:13px; font-weight:600; line-height:1.5; }
+.cap .cs { font-size:11px; color:var(--muted); line-height:1.6; margin-top:2px; }
+.teaser { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:14px 16px 10px; margin-top:12px; }
+.teaser .tt { font-size:13px; font-weight:600; }
+.teaser .ts { font-size:11px; color:var(--faint); margin-top:2px; }
+.teaser .journey { margin-top:12px; }
+.formcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:16px; margin-top:12px; }
+.formcard .fc-t { font-size:15px; font-weight:700; }
+.formcard .fc-s { font-size:12px; color:var(--muted); margin-top:2px; }
+.formcard .field { margin-top:12px; }
+
+/* ===== افزوده‌های پروتوتایپ (همه از توکن‌های D-3 — صفر رنگ جدید) ===== */
+.row[role="button"] { cursor:pointer; }
+button.row { width:100%; background:none; border:0; font:inherit; color:inherit; text-align:right; cursor:pointer; padding:12px 2px; min-height:64px; display:flex; align-items:center; gap:12px; }
+.btn.sm { height:34px; padding:0 14px; font-size:12.5px; border-radius:8px; flex:none; }
+.chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.chip { height:34px; padding:0 14px; border-radius:999px; border:1px solid var(--control); background:var(--surface); font-size:12.5px; color:var(--muted); cursor:pointer; font-family:inherit; }
+.chip.on { background:var(--text); color:#fff; border-color:var(--text); }
+.otp-row { display:flex; gap:10px; margin:16px 0 6px; }
+.otp-row input { width:56px; height:60px; text-align:center; font-size:24px; border:1px solid var(--control); border-radius:10px; background:var(--surface); }
+button.day { cursor:pointer; background:none; font:inherit; color:inherit; }
+.sw { position:relative; width:38px; height:22px; flex:none; display:inline-block; }
+.sw input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.sw i { position:absolute; inset:0; background:var(--control); border-radius:999px; transition:.15s; }
+.sw i::after { content:""; position:absolute; top:2px; inset-inline-start:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:.15s; }
+.sw input:checked + i { background:var(--positive); }
+.sw input:checked + i::after { transform:translateX(-16px); }
+.scrim { position:absolute; inset:0; background:rgba(16,24,40,.45); z-index:30; }
+.sh-card { position:absolute; bottom:0; left:0; right:0; background:var(--surface); border-radius:18px 18px 0 0; padding:14px 16px 18px; z-index:31; box-shadow:0 -8px 30px rgba(16,24,40,.18); }
+.sh-card .grab { width:40px; height:4px; border-radius:2px; background:var(--control); margin:0 auto 12px; }
+.sh-t { font-size:15px; font-weight:700; margin-bottom:3px; }
+.sh-s { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.8; }
+.sh-opt { display:flex; align-items:center; gap:12px; width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); margin-bottom:8px; cursor:pointer; font-size:14px; font-weight:500; font-family:inherit; }
+.sh-opt svg { width:20px; height:20px; stroke:var(--data); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+#toast { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); background:#1a1c1e; color:#fff; border-radius:999px; padding:9px 18px; font-size:12.5px; opacity:0; transition:opacity .2s; z-index:40; pointer-events:none; max-width:86%; text-align:center; white-space:nowrap; }
+#toast.on { opacity:.96; }
+.d-head { display:flex; align-items:center; gap:8px; }
+.d-head .h1 { flex:1; font-size:18px; }
+.ok-box { border:1px solid var(--pill-positive-ink); background:var(--pill-positive-bg); color:var(--pill-positive-ink); border-radius:8px; padding:14px 16px; font-size:13px; text-align:center; line-height:1.9; }
+
+/* در نمایشگر موبایل: قاب حذف می‌شود تا صفحه ۳۹۰px دقیق بنشیند */
+@media (max-width:430px){
+  .wrap { padding:16px 0 40px; }
+  .stage { gap:14px; }
+  .phone { border:0; border-radius:0; box-shadow:none; }
+  .map { max-width:none; width:auto; margin:0 12px; }
+}
+</style></head><body><div class="wrap">
+
+<h1>سیم‌کشی صفحات موبایل دادگر — پروتوتایپ کلیک‌پذیر</h1>
+<span class="badge">CMD-041</span><span class="badge">تمام تغییر وضعیت‌ها نمایشی است — بدون سرور</span><span class="badge">منتظر تایید مدیر؛ پس از تایید، کدنویسی Flutter بقیه‌ی صفحه‌ها</span>
+<p class="lede">به نقد شما احترام می‌گذاریم — پیش از هر کدنویسی بیشتر، حالا می‌توانید کل اپ را مثل یک اپ واقعی کلیک کنید: از ورود تا خانه، جزئیات پرونده، گفتگو، پرداخت و خروج. همه‌ی ۱۱ صفحه به هم وصل‌اند، هیچ بن‌بستی نیست، و نقشه‌ی کنار گوشی هر حرکت شما را زنده ثبت می‌کند. اگر جایی از مسیر یا طراحی به چشمتان نآمد، همان‌جا بگویید — اصلاحش در این مرحله ارزان است.</p>
+
+<div class="stage">
+  <div class="phone"><div class="screen" id="screen"></div><div id="toast"></div></div>
+  <aside class="map">
+    <div class="map-t">نقشه‌ی سیم‌کشی — <span id="ecount"></span> یال بین ۱۱ صفحه</div>
+    <div class="map-s">هر ردیف یک اتصال واقعی در این پروتوتایپ است؛ ردیف‌های آبی همان‌هایی هستند که شما کلیک کرده‌اید. این همان نقشه‌ای است که در کدنویسی به <code>go_router</code> می‌رود.</div>
+    <div class="legend"><span class="pill dat">ناوبری / تب</span><span class="pill pos">تغییر وضعیت</span><span class="pill neu">شیت / پشته</span><span class="pill neu">بیرونی</span></div>
+    <div id="live">هنوز حرکتی نکردید — از دکمه‌ی «ورود» شروع کنید.</div>
+    <div class="map-meta">حرکت‌های شما: <b id="hits" class="num">۰</b> از <span id="etotal" class="num"></span> یال <button class="chip" onclick="location.reload()">شروع از ورود</button></div>
+    <table id="mtable"></table>
+  </aside>
+</div>
+
+<div class="note"><b>این پروتوتایپ چه چیزی را ثابت می‌کند؟</b>
+<ul>
+<li><b>حلقه‌ی کامل، صفر بن‌بست:</b> ورود → خانه → هر کار روزانه → پروفایل → خروج → ورود. هر دکمه‌ای که می‌بینید مقصد واقعی دارد.</li>
+<li><b>چهار تغییر وضعیت واقعی درون‌پروتوتایپ:</b> پرداخت فاکتور (بدهی صفر می‌شود و خانه هم به‌روز می‌شود)، خوانده‌شدن پیام‌ها (شمارنده‌ی «وکیل شما» در خانه کم می‌شود)، ثبت نوبت، آپلود سند.</li>
+<li><b>صفر داده‌ی جدید:</b> همه‌ی اعداد از <code>data.js</code> همان CMD-037/038 است — بدهی ۱۸٬۵۰۰٬۰۰۰، دو پیام خوانده‌نشده، سه پرونده.</li>
+<li><b>صفر رنگ و فونت جدید:</b> همان <code>app.css</code> و توکن‌های D-3؛ نقشه‌ی سیم‌کشی عیناً به <code>router.dart</code> فعلی می‌خورد.</li>
+</ul></div>
+
+</div>
+<script src="data.js"></script>
+<script>
+/* ================= حالت پروتوتایپ ================= */
+const S = {
+  stack: ['login'],
+  caseId: 0, filter: 'all',
+  paid: new Set(), payNo: null,
+  chatCase: 'DD-۱۴۰۴-۰۱۷', chatExtra: {},
+  docsExtra: [],
+  apptDay: null, apptTime: null, booked: false,
+  bio: true, notif: true, bellSeen: false,
+};
+const fa = n => Number(n).toLocaleString('fa-IR');
+const FREE = { 16:'شنبه ۱۶ آبان', 17:'یکشنبه ۱۷ آبان', 18:'دوشنبه ۱۸ آبان' };
+const JIDX = { 'DD-۱۴۰۴-۰۱۷':3, 'DD-۱۴۰۴-۰۲۳':1, 'DD-۱۴۰۳-۰۵۸':5 };
+
+/* ================= یال‌های سیم‌کشی ================= */
+const EDGES = [
+  { id:'loginGo',     f:'ورود', a:'دکمه «ورود»', t:'خانه', tid:'home', k:'nav' },
+  { id:'loginOtp',    f:'ورود', a:'«ورود با کد یک‌بارمصرف (OTP)»', t:'کد تایید', tid:'otp', k:'nav' },
+  { id:'otpGo',       f:'کد تایید', a:'دکمه «تایید و ورود»', t:'خانه', tid:'home', k:'nav' },
+  { id:'otpBack',     f:'کد تایید', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'otpResend',   f:'کد تایید', a:'«ارسال دوباره کد»', t:'—', k:'ext', msg:'کد تایید دوباره ارسال شد — نمایشی' },
+  { id:'heroDetail',  f:'خانه', a:'دکمه «جزئیات پرونده» روی کارت قهرمان', t:'جزئیات پرونده', tid:'detail', k:'nav' },
+  { id:'heroMsg',     f:'خانه', a:'دکمه «پیام به وکیل» (کارت قهرمان)', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ S.chatCase='DD-۱۴۰۴-۰۱۷'; } },
+  { id:'qaDocs',      f:'خانه', a:'اقدام فوری «ارسال سند»', t:'اسناد', tid:'docs', k:'nav' },
+  { id:'qaAppt',      f:'خانه', a:'اقدام فوری «رزرو نوبت»', t:'نوبت‌دهی', tid:'appt', k:'nav' },
+  { id:'qaPay',       f:'خانه', a:'اقدام فوری «پرداخت فاکتور»', t:'فاکتورها', tid:'inv', k:'nav' },
+  { id:'lawyerMsg',   f:'خانه', a:'دکمه «پیام به وکیل» (پنل «وکیل شما»)', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ S.chatCase='DD-۱۴۰۴-۰۱۷'; } },
+  { id:'lawyerCall',  f:'خانه', a:'آیکون تماس با وکیل', t:'—', k:'ext', msg:'در اپ واقعی: تماس تلفنی با وکیل پرونده' },
+  { id:'allCases',    f:'خانه', a:'لینک «هر ۳ پرونده»', t:'پرونده‌ها', tid:'cases', k:'nav' },
+  { id:'homeCase0',   f:'خانه', a:'ردیف پرونده‌ی DD-۱۴۰۴-۰۱۷', t:'جزئیات پرونده', tid:'detail', k:'nav', pre:()=>{ S.caseId=0; } },
+  { id:'homeCase1',   f:'خانه', a:'ردیف پرونده‌ی DD-۱۴۰۴-۰۲۳', t:'جزئیات پرونده', tid:'detail', k:'nav', pre:()=>{ S.caseId=1; } },
+  { id:'homeMoney',   f:'خانه', a:'ردیف مالی پایین صفحه', t:'فاکتورها', tid:'inv', k:'nav' },
+  { id:'bell',        f:'خانه', a:'زنگ اعلان‌ها (با نقطه‌ی قرمز)', t:'شیت اعلان‌ها', k:'sheet', pre:()=>{ S.bellSeen=true; } },
+  { id:'homeProfile', f:'خانه', a:'آیکون پروفایل در نوار بالا', t:'پروفایل', tid:'profile', k:'nav' },
+  { id:'notifAppt',   f:'شیت اعلان‌ها', a:'اعلان «جلسه‌ی دادگاه ۱۹ آبان»', t:'نوبت‌دهی', tid:'appt', k:'nav' },
+  { id:'notifInv',    f:'شیت اعلان‌ها', a:'اعلان «سررسید فاکتور ۰۳۱»', t:'فاکتورها', tid:'inv', k:'nav' },
+  { id:'notifMsg',    f:'شیت اعلان‌ها', a:'اعلان «پیام جدید وکیل»', t:'پیام‌ها', tid:'msgs', k:'nav' },
+  { id:'tabHome',     f:'تب‌بار', a:'تب خانه', t:'خانه', tid:'home', k:'tab' },
+  { id:'tabCases',    f:'تب‌بار', a:'تب پرونده‌ها', t:'پرونده‌ها', tid:'cases', k:'tab' },
+  { id:'tabAppt',     f:'تب‌بار', a:'تب نوبت', t:'نوبت‌دهی', tid:'appt', k:'tab' },
+  { id:'tabInv',      f:'تب‌بار', a:'تب فاکتور', t:'فاکتورها', tid:'inv', k:'tab' },
+  { id:'tabProfile',  f:'تب‌بار', a:'تب پروفایل', t:'پروفایل', tid:'profile', k:'tab' },
+  { id:'case0',       f:'پرونده‌ها', a:'ردیف DD-۱۴۰۴-۰۱۷', t:'جزئیات پرونده', tid:'detail', k:'nav', pre:()=>{ S.caseId=0; } },
+  { id:'case1',       f:'پرونده‌ها', a:'ردیف DD-۱۴۰۴-۰۲۳', t:'جزئیات پرونده', tid:'detail', k:'nav', pre:()=>{ S.caseId=1; } },
+  { id:'case2',       f:'پرونده‌ها', a:'ردیف DD-۱۴۰۳-۰۵۸ (بسته)', t:'جزئیات پرونده', tid:'detail', k:'nav', pre:()=>{ S.caseId=2; } },
+  { id:'caseFilter',  f:'پرونده‌ها', a:'چیپ‌های همه / در جریان / بسته', t:'(همان صفحه — فیلتر ردیف‌ها)', k:'state', fn:a=>{ S.filter=a; } },
+  { id:'detailChat',  f:'جزئیات پرونده', a:'دکمه «گفتگو با وکیل»', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ S.chatCase=DATA.cases[S.caseId].no; } },
+  { id:'detailDocs',  f:'جزئیات پرونده', a:'لینک «همه‌ی اسناد گاوصندوق»', t:'اسناد', tid:'docs', k:'nav' },
+  { id:'detailAppt',  f:'جزئیات پرونده', a:'دکمه «رزرو نوبت با وکیل»', t:'نوبت‌دهی', tid:'appt', k:'nav' },
+  { id:'detailBack',  f:'جزئیات پرونده', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'apptDay',     f:'نوبت‌دهی', a:'روز آزاد در تقویم', t:'(همان صفحه — انتخاب روز)', k:'state', fn:a=>{ S.apptDay=a; S.apptTime=null; S.booked=false; } },
+  { id:'apptTime',    f:'نوبت‌دهی', a:'چیپ ساعت آزاد', t:'(همان صفحه — انتخاب روز و ساعت)', k:'state', fn:(a,b)=>{ S.apptDay=a; S.apptTime=b; S.booked=false; } },
+  { id:'apptBook',    f:'نوبت‌دهی', a:'دکمه «ثبت نوبت»', t:'(همان صفحه — تایید ثبت)', k:'state', fn:()=>{ S.booked=true; showToast('نوبت شما ثبت شد — نمایشی'); } },
+  { id:'invPay',      f:'فاکتورها', a:'دکمه «پرداخت» فاکتور پرداخت‌نشده', t:'شیت پرداخت', k:'sheet', pre:a=>{ S.payNo=a; } },
+  { id:'invPayOk',    f:'شیت پرداخت', a:'تایید پرداخت', t:'(همان صفحه — بدهی صفر و ردیف پرداخت‌شده)', k:'state', fn:()=>{ if(S.payNo) S.paid.add(S.payNo); showToast('پرداخت انجام شد — نمایشی'); } },
+  { id:'msg0',        f:'پیام‌ها', a:'ردیف رضا محمدی (DD-۰۱۷، خوانده‌نشده)', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ DATA.messages[0].unread=false; S.chatCase='DD-۱۴۰۴-۰۱۷'; } },
+  { id:'msg1',        f:'پیام‌ها', a:'ردیف سارا کریمی (DD-۰۲۳، خوانده‌نشده)', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ DATA.messages[1].unread=false; S.chatCase='DD-۱۴۰۴-۰۲۳'; } },
+  { id:'msg2',        f:'پیام‌ها', a:'ردیف پیام قدیمی (خوانده‌شده)', t:'گفتگو', tid:'chat', k:'nav', pre:()=>{ S.chatCase='DD-۱۴۰۴-۰۱۷'; } },
+  { id:'msgsBack',    f:'پیام‌ها', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'chatSend',    f:'گفتگو', a:'دکمه ارسال / کلید Enter', t:'(همان صفحه — پیام افزوده می‌شود)', k:'state', fn:()=>{} },
+  { id:'chatBack',    f:'گفتگو', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'docsUpload',  f:'اسناد', a:'دکمه «آپلود سند جدید»', t:'شیت منبع سند', k:'sheet' },
+  { id:'docsUploadSrc', f:'شیت منبع سند', a:'دوربین یا گالری', t:'(همان صفحه — سند به صف بررسی می‌رود)', k:'state', fn:()=>{ S.docsExtra.unshift({ name:'IMG-۴۱۲.jpg', size:'۲٫۱ مگابایت', date:'۱۴۰۴/۰۸/۱۴', tag:'جدید' }); showToast('سند به صف بررسی وکیل اضافه شد — نمایشی'); } },
+  { id:'docsBack',    f:'اسناد', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'profBio',     f:'پروفایل', a:'سوییچ ورود با بیومتریک', t:'(همان صفحه — تغییر تنظیم)', k:'state', fn:()=>{ S.bio=!S.bio; } },
+  { id:'profNotif',   f:'پروفایل', a:'سوییچ اعلان‌ها', t:'(همان صفحه — تغییر تنظیم)', k:'state', fn:()=>{ S.notif=!S.notif; } },
+  { id:'profLogout',  f:'پروفایل', a:'دکمه «خروج از حساب»', t:'شیت تایید خروج', k:'sheet' },
+  { id:'profLogoutOk', f:'شیت خروج', a:'تایید «خروج از حساب»', t:'ورود — پایان حلقه', k:'reset', fn:()=>{ showToast('از حساب خارج شدید — نمایشی'); } },
+];
+const E = {}; EDGES.forEach((e,i)=>{ E[e.id]=i; });
+
+/* ================= موتور ناوبری + ثبت حرکت ================= */
+const hits = new Set();
+function hit(i){
+  const e = EDGES[i]; e._hit = true;
+  const row = document.getElementById('mx'+i); if(row) row.classList.add('hit');
+  hits.add(i);
+  document.getElementById('hits').textContent = fa(hits.size);
+  document.getElementById('live').innerHTML = `آخرین حرکت: <b class="num">${fa(i+1)}</b> · ${e.f} ← ${e.t}${e.a?` <span style="color:var(--faint)">(${e.a})</span>`:''}`;
+}
+function edge(i, a, b){
+  const e = EDGES[i]; if(!e) return;
+  hit(i);
+  if(e.pre) e.pre(a, b);
+  if(e.k==='nav'){ S.stack.push(e.tid); }
+  else if(e.k==='tab'){ S.stack=[e.tid]; }
+  else if(e.k==='reset'){ if(e.fn) e.fn(); S.stack=['login']; }
+  else if(e.k==='back'){ if(S.stack.length>1) S.stack.pop(); }
+  else if(e.k==='sheet'){ openSheet(e.t); return; }
+  else if(e.k==='ext'){ showToast(e.msg); return; }
+  else if(e.k==='state'){ if(e.fn) e.fn(a, b); }
+  render();
+}
+function backLabel(){ return '<button class="icon-btn" aria-label="بازگشت"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'; }
+const backBtn = id => `<button class="icon-btn" aria-label="بازگشت" onclick="edge(E.${id})"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>`;
+
+/* ================= اجزای مشترک ================= */
+const kvRow = (k,v) => `<div class="kv"><span class="k">${k}</span><span class="v num">${v}</span></div>`;
+const journeyHTML = idx => `<div class="journey">${DATA.journey.map((s,i)=>`<div class="j-step ${i<idx?'done':i===idx?'now':''}"><span class="dot2"></span><div class="j-lbl">${s}</div></div>`).join('')}</div>`;
+const ICON = {
+  doc:'<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
+  cal:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  card:'<svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 2 .7 2.8a2 2 0 01-.5 2.1L8 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.9.5 2.8.7a2 2 0 011.8 2z"/></svg>',
+  folder:'<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.6 8.6 0 01-3.8-.9L3 21l1.9-4.2A8.4 8.4 0 1121 11.5z"/></svg>',
+  shield:'<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>',
+  person:'<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  send:'<svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>',
+  camera:'<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  image:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+};
+const TABS = [
+  ['home','خانه',`<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>`,'tabHome'],
+  ['cases','پرونده‌ها',ICON.folder,'tabCases'],
+  ['appt','نوبت',ICON.cal,'tabAppt'],
+  ['inv','فاکتور',`<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>`,'tabInv'],
+  ['profile','پروفایل',ICON.person,'tabProfile'],
+];
+const tabbar = act => `<div class="tabbar">${TABS.map(t=>`<button class="tab" ${t[0]===act?'aria-current="page"':''} onclick="edge(E.${t[3]})">${t[2]}${t[1]}</button>`).join('')}</div>`;
+
+/* ================= سازنده‌ی صفحه‌ها ================= */
+function bLogin(){
+  return `
+  <div class="body no-tab" style="padding-top:20px">
+    <div class="brand"><div class="mono">د</div><h2>دادگر</h2><div class="tag">همراه پرونده‌ی شما — از مشاوره تا صدور رأی</div></div>
+    <div class="caps">
+      <div class="cap">${ICON.folder}<div><div class="ct">پیگیری زنده‌ی پرونده</div><div class="cs">مسیر شش‌مرحله‌ای، گزارش هر اقدام</div></div></div>
+      <div class="cap">${ICON.chat}<div><div class="ct">گفتگو با وکیل</div><div class="cs">پیام امن و محرمانه، پیوند با پرونده</div></div></div>
+      <div class="cap">${ICON.cal}<div><div class="ct">رزرو نوبت</div><div class="cs">تقویم شمسی، حضوری و آنلاین</div></div></div>
+      <div class="cap">${ICON.shield}<div><div class="ct">گاوصندوق اسناد</div><div class="cs">آپلود و دانلود امن، برچسب محرمانه</div></div></div>
+      <div class="cap">${ICON.doc}<div><div class="ct">فاکتور و پرداخت</div><div class="cs">شفاف از ابتدا، اقساط مرحله‌ای</div></div></div>
+      <div class="cap">${ICON.bell}<div><div class="ct">اعلان جلسات</div><div class="cs">یادآور دادگاه و ضرب‌الاجل‌ها</div></div></div>
+    </div>
+    <div class="teaser">
+      <div class="tt">پرونده‌تان را قدم‌به‌قدم ببینید</div>
+      <div class="ts">نمونه‌ی نمایشی — پس از ورود، مسیر واقعی پرونده‌ی خودتان</div>
+      ${journeyHTML(2)}
+    </div>
+    <div class="formcard">
+      <div class="fc-t">ورود به دادگر</div>
+      <div class="fc-s">با همان حساب کاربری سایت دادگر وارد شوید</div>
+      <div class="field"><label for="u">نام کاربری</label><input id="u" type="text" placeholder="نام کاربری یا شماره موبایل"></div>
+      <div class="field" style="margin-bottom:4px"><label for="p">رمز عبور</label><input id="p" type="password" placeholder="••••••••"></div>
+      <button class="btn full" style="margin-top:14px" onclick="edge(E.loginGo)">ورود</button>
+      <button class="btn text full" style="margin-top:4px" onclick="edge(E.loginOtp)">ورود با کد یک‌بارمصرف (OTP)</button>
+    </div>
+  </div>`;
+}
+function bOtp(){
+  return `
+  <div class="topbar">${backBtn('otpBack')}<div class="bar-title">کد تایید<small>ورود بدون رمز</small></div></div>
+  <div class="body no-tab">
+    <div class="h1">کد تایید پیامکی</div>
+    <div class="sub num">کد ۴ رقمی به ۰۹۱۲ ۳۴۵ ۶۷۸۹ ارسال شد</div>
+    <div class="otp-row">
+      <input inputmode="numeric" maxlength="1" oninput="otpJump(this)"><input inputmode="numeric" maxlength="1" oninput="otpJump(this)"><input inputmode="numeric" maxlength="1" oninput="otpJump(this)"><input inputmode="numeric" maxlength="1" oninput="otpJump(this)">
+    </div>
+    <button class="btn full" style="margin-top:10px" onclick="edge(E.otpGo)">تایید و ورود</button>
+    <button class="btn text full" style="margin-top:4px" onclick="edge(E.otpResend)">ارسال دوباره کد</button>
+    <div class="hint" style="margin-top:14px;font-size:12px;color:var(--faint)">در پروتوتایپ، هر کدی پذیرفته می‌شود.</div>
+  </div>`;
+}
+function bHome(){
+  const unread = DATA.messages.filter(m=>m.unread).length;
+  const unpaid = DATA.invoices.filter(i=>i.state==='پرداخت‌نشده' && !S.paid.has(i.no));
+  const debt = unpaid.reduce((s,i)=>s+i.amount,0);
+  const lastMsg = DATA.messages[0];
+  const c0 = DATA.cases[0], c1 = DATA.cases[1];
+  return `
+  <div class="topbar">
+    <button class="icon-btn bell" aria-label="اعلان‌ها" onclick="edge(E.bell)">${ICON.bell}${S.bellSeen?'':'<span class="bdot"></span>'}</button>
+    <div class="bar-title">دادگر<small>امیر رستگاری · مشتری</small></div>
+    <button class="icon-btn" aria-label="پروفایل" onclick="edge(E.homeProfile)">${ICON.person}</button>
+  </div>
+  <div class="body">
+    <div class="h1" style="font-size:20px">سلام، امیر</div>
+    <div class="sub num">${DATA.today}</div>
+    <div class="hero-hear">
+      <div class="hh-top"><span class="pill dat num">پرونده‌ی DD-۱۴۰۴-۰۱۷</span><span class="pill neu">۵ روز تا جلسه</span></div>
+      <h2>جلسه‌ی دادگاه شما</h2>
+      <div class="hh-sub">دعوی مطالبه‌ی خسارت تصادف</div>
+      <div style="margin-top:6px">${kvRow('زمان','سه‌شنبه ۱۹ آبان — ساعت ۰۹:۰۰')}${kvRow('شعبه','شعبه‌ی ۱۴ دادگاه حقوقی تهران')}</div>
+      ${journeyHTML(3)}
+      <div class="btn-row"><button class="btn full" onclick="edge(E.heroDetail)">جزئیات پرونده</button><button class="btn ghost" onclick="edge(E.heroMsg)">پیام به وکیل</button></div>
+    </div>
+    <div class="qa">
+      <button class="qa-i" onclick="edge(E.qaDocs)">${ICON.doc}ارسال سند</button>
+      <button class="qa-i" onclick="edge(E.qaAppt)">${ICON.cal}رزرو نوبت</button>
+      <button class="qa-i" onclick="edge(E.qaPay)">${ICON.card}پرداخت فاکتور</button>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>وکیل شما</h2>${unread>0?`<span class="pill dat">${fa(unread)} پیام خوانده‌نشده</span>`:'<span class="pill neu">بدون پیام جدید</span>'}</div>
+      <div class="lawyer">
+        <div class="av">ر</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14.5px;font-weight:600">رضا محمدی</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" class="num">وکیل پایه یک دادگستری · پرونده‌ی DD-۱۴۰۴-۰۱۷</div>
+        </div>
+      </div>
+      <div class="lw-msg">«${lastMsg.text}»<div class="m-meta num">${lastMsg.time} پیش · گفتگوی DD-۱۴۰۴-۰۱۷</div></div>
+      <div class="btn-row"><button class="btn full" onclick="edge(E.lawyerMsg)">پیام به وکیل</button><button class="btn ghost sq" aria-label="تماس با وکیل" onclick="edge(E.lawyerCall)">${ICON.phone}</button></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>پرونده‌های من</h2><button class="card-link" onclick="edge(E.allCases)">هر ۳ پرونده</button></div>
+      <div class="rows">
+        <div class="row" role="button" onclick="edge(E.homeCase0)"><div class="r-main"><div class="r-t1 num">${c0.no} · ${c0.title}</div><div class="r-t2 num">جلسه‌ی بعد: ۱۹ آبان — ساعت ۰۹:۰۰</div></div><div class="r-side"><span class="pill neu">${c0.status}</span></div></div>
+        <div class="row" role="button" onclick="edge(E.homeCase1)"><div class="r-main"><div class="r-t1 num">${c1.no} · ${c1.title}</div><div class="r-t2">در انتظار بررسی مدارک توسط وکیل</div></div><div class="r-side"><span class="pill neu">${c1.status}</span></div></div>
+      </div>
+    </div>
+    ${unpaid.length
+      ? `<div class="money" role="button" onclick="edge(E.homeMoney)"><span class="pill neu">${fa(unpaid.length)} فاکتور پرداخت‌نشده</span><span class="fig num">${fmt(debt)} تومان</span><span class="chev"></span></div>`
+      : `<div class="money"><span class="pill pos">فاکتورها پرداخت شد</span><span class="fig num">${fmt(DATA.paid)} تومان پرداخت‌شده</span></div>`}
+  </div>
+  ${tabbar('home')}`;
+}
+function bCases(){
+  const list = DATA.cases.filter(c=>S.filter==='all' || (S.filter==='open' ? c.status==='در جریان' : c.status==='بسته'));
+  return `
+  <div class="topbar"><div class="bar-title">پرونده‌ها<small class="num">${fa(DATA.cases.length)} پرونده · ${fa(DATA.openCases)} در جریان</small></div></div>
+  <div class="body">
+    <div class="chips">
+      <button class="chip ${S.filter==='all'?'on':''}" onclick="edge(E.caseFilter,'all')">همه</button>
+      <button class="chip ${S.filter==='open'?'on':''}" onclick="edge(E.caseFilter,'open')">در جریان</button>
+      <button class="chip ${S.filter==='closed'?'on':''}" onclick="edge(E.caseFilter,'closed')">بسته</button>
+    </div>
+    <div class="rows">
+      ${list.map(c=>{const i=DATA.cases.indexOf(c);return `
+      <div class="row" role="button" onclick="edge(E.case${i})">
+        <div class="r-main"><div class="r-t1 num">${c.no} · ${c.title}</div><div class="r-t2 num">${c.next}</div></div>
+        <div class="r-side"><span class="pill neu">${c.status}</span></div><span class="chev"></span>
+      </div>`;}).join('')}
+      ${list.length===0?'<div class="empty">پرونده‌ای در این وضعیت ندارید.</div>':''}
+    </div>
+  </div>
+  ${tabbar('cases')}`;
+}
+function bDetail(){
+  const c = DATA.cases[S.caseId];
+  const idx = JIDX[c.no];
+  const msg = DATA.messages.filter(m=>m.case===c.no)[0];
+  const docs = DATA.documents.slice(0,2);
+  return `
+  <div class="topbar">${backBtn('detailBack')}<div class="bar-title">جزئیات پرونده<small class="num">${c.no}</small></div></div>
+  <div class="body no-tab">
+    <div class="d-head"><div class="h1">${c.title}</div><span class="pill ${c.status==='در جریان'?'dat':'neu'}">${c.status}</span></div>
+    <div class="panel" style="margin-top:12px">
+      <div class="panel-head"><h2>مسیر پرونده</h2><span class="pill dat">مرحله‌ی ${fa(idx+1)} از ${fa(DATA.journey.length)}</span></div>
+      ${journeyHTML(idx)}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>مشخصات پرونده</h2></div>
+      ${kvRow('وکیل', c.lawyer)}
+      ${c.branch && c.branch.startsWith('شعبه') ? kvRow('شعبه', c.branch) : ''}
+      ${kvRow('وضعیت', c.status)}
+      ${kvRow(c.status==='بسته' ? 'رأی' : 'گام بعدی', c.next)}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>آخرین پیام وکیل</h2></div>
+      ${msg ? `<div class="lw-msg">«${msg.text}»<div class="m-meta num">${msg.from} · ${msg.time} پیش</div></div>
+      <div class="btn-row"><button class="btn full" onclick="edge(E.detailChat)">گفتگو با وکیل</button></div>`
+      : '<div class="empty">گفتگویی در این پرونده ثبت نشده است.</div>'}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>اسناد پرونده</h2><button class="card-link" onclick="edge(E.detailDocs)">همه‌ی اسناد گاوصندوق</button></div>
+      <div class="rows">
+        ${docs.map(d=>`<div class="row" style="min-height:56px"><div class="r-main"><div class="r-t1">${d.name}</div><div class="r-t2 num">${d.size} · ${d.date}</div></div><div class="r-side">${d.tag?'<span class="pill neu">محرمانه</span>':''}</div></div>`).join('')}
+      </div>
+    </div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="edge(E.detailAppt)">رزرو نوبت با وکیل</button>
+  </div>`;
+}
+function dayClick(d){
+  if(d===19){ showToast('روز جلسه‌ی دادگاه — نوبت آزاد ندارد'); return; }
+  if(FREE[d]){ edge(E.apptDay, FREE[d]); } else { showToast('این روز نوبت آزاد ندارد'); }
+}
+function bAppt(){
+  let days = '<span></span>'.repeat(6);
+  for(let d=1; d<=30; d++){
+    const bar = d===19 ? 'booked' : (FREE[d] ? 'free' : '');
+    days += `<button class="day ${d===14?'today':''} ${S.apptDay===FREE[d]?'sel':''}" onclick="dayClick(${d})"><span class="d-num num">${fa(d)}</span><div class="bar ${bar}"></div></button>`;
+  }
+  return `
+  <div class="topbar"><div class="bar-title">نوبت‌دهی<small>وکیل: رضا محمدی · حضوری و آنلاین</small></div></div>
+  <div class="body">
+    <div class="panel">
+      <div class="cal-head"><div class="m">آبان ۱۴۰۴</div><span class="pill neu num">امروز: ۱۴</span></div>
+      <div class="cal">
+        ${DATA.week.map(w=>`<div class="dow">${w.d}</div>`).join('')}
+        ${days}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>نوبت‌های آزاد این هفته</h2><span class="pill pos">آزاد</span></div>
+      ${DATA.slots.map(g=>`
+      <div style="margin-bottom:10px">
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px" class="num">${g.day}</div>
+        <div class="chips" style="margin-bottom:0">
+          ${g.times.map(t=>`<button class="chip num ${S.apptDay===g.day&&S.apptTime===t?'on':''}" onclick="edge(E.apptTime,'${g.day}','${t}')">${t}</button>`).join('')}
+        </div>
+      </div>`).join('')}
+    </div>
+    ${S.booked
+      ? `<div class="ok-box num">نوبت شما ثبت شد — ${S.apptDay} · ساعت ${S.apptTime} · حضوری (نمایشی)</div>`
+      : `<button class="btn full" style="margin-top:12px" ${S.apptDay&&S.apptTime?`onclick="edge(E.apptBook)"`:'disabled style="opacity:.5;cursor:not-allowed"'}>ثبت نوبت${S.apptDay&&S.apptTime?` — ${S.apptDay} · ساعت ${S.apptTime}`:''}</button>
+         <div class="hint" style="margin-top:8px;font-size:12px;color:var(--faint)">ابتدا یک ساعت آزاد را انتخاب کنید.</div>`}
+  </div>
+  ${tabbar('appt')}`;
+}
+function bInv(){
+  const unpaid = DATA.invoices.filter(i=>i.state==='پرداخت‌نشده' && !S.paid.has(i.no));
+  const debt = unpaid.reduce((s,i)=>s+i.amount,0);
+  return `
+  <div class="topbar"><div class="bar-title">فاکتورها<small class="num">${fa(DATA.invoices.length)} فاکتور</small></div></div>
+  <div class="body">
+    <div class="panel">
+      <div style="font-size:13px;color:var(--muted)">بدهی فعلی</div>
+      <div class="lead-fig num" style="margin-top:4px">${fa(debt)}<small>تومان</small></div>
+      <div class="sub num" style="margin-top:4px">${unpaid.length?`از ${fa(unpaid.length)} فاکتور پرداخت‌نشده`:'همه‌ی فاکتورها پرداخت شده است'}</div>
+    </div>
+    <div class="panel" style="padding-top:6px">
+      <div class="rows">
+        ${DATA.invoices.map(i=>{
+          const isPaid = S.paid.has(i.no) || i.state==='پرداخت‌شده';
+          const unpaidRow = !isPaid && i.state==='پرداخت‌نشده';
+          return `
+        <div class="row">
+          <div class="r-main"><div class="r-t1 num">${i.no} · ${i.title}</div><div class="r-t2 num">سررسید: ${i.due}</div></div>
+          <div class="r-side">${unpaidRow?`<button class="btn sm" onclick="edge(E.invPay,'${i.no}')">پرداخت</button>`:'<span class="pill pos">پرداخت‌شده</span>'}</div>
+        </div>`;}).join('')}
+      </div>
+    </div>
+    <div class="empty" style="margin-top:12px">پرداخت از طریق درگاه زیبال — در پروتوتایپ بدون انتقال پول واقعی.</div>
+  </div>
+  ${tabbar('inv')}`;
+}
+function bMsgs(){
+  return `
+  <div class="topbar">${backBtn('msgsBack')}<div class="bar-title">پیام‌ها<small>گفتگوهای پرونده‌ها</small></div></div>
+  <div class="body no-tab">
+    <div class="rows">
+      ${DATA.messages.map((m,i)=>`
+      <div class="row ${m.unread?'unread':''}" role="button" onclick="edge(E.msg${i})">
+        <div class="r-main"><div class="r-t1">${m.from}</div><div class="r-t2">${m.text}</div></div>
+        <div class="r-side"><span class="pill dat num" style="margin-bottom:4px">${m.case}</span><div class="r-meta num">${m.time}</div></div>
+        <span class="chev"></span>
+      </div>`).join('')}
+    </div>
+    <div class="empty" style="margin-top:12px">با بازکردن هر گفتگو، شمارنده‌ی پیام‌های خانه به‌روز می‌شود.</div>
+  </div>`;
+}
+function threadFor(no){
+  if(no==='DD-۱۴۰۴-۰۱۷') return DATA.chat.concat(S.chatExtra[no]||[]);
+  return DATA.messages.filter(m=>m.case===no).map(m=>({me:false,text:m.text,time:m.time})).concat(S.chatExtra[no]||[]);
+}
+function bChat(){
+  const c = DATA.cases.find(x=>x.no===S.chatCase) || DATA.cases[0];
+  const th = threadFor(S.chatCase);
+  return `
+  <div class="topbar">${backBtn('chatBack')}<div class="bar-title">${c.lawyer}<small class="num">گفتگوی ${S.chatCase}</small></div></div>
+  <div class="body no-tab" style="padding-bottom:84px">
+    <div class="chat">
+      ${th.length ? th.map(m=>`<div class="msg ${m.me?'me':'them'}">${m.text}<span class="m-time num">${m.time}</span></div>`).join('')
+                  : '<div class="empty">گفتگویی ثبت نشده — اولین پیام را بفرستید.</div>'}
+    </div>
+  </div>
+  <div class="composer">
+    <input id="cmp" placeholder="پیام به ${c.lawyer}…" onkeydown="if(event.key==='Enter')sendMsg()">
+    <button class="send" aria-label="ارسال" onclick="sendMsg()">${ICON.send}</button>
+  </div>`;
+}
+function sendMsg(){
+  const inp = document.getElementById('cmp');
+  const v = inp && inp.value.trim();
+  if(!v){ showToast('متن پیام خالی است'); return; }
+  (S.chatExtra[S.chatCase] = S.chatExtra[S.chatCase]||[]).push({me:true, text:v, time:'الان'});
+  edge(E.chatSend);
+}
+function bDocs(){
+  const all = S.docsExtra.concat(DATA.documents);
+  return `
+  <div class="topbar">${backBtn('docsBack')}<div class="bar-title">گاوصندوق اسناد<small>محرمانه — فقط شما و وکیل پرونده</small></div></div>
+  <div class="body no-tab">
+    <div class="empty" style="text-align:right;border-style:solid;line-height:1.9">اسناد با رمزنگاری ذخیره می‌شوند و هر دانلود، بایت‌به‌بایت ثبت می‌شود.</div>
+    <div class="panel" style="margin-top:12px;padding-top:6px">
+      <div class="rows">
+        ${all.map(d=>`
+        <div class="row">
+          <div class="r-main"><div class="r-t1">${d.name}</div><div class="r-t2 num">${d.size} · ${d.date}</div></div>
+          <div class="r-side">${d.tag==='محرمانه'?'<span class="pill neu">محرمانه</span>':d.tag?'<span class="pill pos">جدید</span>':''}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <button class="btn full" style="margin-top:12px" onclick="edge(E.docsUpload)">آپلود سند جدید</button>
+  </div>`;
+}
+function bProfile(){
+  return `
+  <div class="topbar"><div class="bar-title">پروفایل<small>حساب و امنیت</small></div></div>
+  <div class="body">
+    <div class="panel">
+      <div class="lawyer">
+        <div class="av" style="width:54px;height:54px;font-size:22px">${DATA.user.initial}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:16px;font-weight:700">${DATA.user.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" class="num">${DATA.user.id} · ${DATA.user.role}</div>
+        </div>
+        <span class="pill pos">حساب فعال</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>امنیت</h2></div>
+      <div class="rows">
+        <div class="row" style="min-height:52px"><div class="r-main"><div class="r-t1">ورود با بیومتریک</div><div class="r-t2">بازکردن اپ با اثر انگشت یا چهره</div></div><div class="r-side"><label class="sw"><input type="checkbox" ${S.bio?'checked':''} onchange="edge(E.profBio)"><i></i></label></div></div>
+        <div class="row" style="min-height:52px"><div class="r-main"><div class="r-t1">اعلان‌ها</div><div class="r-t2">یادآور جلسات و پیام‌های وکیل</div></div><div class="r-side"><label class="sw"><input type="checkbox" ${S.notif?'checked':''} onchange="edge(E.profNotif)"><i></i></label></div></div>
+        <div class="row" role="button" style="min-height:52px" onclick="showToast('در اپ واقعی: صفحه‌ی تغییر رمز')"><div class="r-main"><div class="r-t1">تغییر رمز عبور</div></div><span class="chev"></span></div>
+        <div class="row" role="button" style="min-height:52px" onclick="showToast('در اپ واقعی: فهرست دستگاه‌های فعال')"><div class="r-main"><div class="r-t1">دستگاه‌های من</div><div class="r-t2 num">۲ دستگاه فعال</div></div><span class="chev"></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>حساب</h2></div>
+      <div class="rows">
+        <div class="row" role="button" style="min-height:52px" onclick="showToast('در اپ واقعی: ویرایش اطلاعات شخصی')"><div class="r-main"><div class="r-t1">ویرایش اطلاعات شخصی</div></div><span class="chev"></span></div>
+        <div class="row" role="button" style="min-height:52px" onclick="showToast('در اپ واقعی: گفتگو با پشتیبانی')"><div class="r-main"><div class="r-t1">پشتیبانی</div></div><span class="chev"></span></div>
+      </div>
+    </div>
+    <button class="btn full" style="margin-top:12px;background:var(--negative)" onclick="edge(E.profLogout)">خروج از حساب</button>
+  </div>
+  ${tabbar('profile')}`;
+}
+
+const BUILDERS = { login:bLogin, otp:bOtp, home:bHome, cases:bCases, detail:bDetail, appt:bAppt, inv:bInv, msgs:bMsgs, chat:bChat, docs:bDocs, profile:bProfile };
+
+/* ================= شیت‌ها و توست ================= */
+const SHEETS = {
+  'شیت اعلان‌ها': () => `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">اعلان‌ها</div><div class="sh-s">۳ اعلان فعال — با کلیک، به صفحه‌ی مربوط می‌روید</div>
+      <div class="rows">
+        <div class="row unread" role="button" onclick="edge(E.notifAppt)"><div class="r-main"><div class="r-t1 num">جلسه‌ی دادگاه — سه‌شنبه ۱۹ آبان، ساعت ۰۹:۰۰</div><div class="r-t2 num">پرونده‌ی DD-۱۴۰۴-۰۱۷ · شعبه‌ی ۱۴</div></div><div class="r-side"><span class="r-meta num">۵ روز مانده</span></div></div>
+        <div class="row unread" role="button" onclick="edge(E.notifInv)"><div class="r-main"><div class="r-t1 num">سررسید فاکتور INV-۱۴۰۴-۰۳۱</div><div class="r-t2 num">۱۸٬۵۰۰٬۰۰۰ تومان · مهلت ۲۵ آبان</div></div><div class="r-side"><span class="r-meta num">۱۱ روز</span></div></div>
+        <div class="row unread" role="button" onclick="edge(E.notifMsg)"><div class="r-main"><div class="r-t1">پیام جدید از رضا محمدی</div><div class="r-t2">«قرارداد ضمیمه‌ی پرونده را بررسی کنید…»</div></div><div class="r-side"><span class="r-meta num">۱۲ دقیقه</span></div></div>
+      </div>
+      <button class="btn text full" onclick="closeSheet()">بستن</button>
+    </div>`,
+  'شیت پرداخت': () => {
+    const inv = DATA.invoices.find(i=>i.no===S.payNo) || DATA.invoices[0];
+    return `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">پرداخت فاکتور</div><div class="sh-s num">${inv.no} · ${inv.title}</div>
+      ${kvRow('مبلغ', fmt(inv.amount)+' تومان')}
+      ${kvRow('درگاه', 'زیبال (نمایشی)')}
+      <div class="empty" style="margin:10px 0 12px">در پروتوتایپ پول واقعی جابه‌جا نمی‌شود.</div>
+      <button class="btn full" onclick="edge(E.invPayOk)">تایید پرداخت ${fmt(inv.amount)} تومان</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">انصراف</button>
+    </div>`;
+  },
+  'شیت منبع سند': () => `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">آپلود سند</div><div class="sh-s">سقف ۴ مگابایت — PDF، JPG، PNG</div>
+      <button class="sh-opt" onclick="edge(E.docsUploadSrc)">${ICON.camera}گرفتن با دوربین</button>
+      <button class="sh-opt" onclick="edge(E.docsUploadSrc)">${ICON.image}انتخاب از گالری</button>
+      <button class="btn text full" onclick="closeSheet()">انصراف</button>
+    </div>`,
+  'شیت تایید خروج': () => `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">خروج از حساب</div><div class="sh-s">پس از خروج، برای ورود دوباره باید نام کاربری و رمز بزنید.</div>
+      <button class="btn full" style="background:var(--negative)" onclick="edge(E.profLogoutOk)">خروج از حساب</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">انصراف</button>
+    </div>`,
+};
+function openSheet(key){
+  closeSheet();
+  const el = document.createElement('div'); el.id = 'sheetwrap'; el.innerHTML = SHEETS[key]();
+  document.getElementById('screen').appendChild(el);
+}
+function closeSheet(){ const w = document.getElementById('sheetwrap'); if(w) w.remove(); }
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 2400);
+}
+function otpJump(el){ if(el.value.length===1){ const n = el.nextElementSibling; if(n) n.focus(); } }
+
+/* ================= رندر و نقشه ================= */
+function render(){
+  const id = S.stack[S.stack.length-1];
+  document.getElementById('screen').innerHTML = BUILDERS[id]();
+}
+function buildMap(){
+  const K = {
+    nav:'<span class="pill dat">ناوبری</span>', tab:'<span class="pill dat">تب</span>',
+    state:'<span class="pill pos">وضعیت</span>', sheet:'<span class="pill neu">شیت</span>',
+    back:'<span class="pill neu">پشته</span>', ext:'<span class="pill neu">بیرونی</span>',
+    reset:'<span class="pill dat">ناوبری</span>',
+  };
+  document.getElementById('ecount').textContent = fa(EDGES.length);
+  document.getElementById('etotal').textContent = fa(EDGES.length);
+  document.getElementById('mtable').innerHTML =
+    '<tr><th style="width:34px">#</th><th style="width:92px">از</th><th>اقدام</th><th style="width:170px">به</th><th style="width:70px">نوع</th></tr>' +
+    EDGES.map((e,i)=>`<tr id="mx${i}"><td class="num">${fa(i+1)}</td><td>${e.f}</td><td>${e.a}</td><td>${e.t}</td><td>${K[e.k]}</td></tr>`).join('');
+}
+buildMap();
+render();
+</script>
+</body></html>
