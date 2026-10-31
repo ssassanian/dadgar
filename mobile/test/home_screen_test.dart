@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fakes.dart';
 
 void main() {
-  testWidgets('خانه با نشست معتبر: خوش‌آمد + پالت نهایی D-3 (سرمه‌ای) + RTL',
+  testWidgets('خانه با نشست معتبر: روال کار-اول CMD-040 + RTL',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -40,9 +40,26 @@ void main() {
     final BuildContext titleContext = tester.element(find.text('دادگر'));
     expect(Directionality.of(titleContext), TextDirection.rtl);
 
-    // پالت نهایی D-3 (سرمه‌ای) — برچسب رنگ‌ها
-    expect(find.text('#14345B'), findsOneWidget);
-    expect(find.text('#FAF7F2'), findsOneWidget);
-    expect(find.text('#2E7D32'), findsOneWidget);
+    // کارت قهرمان — مسیر پرونده با پنج مرحله‌ی واقعی قرارداد سرور
+    expect(find.text('مسیر پرونده'), findsOneWidget);
+    expect(find.text('ثبت'), findsOneWidget);
+    expect(find.text('پایان'), findsOneWidget);
+    expect(find.text('پرونده‌های من'), findsWidgets);
+
+    // سه اقدام فوری (CMD-038)
+    expect(find.text('ارسال سند'), findsOneWidget);
+    expect(find.text('رزرو نوبت'), findsOneWidget);
+    expect(find.text('پرداخت فاکتور'), findsOneWidget);
+
+    // پنل‌های نقشه‌ی امکان
+    expect(find.text('پرونده‌ها و گفتگو'), findsOneWidget);
+    expect(find.text('نوبت و مالی'), findsOneWidget);
+    expect(find.text('گفتگو با وکیل'), findsOneWidget);
+    expect(find.text('تیکت‌های پشتیبانی'), findsOneWidget);
+    expect(find.text('نوبت‌های من'), findsOneWidget);
+    expect(find.text('صورتحساب‌ها و پرداخت'), findsOneWidget);
+
+    // وضعیت صادقانه‌ی M1 — بدون هیچ داده‌ی جعلی
+    expect(find.textContaining('D-6'), findsOneWidget);
   });
 }
