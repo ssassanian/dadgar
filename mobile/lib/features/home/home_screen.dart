@@ -81,7 +81,6 @@ class HomeScreen extends ConsumerWidget {
 
                 // ── سه اقدام فوری (CMD-038) ──
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
                       child: _QuickAction(

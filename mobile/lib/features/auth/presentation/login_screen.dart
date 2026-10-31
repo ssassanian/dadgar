@@ -355,7 +355,6 @@ final class _CapabilityGrid extends StatelessWidget {
               bottom: i + 2 < _items.length ? DadgarTokens.s8 : 0,
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: tile(_items[i])),
                 const SizedBox(width: DadgarTokens.s8),
