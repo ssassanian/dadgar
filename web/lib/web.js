@@ -636,8 +636,22 @@ route('PATCH', '/api/invoices/:id', ROLE('admin'), async (c) => {
 /* فهرست حداقلی کاربران برای فرم «صدور فاکتور دستی» مدیر — فقط شناسه/نام/نقش، بدون اطلاعات تماس */
 route('GET', '/api/users', ROLE('admin'), async (c) => {
   const role = oneOf(c.query.role || 'client', ['client', 'lawyer'], 'نقش');
-  const rows = await db.prepare('SELECT id, name, role, created_at FROM users WHERE role=? ORDER BY name ASC, id ASC LIMIT 500').all(role);
-  return { ok: true, rows };
+  const rows = await db.prepare('SELECT id, name, role, phone_last4, status, created_at FROM users WHERE role=? ORDER BY name ASC, id ASC LIMIT 500').all(role);
+  return { ok: true, rows, total: rows.length, cap: 500 };
+});
+
+/* ---------- CMD-031 P3 — مدیریت کاربران (مسدود/آزادسازی) ----------
+ * users.status از پیش در اسکیما ('active'|'pending'|'blocked') — بدون DDL.
+ * فقط admin؛ ۴۰۴ ضدافشا برای مدیر/ناموجود (مدیران از این مسیر مدیریت نمی‌شوند)؛
+ * مسدودسازی خودِ مدیر ممنوع؛ نشست‌های فعال با گارد status!==active در lookupهای بعدی باطل می‌شوند. */
+route('PATCH', '/api/users/:id', ROLE('admin'), async (c) => {
+  const st = oneOf(c.body.status, ['active', 'blocked'], 'وضعیت');
+  if (+c.params.id === c.user.id) throw new HttpError(400, 'مسدودسازی حساب خودتان مجاز نیست.');
+  const u = await db.prepare('SELECT * FROM users WHERE id=?').get(c.params.id);
+  if (!u || u.role === 'admin') throw new HttpError(404, 'کاربر یافت نشد.');
+  await db.prepare('UPDATE users SET status=? WHERE id=?').run(st, u.id);
+  await audit(c.user.id, st === 'blocked' ? 'user_blocked' : 'user_unblocked', 'user:' + u.id, c.ip);
+  return { ok: true, id: u.id, status: st };
 });
 
 /* ---------- CMD-028 + CMD-029 — درگاه پرداخت آنلاین (زبال) ----------
@@ -656,6 +670,7 @@ route('GET', '/api/users', ROLE('admin'), async (c) => {
  * کلیدها فقط در env سرور: PAYMENT_PROVIDER / PAYMENT_MERCHANT_ID / PAYMENT_CALLBACK_BASE
  * (+ PAYMENT_API_BASE فقط هارنس محلی) — هرگز در کد/موبایل/لاگ. بدون provider: 503 صادقانه.
  * ========================================================================== */
+/* CMD-031 P4: پیام قدیمی فقط در هارنس بی‌پیکربندی می‌ماند؛ UI وب با data-pay به مسیر واقعی وصل است */
 const PAYMENT_UNSET = 'درگاه پرداخت هنوز متصل نشده است؛ پس از تصمیم مدیر فعال می‌شود.';
 const PAYMENT_INCOMPLETE = 'درگاه پرداخت کامل پیکربندی نشده است.';
 const payProvider = () => String((cfg.pay && cfg.pay.provider) || '').trim().toLowerCase();

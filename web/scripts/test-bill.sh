@@ -46,13 +46,14 @@ print('ok | today_d:',d['today_d'])"
 echo "===== 3) lawyer GET invoices → 403 (صفحه مالی وکیل وجود ندارد) ====="
 curl -s -o /dev/null -w "[lawyer-GET %{http_code}]\n" -b $LJ $B/api/invoices
 
-echo "===== 4) admin users list: minimal fields only ====="
+echo "===== 4) admin users list: minimal fields (CMD-031: + phone_last4 masked/status, still no contact leak) ====="
 curl -s -b $AJ "$B/api/users?role=client" | python3 -c "
 import json,sys; d=json.load(sys.stdin)
 assert d['ok'] and len(d['rows'])==1, d
 r=d['rows'][0]
-assert set(r.keys())=={'id','name','role','created_at'}, r
+assert set(r.keys())=={'id','name','role','created_at','phone_last4','status'}, r
 assert r['name']=='مشتری تست چرخه' and r['role']=='client'
+assert r['phone_last4'] is None or (len(str(r['phone_last4']))==4), r
 print('users minimal OK | no phone/email/username leak:', all(k not in r for k in ('phone','email','username','password_hash')))"
 curl -s -o /dev/null -w "guest-users [%{http_code}]\n" "$B/api/users?role=client"
 curl -s -o /dev/null -w "lawyer-users [%{http_code}]\n" -b $LJ "$B/api/users?role=client"
