@@ -1,0 +1,79 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMD-037 — پیش‌نمایش طراحی صفحات موبایل دادگر</title>
+<style>
+@font-face { font-family:"Vazirmatn"; src:url("fonts/Vazirmatn-Regular.ttf") format("truetype"); font-weight:400; font-display:block; }
+@font-face { font-family:"Vazirmatn"; src:url("fonts/Vazirmatn-Medium.ttf") format("truetype"); font-weight:500; font-display:block; }
+@font-face { font-family:"Vazirmatn"; src:url("fonts/Vazirmatn-Bold.ttf") format("truetype"); font-weight:700; font-display:block; }
+:root { --ink:#1a1c1e; --mu:#5a5f66; --line:#e6dfd4; --paper:#faf7f2; --data:#14345b; }
+* { box-sizing:border-box; }
+body { margin:0; background:#efece6; color:var(--ink); font:15px/1.9 "Vazirmatn", system-ui, sans-serif; }
+.wrap { max-width:1240px; margin:0 auto; padding:40px 24px 80px; }
+h1 { font-size:26px; font-weight:700; margin:0 0 6px; }
+.lede { color:var(--mu); max-width:70ch; }
+.badge { display:inline-block; background:#e7ecf4; color:var(--data); border-radius:999px; padding:2px 12px; font-size:12.5px; margin:0 0 14px 6px; }
+h2 { font-size:19px; margin:44px 0 12px; border-top:1px solid var(--line); padding-top:24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:22px; }
+.card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:12px 12px 14px; }
+.card img { width:100%; border-radius:10px; border:1px solid var(--line); display:block; }
+.card .t { font-weight:600; margin:10px 2px 2px; font-size:14.5px; }
+.card .q { color:var(--mu); font-size:12.5px; margin:0 2px; line-height:1.8; }
+table { border-collapse:collapse; width:100%; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:13.5px; }
+th, td { text-align:right; padding:9px 14px; border-top:1px solid #f0ebe2; }
+th { background:#f6f2ea; font-weight:600; font-size:12.5px; color:var(--mu); }
+tr:first-child th, tr:first-child td { border-top:0; }
+.note { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 18px; max-width:none; }
+ul { margin:8px 0; padding-right:22px; }
+li { margin:3px 0; }
+code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
+</style></head><body><div class="wrap">
+<h1>پیش‌نمایش طراحی صفحات موبایل دادگر</h1>
+<span class="badge">CMD-037</span><span class="badge">منتظر تایید مدیر — پس از تایید، کدنویسی Flutter آغاز می‌شود</span>
+<p class="lede">این پیش‌نمایش، «طراحی پیش‌فرض» هر ده صفحه‌ی اپ موبایل است — همان معماری DOC-04 (تب‌های پنج‌گانه‌ی مشتری، فونت Vazirmatn، RTL کامل، اعداد و تقویم شمسی) با پالت قفل‌شده‌ی D-3 که خودتان در M0 تایید کردید. هیچ داده‌ی جعلی در کار نیست: اعداد همین پیش‌نمایش با قرارداد API فعلی سرور هم‌خوان‌اند و در پیاده‌سازی با داده‌ی واقعی جایگزین می‌شوند.</p>
+
+<h2>پایه‌ی طراحی (با مهارت taste-skill — ریپوی درخواستی شما)</h2>
+<div class="note">
+<ul>
+<li><b>سبک:</b> <code>achromatic-ledger</code> از کتابخانه‌ی ۲۳ صفحه‌ی محصول واقعی سنجیده‌شده (برگه‌ی seed <code>321804971</code>) — کروم بی‌رنگ و آرام؛ رنگ فقط روی داده. برای محصول حقوقی/مالی با نگاه‌های سریع روزانه انتخاب شد؛ از سبک «سرویس‌خبرگزادی» یا داشبورد‌های پرزرق‌وبرق پرهیز شد.</li>
+<li><b>چهره:</b> «کاغذ رسمی پرونده» — زمینه‌ی گرم <code>#FAF7F2</code> (همان D-3) + سرمه‌ای <code>#14345B</code> فقط روی عنصر داده‌ی اصلی هر صفحه (جلسه‌ی پیش‌رو، روزهای رزروشده، مسیر پرونده) + دکمه‌ی اصلی نزدیک‌سیاه <code>#1A1C1E</code> + سبز D-3 فقط سیگنال وضعیت.</li>
+<li><b>عنصر امضایی:</b> «مسیر پرونده» — نوار شش‌مرحله‌ای (ثبت تا قطعی) که در خانه و جزئیات پرونده می‌بینید؛ چیزی که اپ‌های عمومی ندارند.</li>
+<li><b>کنترل کیفی:</b> هر ۱۰ صفحه با بازرس مرورگر واقعی (Chrome) سنجیده شد — <b>صفر FAIL</b>؛ هشدارهای باقی‌مانده سه دسته‌ی قابل‌دفاع‌اند: زمینه‌ی کرم (پالت D-3 قفل‌شده، کروما پایین — مجاز طبق برگه)، خالیِ عرض دسکتاپ (موکاپ ثابت ۳۹۰px است) و تراکم متن ریز ۱۱–۱۲px (مجاز §۱۲ قواعد تلفن).</li>
+</ul>
+</div>
+
+<h2>ده صفحه — پرسش اصلی هر صفحه</h2>
+<div class="grid">
+  <div class="card"><img src="shots/login.png" alt="ورود"><div class="t">۱ · ورود</div><div class="q">«چطور وارد شوم؟» — حساب وب کافی است؛ OTP پیامکی و ذخیره‌ی توکن در Keystore/Keychain.</div></div>
+  <div class="card"><img src="shots/home.png" alt="خانه"><div class="t">۲ · خانه</div><div class="q">«الان کجای کارم است؟» — چهار کاشی + نوبت بعدی با مسیر پرونده + پرونده‌های اخیر + پیام‌ها.</div></div>
+  <div class="card"><img src="shots/cases.png" alt="پرونده‌ها"><div class="t">۳ · پرونده‌ها</div><div class="q">«پرونده‌هایم چه وضعی دارند؟» — چیپ فیلتر، ردیف دوخطی با وکیل و جلسه بعد.</div></div>
+  <div class="card"><img src="shots/case-detail.png" alt="جزئیات پرونده"><div class="t">۴ · جزئیات پرونده</div><div class="q">«این پرونده کجاست؟» — مسیر شش‌مرحله‌ای، مشخصات، آخرین پیام وکیل، اسناد.</div></div>
+  <div class="card"><img src="shots/appointments.png" alt="نوبت‌دهی"><div class="t">۵ · نوبت‌دهی</div><div class="q">«کی می‌توانم وکیل را ببینم؟» — تقویم شمسی نیتیو؛ نوار سرمه‌ای=جلسه، سبز=نوبت آزاد.</div></div>
+  <div class="card"><img src="shots/invoices.png" alt="فاکتورها"><div class="t">۶ · فاکتورها</div><div class="q">«چقدر بدهکارم؟» — عدد اصلی ۲۸px درشت (تنها استثنای درشت‌نویسی: پول) + پرداخت زینال.</div></div>
+  <div class="card"><img src="shots/messages.png" alt="پیام‌ها"><div class="t">۷ · پیام‌ها</div><div class="q">«وکیل چه گفت؟» — نقطه‌ی سرمه‌ای خوانده‌نشده، پیوند هر گفتگو به پرونده.</div></div>
+  <div class="card"><img src="shots/chat.png" alt="گفتگو"><div class="t">۸ · گفتگوی پرونده</div><div class="q">«چطور سریع جواب بگیرم؟» — پیام من راست، جواب وکیل چپ؛ در اندروید FLAG_SECURE.</div></div>
+  <div class="card"><img src="shots/documents.png" alt="اسناد"><div class="t">۹ · گاوصندوق اسناد</div><div class="q">«سندم کجاست؟» — آپلود دوربین/گالری، سقف ۴MB، برچسب محرمانه، دانلود بایت‌به‌بایت.</div></div>
+  <div class="card"><img src="shots/profile.png" alt="پروفایل"><div class="t">۱۰ · پروفایل</div><div class="q">«امنیت و دستگاه‌هایم؟» — بیومتریک فقط برای بازکردن، خروج از همه‌ی دستگاه‌ها در انتها.</div></div>
+</div>
+
+<h2>توکن‌های به‌کاررفته (صفر رنگ جدید — همه از D-3)</h2>
+<table>
+<tr><th>نقش</th><th>مقدار</th><th>کجا</th></tr>
+<tr><td>زمینه (کاغذ رسمی)</td><td><code>#FAF7F2</code></td><td>پس‌زمینه‌ی همه‌ی صفحه‌ها</td></tr>
+<tr><td>سطح کارت</td><td><code>#FFFFFF</code></td><td>پنل‌ها با لبه‌ی ۱px <code>#E6DFD4</code> — بدون سایه</td></tr>
+<tr><td>رنگ داده (سرمه‌ای)</td><td><code>#14345B</code></td><td>فقط عنصر داده: مسیر پرونده، روز رزروشده، پیام من — زیر ۱٪ پیکسل</td></tr>
+<tr><td>مرکب (دکمه‌ی اصلی)</td><td><code>#1A1C1E</code></td><td>دکمه‌ی اصلی و پول</td></tr>
+<tr><td>متن ثانویه</td><td><code>#5A5F66</code></td><td>برچسب‌ها و زیرخط‌ها (همه ≥۴٫۵:۱)</td></tr>
+<tr><td>سیگنال مثبت (سبز D-3)</td><td><code>#2E7D32</code></td><td>قرص «پرداخت‌شده»، نوار «نوبت آزاد»، سوییچ روشن</td></tr>
+<tr><td>خطا</td><td><code>#B3261E</code></td><td>فقط «خروج از همه‌ی دستگاه‌ها»</td></tr>
+<tr><td>شعاع / لمس</td><td><code>12px</code> / <code>≥44px</code></td><td>کارت‌ها / همه‌ی اهداف لمسی</td></tr>
+</table>
+
+<h2>اگر تایید کنید — گام بعد</h2>
+<div class="note">
+<ul>
+<li>این طراحی مرجع پیاده‌سازی <code>mobile/</code> می‌شود: توکن‌ها عیناً به <code>lib/design/tokens.dart</code> می‌روند (فقط نگاشت نقش‌ها، بدون رنگ جدید) و هر صفحه به یکی از featureهای موجود (auth/home/cases/appointments/billing/messages/documents/profile) وصل می‌شود — M1 به بعد طبق DOC-04.</li>
+<li>سه نکته که پیش از کدنویسی نظر شما را می‌خواهم: ① جا‌گذاری «پیام‌ها» و «اسناد» خارج از تب‌های پنج‌گانه (از خانه) — یا تب ششمی می‌خواهید؟ ② «پرداخت» روی خود کارت فاکتور — یا صفحه‌ی تایید جدا؟ ③ صفحه‌ی ورود بدون لوگوی کامل برند (فقط مونوگرام «د») — یا لوگوتایپ کامل بگذارم؟</li>
+<li>داده‌ی نمونه در <code>data.js</code> فهرست شده تا در تست‌های contract با داده‌ی واقعی سرور جایگزین شود.</li>
+</ul>
+</div>
+</div></body></html>
