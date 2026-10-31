@@ -1,0 +1,127 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMD-039 — صفحه‌ی ورود به‌عنوان ویترین امکانات دادگر (قبل/بعد)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+/* سبک صفحه‌ی گالری (مستقل از app.css) */
+body { background:#efece6; }
+.wrap { max-width:1240px; margin:0 auto; padding:40px 24px 80px; }
+.wrap > h1 { font-size:26px; font-weight:700; margin:0 0 6px; }
+.lede { color:var(--muted); max-width:78ch; }
+.badge { display:inline-block; background:#e7ecf4; color:var(--data); border-radius:999px; padding:2px 12px; font-size:12.5px; margin:0 0 14px 6px; }
+.wrap > h2 { font-size:19px; margin:44px 0 12px; border-top:1px solid var(--border); padding-top:24px; }
+.note { background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+table { border-collapse:collapse; width:100%; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; font-size:13.5px; }
+th, td { text-align:right; padding:9px 14px; border-top:1px solid var(--rule); }
+th { background:#f6f2ea; font-weight:600; font-size:12.5px; color:var(--muted); }
+tr:first-child th, tr:first-child td { border-top:0; }
+ul { margin:8px 0; padding-right:22px; } li { margin:3px 0; }
+
+.duo { display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start; }
+.duo figure { margin:0; }
+.duo figcaption { text-align:center; font-size:13px; color:var(--muted); margin-top:10px; line-height:1.9; }
+.frame { width:390px; border:6px solid #243044; border-radius:30px; overflow:hidden; background:var(--ground); box-shadow:0 18px 40px rgba(20,52,91,.14); }
+.frame img { display:block; width:100%; }
+
+/* ---------- افزودنی‌های ورود v2 (همه از توکن‌های D-3 — صفر رنگ جدید) ---------- */
+.brand { display:flex; flex-direction:column; align-items:center; text-align:center; padding:10px 0 4px; }
+.brand .mono { width:64px; height:64px; border-radius:18px; background:var(--primary); color:var(--primary-ink); display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:700; }
+.brand h2 { font-size:20px; font-weight:700; margin-top:10px; border:0; padding:0; }
+.brand .tag { font-size:12.5px; color:var(--muted); margin-top:3px; }
+.caps { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.cap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:12px 13px; display:flex; gap:10px; align-items:flex-start; min-height:64px; }
+.cap svg { width:21px; height:21px; flex:none; stroke:var(--data); stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; margin-top:2px; }
+.cap .ct { font-size:13px; font-weight:600; line-height:1.5; }
+.cap .cs { font-size:11px; color:var(--muted); line-height:1.6; margin-top:2px; }
+.teaser { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:14px 16px 10px; margin-top:12px; }
+.teaser .tt { font-size:13px; font-weight:600; }
+.teaser .ts { font-size:11px; color:var(--faint); margin-top:2px; }
+.teaser .journey { margin-top:12px; }
+.formcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:16px; margin-top:12px; }
+.formcard .fc-t { font-size:15px; font-weight:700; }
+.formcard .fc-s { font-size:12px; color:var(--muted); margin-top:2px; }
+.formcard .field { margin-top:12px; }
+</style></head><body><div class="wrap">
+
+<h1>صفحه‌ی ورود، ویترین کامل امکانات است — نه یک دیوار</h1>
+<span class="badge">CMD-039</span><span class="badge">فقط طراحی — صفر تغییر در کد Dart و web/ — منتظر تایید مدیر</span>
+<p class="lede">اصل شما: «امکانات کامل باید روی داشبورد و توی صفحه‌ی ورود باشد؛ لاگین‌کردن یا نکردن، تعیین‌کننده‌ی دیده‌شدن امکانات نیست.» در این بازطراحی، صفحه‌ی ورود از یک فرم خشک به <b>ویترین شش قابلیت + نمونه‌ی زنده‌ی مسیر پرونده + فرم ورود</b> تبدیل شد. داشبورد (home-v2، تاییدشده در CMD-038) هم همین شش قابلیت را در دسترس عملی می‌گذارد — جدول نگاشت پایین صفحه.</p>
+
+<h2>رفتار قبل/بعد از ورود — شفاف</h2>
+<div class="note"><ul>
+<li><b>سایت عمومی:</b> صفحه‌ی خانه برای همه یکسان است؛ بعد از ورود فقط دکمه‌ی «ورود به پنل» به داشبورد نقش‌محور (مشتری/وکیل/ادمین) تبدیل می‌شود — محتوای عمومی عوض نمی‌شود.</li>
+<li><b>اپ موبایل — قبل:</b> کاربرِ واردنشده فقط فرم خالی ورود می‌دید؛ هیچ نشانه‌ای از امکانات نداشت.</li>
+<li><b>اپ موبایل — بعد:</b> حتی پیش از ورود، شش قابلیت و عنصر امضایی «مسیر پرونده» را می‌بیند؛ بعد از ورود همان‌ها در داشبورد عملیاتی می‌شوند — قول و واقعیت هم‌خوان.</li>
+</ul></div>
+
+<h2>قبل / بعد — صفحه‌ی ورود</h2>
+<div class="duo">
+  <figure>
+    <div class="frame"><img src="shots/login.png" alt="ورود — نسخه‌ی فعلی"></div>
+    <figcaption><b>قبل (CMD-037)</b> — آیکون، دو فیلد، یک دکمه<br>هیچ پیامی درباره‌ی «چه بهره‌ای می‌برید» نداشت</figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><div class="screen no-tab" id="after">
+      <div class="body no-tab" style="padding-top:20px">
+        <div class="brand">
+          <div class="mono">د</div>
+          <h2>دادگر</h2>
+          <div class="tag">همراه پرونده‌ی شما — از مشاوره تا صدور رأی</div>
+        </div>
+
+        <div class="caps">
+          <div class="cap"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><div><div class="ct">پیگیری زنده‌ی پرونده</div><div class="cs">مسیر شش‌مرحله‌ای، گزارش هر اقدام</div></div></div>
+          <div class="cap"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.6 8.6 0 01-3.8-.9L3 21l1.9-4.2A8.4 8.4 0 1121 11.5z"/></svg><div><div class="ct">گفتگو با وکیل</div><div class="cs">پیام امن و محرمانه، پیوند با پرونده</div></div></div>
+          <div class="cap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><div><div class="ct">رزرو نوبت</div><div class="cs">تقویم شمسی، حضوری و آنلاین</div></div></div>
+          <div class="cap"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><div><div class="ct">گاوصندوق اسناد</div><div class="cs">آپلود و دانلود امن، برچسب محرمانه</div></div></div>
+          <div class="cap"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><div><div class="ct">فاکتور و پرداخت</div><div class="cs">شفاف از ابتدا، اقساط مرحله‌ای</div></div></div>
+          <div class="cap"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg><div><div class="ct">اعلان جلسات</div><div class="cs">یادآور دادگاه و ضرب‌الاجل‌ها</div></div></div>
+        </div>
+
+        <div class="teaser">
+          <div class="tt">پرونده‌تان را قدم‌به‌قدم ببینید</div>
+          <div class="ts">نمونه‌ی نمایشی — پس از ورود، مسیر واقعی پرونده‌ی خودتان</div>
+          <div class="journey">
+            <div class="j-step done"><span class="dot2"></span><div class="j-lbl">ثبت</div></div>
+            <div class="j-step done"><span class="dot2"></span><div class="j-lbl">بررسی مدارک</div></div>
+            <div class="j-step now"><span class="dot2"></span><div class="j-lbl">طرح دعوا</div></div>
+            <div class="j-step"><span class="dot2"></span><div class="j-lbl">جلسات</div></div>
+            <div class="j-step"><span class="dot2"></span><div class="j-lbl">صدور رأی</div></div>
+            <div class="j-step"><span class="dot2"></span><div class="j-lbl">قطعی</div></div>
+          </div>
+        </div>
+
+        <div class="formcard">
+          <div class="fc-t">ورود به دادگر</div>
+          <div class="fc-s">با همان حساب کاربری سایت دادگر وارد شوید</div>
+          <div class="field"><label for="u">نام کاربری</label><input id="u" type="text" placeholder="نام کاربری یا شماره موبایل"></div>
+          <div class="field" style="margin-bottom:4px"><label for="p">رمز عبور</label><input id="p" type="password" placeholder="••••••••"></div>
+          <button class="btn full" style="margin-top:14px">ورود</button>
+          <button class="btn text full" style="margin-top:4px">ورود با کد یک‌بارمصرف (OTP)</button>
+        </div>
+      </div>
+    </div></div>
+    <figcaption><b>بعد (CMD-039)</b> — شش قابلیت + نمونه‌ی مسیر پرونده، پیش از فرم<br>کاربر پیش از ورود می‌داند چه بهره‌ای می‌برد</figcaption>
+  </figure>
+</div>
+
+<h2>ماتریس امکان — قول در ورود، واقعیت در داشبورد</h2>
+<table>
+<tr><th>امکان</th><th>در صفحه‌ی ورود (قبل از لاگین)</th><th>در داشبورد home-v2 (بعد از لاگین)</th><th>تب مرتبط</th></tr>
+<tr><td>پیگیری زنده‌ی پرونده</td><td>کاشی ۱ + نمونه‌ی مسیر پرونده</td><td>کارت قهرمان جلسه + مسیر پرونده + «پرونده‌های من»</td><td>پرونده‌ها</td></tr>
+<tr><td>گفتگو با وکیل</td><td>کاشی ۲</td><td>کارت «وکیل شما» + دکمه‌ی پیام</td><td>— (از خانه)</td></tr>
+<tr><td>رزرو نوبت</td><td>کاشی ۳</td><td>اقدام فوری «رزرو نوبت»</td><td>نوبت</td></tr>
+<tr><td>گاوصندوق اسناد</td><td>کاشی ۴</td><td>اقدام فوری «ارسال سند»</td><td>— (از خانه)</td></tr>
+<tr><td>فاکتور و پرداخت</td><td>کاشی ۵</td><td>اقدام فوری «پرداخت» + ردیف مالی</td><td>فاکتور</td></tr>
+<tr><td>اعلان جلسات</td><td>کاشی ۶</td><td>نقطه‌ی اعلان روی زنگ بالا</td><td>— (سراسری)</td></tr>
+</table>
+
+<h2>تغییرات و حفظ‌شده‌ها</h2>
+<div class="note"><ul>
+<li><b>فرم ورود حذف نشد — پایین رفت.</b> ترتیب: برند → شش قابلیت → نمونه‌ی مسیر پرونده → فرم. همان نام کاربری/رمز/ورود/OTP نسخه‌ی قبل، با همان رفتار.</li>
+<li><b>نمونه‌ی مسیر پرونده برچسب «نمایشی» دارد</b> — ادعای دروغین پرونده‌ی ساختگی نیست؛ صریح نوشته «پس از ورود، مسیر واقعی پرونده‌ی خودتان».</li>
+<li><b>هیچ رنگ و فونت جدیدی نیست:</b> توکن‌های D-3، لمس ≥۴۴px، عنصر امضایی همان مسیر پرونده.</li>
+<li><b>پرسش باز برای شما:</b> اگر محصول «ثبت‌نام خودگردان مشتری» دارد، دکمه‌ی «ساخت حساب» زیر OTP می‌نشیند؛ اگر حساب‌ها فقط توسط دفتر ساخته می‌شود (روال فعلی)، یک خط راهنمای تماس جای آن می‌گیرد — بفرمایید کدام.</li>
+</ul></div>
+
+</div></body></html>

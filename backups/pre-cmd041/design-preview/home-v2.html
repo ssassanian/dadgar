@@ -1,0 +1,151 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMD-038 — بازطراحی خانه‌ی اپ موبایل دادگر (قبل/بعد)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+/* سبک صفحه‌ی گالری (مستقل از app.css) */
+body { background:#efece6; }
+.wrap { max-width:1240px; margin:0 auto; padding:40px 24px 80px; }
+.wrap > h1 { font-size:26px; font-weight:700; margin:0 0 6px; }
+.lede { color:var(--muted); max-width:78ch; }
+.badge { display:inline-block; background:#e7ecf4; color:var(--data); border-radius:999px; padding:2px 12px; font-size:12.5px; margin:0 0 14px 6px; }
+.wrap > h2 { font-size:19px; margin:44px 0 12px; border-top:1px solid var(--border); padding-top:24px; }
+.note { background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+table { border-collapse:collapse; width:100%; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; font-size:13.5px; }
+th, td { text-align:right; padding:9px 14px; border-top:1px solid var(--rule); }
+th { background:#f6f2ea; font-weight:600; font-size:12.5px; color:var(--muted); }
+tr:first-child th, tr:first-child td { border-top:0; }
+ul { margin:8px 0; padding-right:22px; } li { margin:3px 0; }
+code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
+
+.duo { display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start; }
+.duo figure { margin:0; }
+.duo figcaption { text-align:center; font-size:13px; color:var(--muted); margin-top:10px; line-height:1.9; }
+.frame { width:390px; border:6px solid #243044; border-radius:30px; overflow:hidden; background:var(--ground); box-shadow:0 18px 40px rgba(20,52,91,.14); }
+.frame img { display:block; width:100%; }
+
+/* ---------- افزودنی‌های خانه‌ی v2 (همه از توکن‌های D-3 — صفر رنگ جدید) ---------- */
+.bell { position:relative; }
+.bell .bdot { position:absolute; top:9px; inset-inline-start:9px; width:7px; height:7px; border-radius:50%; background:var(--negative); border:1.5px solid var(--ground); }
+.hero-hear { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:16px; margin-top:14px; }
+.hero-hear .hh-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.hero-hear h2 { font-size:17.5px; font-weight:700; margin-top:10px; line-height:1.55; border:0; padding:0; }
+.hero-hear .hh-sub { font-size:13px; color:var(--muted); margin-top:2px; }
+.hero-hear .journey { margin-top:14px; }
+.btn-row { display:flex; gap:8px; margin-top:14px; }
+.btn-row .btn { flex:1; margin-top:0; }
+.btn-row .btn.sq { flex:none; width:56px; padding:0; }
+.qa { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+.qa .qa-i { display:flex; flex-direction:column; align-items:center; gap:7px; padding:13px 6px 11px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); font-size:12.5px; color:var(--text); min-height:44px; }
+.qa .qa-i svg { width:22px; height:22px; stroke:var(--data); stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.lawyer { display:flex; gap:12px; align-items:center; }
+.lawyer .av { width:46px; height:46px; border-radius:50%; background:var(--data-soft); color:var(--data); display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; flex:none; }
+.lawyer .lw-msg { margin-top:12px; background:var(--raised); border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.9; }
+.lawyer .lw-msg .m-meta { color:var(--faint); font-size:11px; margin-top:5px; }
+.money { display:flex; align-items:center; gap:10px; padding:13px 14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); font-size:13px; color:var(--text); }
+.money .fig { margin-inline-start:auto; font-weight:700; font-size:14px; }
+</style></head><body><div class="wrap">
+
+<h1>بازطراحی خانه‌ی اپ موبایل — به روال «کار-اول»</h1>
+<span class="badge">CMD-038</span><span class="badge">فقط طراحی — صفر تغییر در کد Dart و web/ — منتظر تایید مدیر</span>
+<p class="lede">پاسخ به دو پرسش شما: «صفحه‌ی خانه مخصوص چه کسی است؟» و «بهتر از این نمی‌شد؟». خانه‌ی فعلی برای <b>مشتری</b> طراحی شده بود، اما چهره‌اش این را نمی‌گفت — چهار کاشی عدد بزرگ، چهره‌ی نرم‌افزار حسابداری را داشت، نه همراهِ پرونده‌ی حقوقی. در این بازنگری، مهم‌ترین کار مشتری (جلسه‌ی دادگاه و مسیر پرونده) قهرمانِ صفحه شد و اعداد حسابداری به یک ردیف آرام پایین صفحه رفتند.</p>
+
+<h2>نقشه‌ی نقش‌ها — «خانه»ی هر نقش کجاست؟</h2>
+<table>
+<tr><th>صفحه</th><th>صاحبش</th><th>کارِ آن صفحه</th></tr>
+<tr><td>خانه‌ی <b>سایت</b> (وب عمومی)</td><td>مشتریِ بالقوه — مراجعی که هنوز پرونده ندارد</td><td>اعتمادسازی و تبدیل به درخواست مشاوره؛ وکیل و ادمین هرگز مخاطبش نیستند</td></tr>
+<tr><td>خانه‌ی <b>اپ موبایل</b> (این صفحه)</td><td><b>مشتری واردشده (موکل)</b> — مثل امیر</td><td>«الان کجای کارم است و چه کاری در پیش دارم؟» — جلسه‌ی بعد، پیام وکیل، پول و سند</td></tr>
+<tr><td>داشبورد <b>وکیل</b></td><td>وکیل (رضا محمدی، سارا کریمی)</td><td>پشت ورودِ سایت وب — پرونده‌های باز، تقویم، پیشنهادها؛ در اپ موبایل فاز M1 نیست</td></tr>
+<tr><td>داشبورد <b>ادمین</b></td><td>مدیر موسسه</td><td>پشت ورودِ سایت وب — مدیریت کاربران، مالی، محتوا؛ در اپ موبایل فاز M1 نیست</td></tr>
+</table>
+
+<h2>قبل / بعد — همان داده‌ها، ترتیبِ تازه</h2>
+<div class="duo">
+  <figure>
+    <div class="frame"><img src="shots/home.png" alt="خانه — نسخه‌ی فعلی"></div>
+    <figcaption><b>قبل (CMD-037)</b> — چهار کاشی عدد + لیست‌ها<br>مهم‌ترین اتفاق زیر آمارها پنهان بود</figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><div class="screen" id="after">
+      <div class="topbar">
+        <button class="icon-btn bell" aria-label="اعلان‌ها"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg><span class="bdot"></span></button>
+        <div class="bar-title">دادگر<small>امیر رستگاری · مشتری</small></div>
+        <button class="icon-btn" aria-label="پروفایل"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+      </div>
+      <div class="body">
+        <div class="h1" style="font-size:20px">سلام، امیر</div>
+        <div class="sub num">۱۴۰۴/۰۸/۱۴ — پنجشنبه</div>
+
+        <div class="hero-hear">
+          <div class="hh-top"><span class="pill dat num">پرونده‌ی DD-۱۴۰۴-۰۱۷</span><span class="pill neu">۵ روز تا جلسه</span></div>
+          <h2>جلسه‌ی دادگاه شما</h2>
+          <div class="hh-sub">دعوی مطالبه‌ی خسارت تصادف</div>
+          <div style="margin-top:6px">
+            <div class="kv"><span class="k">زمان</span><span class="v num">سه‌شنبه ۱۹ آبان — ساعت ۰۹:۰۰</span></div>
+            <div class="kv"><span class="k">شعبه</span><span class="v num">شعبه‌ی ۱۴ دادگاه حقوقی تهران</span></div>
+          </div>
+          <div class="journey">
+            <div class="j-step done"><span class="dot2"></span><div class="j-lbl">ثبت</div></div>
+            <div class="j-step done"><span class="dot2"></span><div class="j-lbl">بررسی مدارک</div></div>
+            <div class="j-step done"><span class="dot2"></span><div class="j-lbl">طرح دعوا</div></div>
+            <div class="j-step now"><span class="dot2"></span><div class="j-lbl">جلسات</div></div>
+            <div class="j-step"><span class="dot2"></span><div class="j-lbl">صدور رأی</div></div>
+            <div class="j-step"><span class="dot2"></span><div class="j-lbl">قطعی</div></div>
+          </div>
+          <div class="btn-row"><a class="btn full" href="#">جزئیات پرونده</a><a class="btn ghost" href="#">پیام به وکیل</a></div>
+        </div>
+
+        <div class="qa">
+          <a class="qa-i" href="#"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>ارسال سند</a>
+          <a class="qa-i" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>رزرو نوبت</a>
+          <a class="qa-i" href="#"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>پرداخت فاکتور</a>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-head"><h2>وکیل شما</h2><span class="pill dat">۲ پیام خوانده‌نشده</span></div>
+          <div class="lawyer">
+            <div class="av">ر</div>
+            <div style="flex:1; min-width:0">
+              <div style="font-size:14.5px; font-weight:600">رضا محمدی</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px" class="num">وکیل پایه یک دادگستری · پرونده‌ی DD-۱۴۰۴-۰۱۷</div>
+            </div>
+          </div>
+          <div class="lw-msg">«قرارداد ضمیمه‌ی پرونده را بررسی کنید و تا فردا تأیید بفرمایید.»<div class="m-meta num">۱۲ دقیقه پیش · گفتگوی DD-۱۴۰۴-۰۱۷</div></div>
+          <div class="btn-row"><a class="btn full" href="#">پیام به وکیل</a><a class="btn ghost sq" href="#" aria-label="تماس با وکیل"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3-8.7A2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 2 .7 2.8a2 2 0 01-.5 2.1L8 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.9.5 2.8.7a2 2 0 011.8 2z"/></svg></a></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>پرونده‌های من</h2><a class="card-link" href="#">هر ۳ پرونده</a></div>
+          <div class="rows">
+            <div class="row"><div class="r-main"><div class="r-t1 num">DD-۱۴۰۴-۰۱۷ · مطالبه‌ی خسارت تصادف</div><div class="r-t2 num">جلسه‌ی بعد: ۱۹ آبان — ساعت ۰۹:۰۰</div></div><div class="r-side"><span class="pill neu">در جریان</span></div></div>
+            <div class="row"><div class="r-main"><div class="r-t1 num">DD-۱۴۰۴-۰۲۳ · قرارداد اجاره‌ی محل کار</div><div class="r-t2">در انتظار بررسی مدارک توسط وکیل</div></div><div class="r-side"><span class="pill neu">در جریان</span></div></div>
+          </div>
+        </div>
+
+        <a class="money" href="#"><span class="pill neu">۱ فاکتور پرداخت‌نشده</span><span class="fig num">۱۸٬۵۰۰٬۰۰۰ تومان</span><span class="chev"></span></a>
+      </div>
+      <div class="tabbar">
+        <button class="tab" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>خانه</button>
+        <button class="tab"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>پرونده‌ها</button>
+        <button class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>نوبت</button>
+        <button class="tab"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>فاکتور</button>
+        <button class="tab"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>پروفایل</button>
+      </div>
+    </div></div>
+    <figcaption><b>بعد (CMD-038)</b> — جلسه‌ی دادگاه + مسیر پرونده، قهرمانِ صفحه<br>اقدام‌های فوری، وکیلِ شما، پرونده‌ها؛ پول یک ردیف آرام</figcaption>
+  </figure>
+</div>
+
+<h2>چه چیزی عوض شد و چرا؟</h2>
+<div class="note"><ul>
+<li><b>کاشی‌های ۲×۲ حذف شدند.</b> چهار عدد هم‌وزن یعنی هیچ‌چیز مهم نیست؛ موکلِ نگران اول باید «جلسه‌ی بعدی‌ام کجاست» را ببیند، نه «چقدر بدهکارم» را. بدهی از دومین عنصر درشت صفحه به یک ردیف آرام در انتها رفت — مهم است، اما نه برای اولین نگاه.</li>
+<li><b>مسیر پرونده ارتقا یافت.</b> عنصر امضایی CMD-037 از میان صفحه به کارت قهرمان منتقل شد — همان چیزی که اپ‌های بانکی و پیک ندارند و هویت محصول دادگر است.</li>
+<li><b>اقدام جای آمار نشست.</b> سه اقدام واقعی (ارسال سند، رزرو نوبت، پرداخت) و دو دکمه‌ی پرونده‌ی جاری، جای چهار عدد نشسته‌اند — صفحه حالا به «چه کار کنم؟» جواب می‌دهد، نه فقط «وضعیت چیست؟».</li>
+<li><b>وکیل پیدا شد.</b> در نسخه‌ی قبل مهم‌ترین رابطه‌ی موکل (رضا محمدی) غایب بود؛ حالا کارت «وکیل شما» با آخرین پیام خوانده‌نشده و تماس/پیام، لنگرگاه انسانی صفحه است.</li>
+<li><b>هیچ‌چیز از زبان طراحی حذف نشد.</b> توکن‌های D-3، تب‌های پنج‌گانه، فونت، قواعد لمس ۴۴px و عنصر امضایی عیناً همان CMD-037 است؛ فقط سلسله‌مراتب عوض شد. اعداد همان داده‌های <code>data.js</code> است: ۵ روز تا جلسه (۱۴→۱۹ آبان)، بدهی ۱۸٬۵۰۰٬۰۰۰ از یک فاکتور پرداخت‌نشده، ۲ پیام خوانده‌نشده، ۲ پرونده در جریان از ۳ پرونده.</li>
+</ul></div>
+
+<h2>صاحب صفحه — به زبان یک جمله</h2>
+<div class="note"><b>این صفحه مالِ مشتری است.</b> وکیل و ادمین در اپ موبایل فاز M1 مخاطب نیستند — داشبوردشان روی وب است. اگر بعداً اپ وکیل/ادمین سفارش دهید، خانه‌ی آن‌ها صفحه‌ی دیگری خواهد بود (جلسه‌های امروز، کارهای معوق) — نه همین صفحه با نقش‌ورقی.</div>
+
+</div></body></html>
