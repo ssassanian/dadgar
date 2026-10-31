@@ -3,6 +3,7 @@
   "builds": [
     { "src": "api/[[...path]].js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 30 } },
     { "src": "api/html.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } },
+    { "src": "api/page.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } },
     { "src": "api/notfound.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } },
     { "src": "api/mobile-preview.js", "use": "@vercel/node", "config": { "includeFiles": "dynamic/**", "maxDuration": 10 } }
   ],
