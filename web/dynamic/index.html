@@ -750,20 +750,20 @@ var cd=r.headers.get('content-disposition')||'',m=/filename\*=UTF-8''([^\s;]+)/.
 return r.blob().then(function(b){var u=URL.createObjectURL(b),el=document.createElement('a');el.href=u;el.download=nm;document.body.appendChild(el);el.click();el.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);toast('دانلود شروع شد.')})}).catch(function(){toast('ارتباط با سرور برقرار نشد.')})}
 
 /* ---------- CMD-009 فاز ۳ گام ۷ — لاگ مدیر: صفحه‌ی واقعی (VR) ---------- */
-var LG={rows:null,pg:0,pages:1,total:0,q:'',on:0,uid:null};
-function lgFetch(){var q='?page='+LG.pg+(LG.q?'&q='+encodeURIComponent(LG.q):'');
-api('GET','audit'+q).then(function(r){if(r.ok){LG.rows=r.j.rows;LG.pages=r.j.pages;LG.total=r.j.total;render(0)}else toast(r.j.error||'دریافت لاگ ناموفق بود.')})}
+var ALG={rows:null,pg:0,pages:1,total:0,q:'',on:0,uid:null};
+function lgFetch(){var q='?page='+ALG.pg+(ALG.q?'&q='+encodeURIComponent(ALG.q):'');
+api('GET','audit'+q).then(function(r){if(r.ok){ALG.rows=r.j.rows;ALG.pages=r.j.pages;ALG.total=r.j.total;render(0)}else toast(r.j.error||'دریافت لاگ ناموفق بود.')})}
 function lgNeed(){var pg=S.pg||1;
-if(LG.rows&&LG.uid===(U&&U.id)&&LG.pg===pg)return 1;
-LG.uid=U&&U.id;LG.pg=pg;LG.rows=null;lgFetch();return 0}
-function lgRows(){return (LG.rows||[]).map(function(r){return tr(['<b>'+esc(r.user_name||'سیستم')+'</b>'+(r.user_role?' <small style="opacity:.55">'+({client:'مشتری',lawyer:'وکیل',admin:'مدیر'}[r.user_role]||'')+'</small>':''),'<span dir="ltr" style="font-size:12px">'+esc(String(r.action||''))+'</span>','<span style="opacity:.75">'+esc(r.detail||'—')+'</span>'+(r.ip?'<small dir="ltr" style="opacity:.5;display:block">'+esc(r.ip)+'</small>':''),jdate(r.at)])})}
-function lgBind(){var lgq=$('#lgq');if(lgq&&!lgq.dataset.lg){lgq.dataset.lg='1';lgq.addEventListener('change',function(){LG.q=lgq.value.trim();S.pg=1;LG.rows=null;render(0)})}}
-VR.aLog=function(){LG.on=1;S.after=lgBind;if(!lgNeed())return listWait('گزارش‌گیری و Log');
+if(ALG.rows&&ALG.uid===(U&&U.id)&&ALG.pg===pg)return 1;
+ALG.uid=U&&U.id;ALG.pg=pg;ALG.rows=null;lgFetch();return 0}
+function lgRows(){return (ALG.rows||[]).map(function(r){return tr(['<b>'+esc(r.user_name||'سیستم')+'</b>'+(r.user_role?' <small style="opacity:.55">'+({client:'مشتری',lawyer:'وکیل',admin:'مدیر'}[r.user_role]||'')+'</small>':''),'<span dir="ltr" style="font-size:12px">'+esc(String(r.action||''))+'</span>','<span style="opacity:.75">'+esc(r.detail||'—')+'</span>'+(r.ip?'<small dir="ltr" style="opacity:.5;display:block">'+esc(r.ip)+'</small>':''),jdate(r.at)])})}
+function lgBind(){var lgq=$('#lgq');if(lgq&&!lgq.dataset.lg){lgq.dataset.lg='1';lgq.addEventListener('change',function(){ALG.q=lgq.value.trim();S.pg=1;ALG.rows=null;render(0)})}}
+VR.aLog=function(){ALG.on=1;S.after=lgBind;if(!lgNeed())return listWait('گزارش‌گیری و Log');
 var pg=S.pg||1;
 return '<div class="row"><h2 class="dh">گزارش‌گیری و Log</h2><span class="row" style="margin-inline-start:auto"><button class="btn sm o" style="color:var(--ink)" data-ts="خروجی اکسل پس از تصمیم مدیر فعال می‌شود.">خروجی اکسل</button><button class="btn sm o" style="color:var(--ink)" data-ts="خروجی PDF پس از تصمیم مدیر فعال می‌شود.">خروجی PDF</button></span></div>'
-+card('Audit Log','<div class="row" style="margin-bottom:12px"><input class="inp" id="lgq" placeholder="جستجو در عملیات، جزئیات و نام کاربر…" value="'+esc(LG.q)+'" style="max-width:340px"><small style="opacity:.6">مجموع رکوردها: '+fa(LG.total)+'</small></div>'
-+((LG.rows&&LG.rows.length)?tbl(['کاربر','عملیات','جزئیات','زمان'],lgRows()):'<p style="opacity:.6">رکوردی یافت نشد.</p>')
-+(LG.pages>1?(function(){var h='<div class="pgn">';for(var i=1;i<=LG.pages;i++)h+='<button class="'+(i==pg?'on':'')+'" data-pg="'+i+'">'+fa(i)+'</button>';return h+'</div>'})():''))};
++card('Audit Log','<div class="row" style="margin-bottom:12px"><input class="inp" id="lgq" placeholder="جستجو در عملیات، جزئیات و نام کاربر…" value="'+esc(ALG.q)+'" style="max-width:340px"><small style="opacity:.6">مجموع رکوردها: '+fa(ALG.total)+'</small></div>'
++((ALG.rows&&ALG.rows.length)?tbl(['کاربر','عملیات','جزئیات','زمان'],lgRows()):'<p style="opacity:.6">رکوردی یافت نشد.</p>')
++(ALG.pages>1?(function(){var h='<div class="pgn">';for(var i=1;i<=ALG.pages;i++)h+='<button class="'+(i==pg?'on':'')+'" data-pg="'+i+'">'+fa(i)+'</button>';return h+'</div>'})():''))};
 
 /* ---------- CMD-010 فاز ۳ گام ۸ — CMS/تنظیمات/سئو: صفحات واقعی (VR) ---------- */
 var STG={on:0,uid:null,ready:true,map:null};
@@ -1036,7 +1036,7 @@ if(!DEMO&&MG.on&&(a=t.closest('[data-msgsend]'))){realMsgSend(a);return}
 if(!DEMO&&DO.on&&(a=t.closest('[data-docup]'))){realDocUpload(a);return}
 if(!DEMO&&DO.on&&(a=t.closest('[data-docdl]'))){realDocDownload(+a.dataset.docdl);return}
 if(!DEMO&&(a=t.closest('[data-docdel]'))){var ddid=+a.dataset.docdel;modal('حذف سند','سند حذف شود؟',function(){api('DELETE','documents/'+ddid).then(function(r){if(r.ok){toast('سند حذف شد');DO.rows=null;DO.uid=null;render(0)}else toast(r.j.error||'حذف ناموفق بود.')})});return}
-if(!DEMO&&LG.on){var lgq=$('#lgq');if(lgq&&!lgq.dataset.lg){lgq.dataset.lg='1';lgq.addEventListener('change',function(){LG.q=lgq.value.trim();S.pg=1;LG.rows=null;render(0)})}}
+if(!DEMO&&ALG.on){var lgq=$('#lgq');if(lgq&&!lgq.dataset.lg){lgq.dataset.lg='1';lgq.addEventListener('change',function(){ALG.q=lgq.value.trim();S.pg=1;ALG.rows=null;render(0)})}}
 
 if(!DEMO&&(a=t.closest('[data-setsave]'))){realSettingsSave(a);return}
 if(!DEMO&&(a=t.closest('[data-cmssave]'))){realCmsSave(a);return}
