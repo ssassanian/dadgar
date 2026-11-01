@@ -1,7 +1,14 @@
 /// صفحه‌ی گفتگوهای پرونده — M5 (DOC-04 §۱۱ ردیف M5)
 ///
+/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bMsgs` در
+/// `design-preview/prototype.html`): AppBar کاغذی «پیام‌ها» با زیرنویس،
+/// ردیف‌های دوخطی r-main/r-side (عنوان پرونده / گزیده‌ی آخرین پیام +
+/// تاریخ شمسی) با فلش RTL.
+///
 /// آینه‌ی GET /api/threads سرور: فقط پرونده‌های دارای وکیلِ تخصیص‌یافته
 /// (assigned/running/done) با گزیده‌ی آخرین پیام (۸۰ نویسه از سرور).
+/// صداقت داده (S-4): نشان «خوانده‌نشده» طرح در مدل Thread سرور نیست →
+/// بدون نقطه‌ی جعلی.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/jalali.dart';
+import '../../../design/d3_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/chat_controller.dart';
 import '../application/tickets_controller.dart' show LoadStatus;
@@ -24,7 +32,40 @@ class ThreadsScreen extends ConsumerWidget {
     final controller = ref.read(threadsControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('گفتگو با وکیل')),
+      backgroundColor: DadgarTokens.background,
+      appBar: AppBar(
+        toolbarHeight: 56,
+        backgroundColor: DadgarTokens.background,
+        foregroundColor: DadgarTokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'پیام‌ها',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                color: DadgarTokens.textPrimary,
+              ),
+            ),
+            Text(
+              ui.status == LoadStatus.ready
+                  ? '${JalaliCalendar.toPersianDigits(ui.rows.length)} گفتگو'
+                  : 'گفتگوهای پرونده‌ها',
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: DadgarTokens.textFaint,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: switch (ui.status) {
         LoadStatus.loading => const Center(
             child: CircularProgressIndicator(),
@@ -50,107 +91,66 @@ final class _ThreadsList extends ConsumerWidget {
     final controller = ref.read(threadsControllerProvider.notifier);
     return RefreshIndicator(
       onRefresh: controller.reload,
-      child: ListView.separated(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           DadgarTokens.s16,
-          DadgarTokens.s16,
+          DadgarTokens.s4,
           DadgarTokens.s16,
           DadgarTokens.s32,
         ),
-        itemCount: ui.rows.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: DadgarTokens.s8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: DadgarTokens.s4),
-              child: Text(
-                '${JalaliCalendar.toPersianDigits(ui.rows.length)} گفتگو',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: DadgarTokens.textSecondary,
-                ),
-              ),
-            );
-          }
-          return _ThreadCard(row: ui.rows[index - 1]);
-        },
+        children: [
+          // پنل ردیف‌ها — عین `.rows` طرح با خط ردیف بین ردیف‌ها
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: DadgarTokens.surface,
+              borderRadius: BorderRadius.circular(DadgarTokens.radius),
+              border: Border.all(color: DadgarTokens.cardBorder),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < ui.rows.length; i++) ...[
+                  if (i > 0) const DadgarRowRule(),
+                  _ThreadRow(row: ui.rows[i]),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: DadgarTokens.s12),
+          const DadgarEmptyBox(
+            'با بازکردن هر گفتگو، پیام‌های پرونده در گفتگو نشان داده می‌شود.',
+          ),
+        ],
       ),
     );
   }
 }
 
-/// کارت گفتگو — عنوان پرونده + گزیده‌ی آخرین پیام + تاریخ
-final class _ThreadCard extends StatelessWidget {
-  const _ThreadCard({required this.row});
+/// ردیف گفتگو — عنوان پرونده + گزیده‌ی آخرین پیام + تاریخ شمسی
+final class _ThreadRow extends StatelessWidget {
+  const _ThreadRow({required this.row});
 
   final Thread row;
 
   @override
   Widget build(BuildContext context) {
     final last = JalaliCalendar.fromEpochSeconds(row.lastAt);
-    return Material(
-      color: DadgarTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        side: BorderSide(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
+    return DadgarListRow(
+      title: row.title,
+      subtitle: row.lastExcerpt.isEmpty
+          ? 'هنوز پیامی ردوبدل نشده است'
+          : (row.lastMine ? 'شما: ' : '') + row.lastExcerpt,
+      side: Text(
+        JalaliCalendar.formatNumeric(last),
+        style: const TextStyle(
+          fontSize: 11,
+          color: DadgarTokens.textFaint,
         ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/threads/${row.caseId}'),
-        child: Padding(
-          padding: const EdgeInsets.all(DadgarTokens.s12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.forum_outlined,
-                    size: 18,
-                    color: DadgarTokens.primary,
-                  ),
-                  const SizedBox(width: DadgarTokens.s8),
-                  Expanded(
-                    child: Text(
-                      row.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: DadgarTokens.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    JalaliCalendar.formatNumeric(last),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: DadgarTokens.s4),
-              Text(
-                row.lastExcerpt.isEmpty
-                    ? 'هنوز پیامی ردوبدل نشده است'
-                    : (row.lastMine ? 'شما: ' : '') + row.lastExcerpt,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: DadgarTokens.textSecondary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
+      showChevron: true,
+      onTap: () => context.push('/threads/${row.caseId}'),
     );
   }
 }
@@ -226,11 +226,7 @@ final class _ErrorPane extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
+            DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
           ],
         ),
       ),

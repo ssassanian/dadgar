@@ -1,8 +1,16 @@
 /// صفحه‌ی چت یک پرونده — M5 (DOC-04 §۱۱ ردیف M5)
 ///
+/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bChat` در
+/// `design-preview/prototype.html`): AppBar کاغذی با عنوان واقعی پرونده،
+/// حباب‌های ۱۴px با دم (mine = ته‌رنگ data-soft، them = سطح سفید با لبه)
+/// و کامپوزر ۴۴px با دکمه‌ی ارسال نزدیک‌سیاه.
+///
 /// آینه‌ی GET/POST /api/messages سرور: پیام‌ها با حباب mine، ارسال با
 /// اعتبارسنجی ۱..۲۰۰۰ و تازه‌سازی پس از موفقیت. خطای «گفتگو فعال نیست»
 /// و سقف نرخ عین سرور نمایش داده می‌شود.
+///
+/// F6 (باز — حکم مدیر): نقد بازرسی CMD-042 به سمت حباب در *پروتوتایپ* بود
+/// (خودم=راست، خلاف قرارداد فارسی). کد معیار است: خودم=چپ — دست نمی‌خورد.
 library;
 
 import 'package:flutter/material.dart';
@@ -44,9 +52,45 @@ final class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final ui = ref.watch(chatProvider(widget.caseId));
     final controller = ref.read(chatProvider(widget.caseId).notifier);
+    final caseTitle = ui.status == LoadStatus.ready
+        ? ui.envelope!.caseTitle
+        : 'گفتگوی پرونده';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('گفتگوی پرونده')),
+      backgroundColor: DadgarTokens.background,
+      appBar: AppBar(
+        toolbarHeight: 56,
+        backgroundColor: DadgarTokens.background,
+        foregroundColor: DadgarTokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              caseTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                color: DadgarTokens.textPrimary,
+              ),
+            ),
+            const Text(
+              'گفتگو',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: DadgarTokens.textFaint,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: switch (ui.status) {
         LoadStatus.loading => const Center(
             child: CircularProgressIndicator(),
@@ -73,25 +117,11 @@ final class _Thread extends StatelessWidget {
     final env = ui.envelope!;
     return Column(
       children: [
-        // سربرگ پرونده — از سربرگ سرور (case.title/status)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(DadgarTokens.s12),
-          color: DadgarTokens.surface,
-          child: Text(
-            env.caseTitle,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: DadgarTokens.textPrimary,
-            ),
-          ),
-        ),
         Expanded(
           child: env.rows.isEmpty
               ? const Center(
                   child: Text(
-                    'اولین پیام را بنویسید',
+                    'گفتگویی ثبت نشده — اولین پیام را بفرستید.',
                     style: TextStyle(
                       fontSize: 13,
                       color: DadgarTokens.textSecondary,
@@ -123,9 +153,18 @@ final class _Thread extends StatelessWidget {
               ),
             ),
           ),
+        // کامپوزر — کلاس `.composer` طرح: ورودی ۴۴px با لبه‌ی control
+        // و دکمه‌ی ارسال ۴۴px نزدیک‌سیاه
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(DadgarTokens.s12),
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: DadgarTokens.surface,
+              border: Border(
+                top: BorderSide(color: DadgarTokens.cardBorder),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Row(
               children: [
                 Expanded(
@@ -133,23 +172,64 @@ final class _Thread extends StatelessWidget {
                     controller: input,
                     maxLength: MessagesContract.chatBodyMax,
                     enabled: !ui.busy,
-                    decoration: const InputDecoration(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: DadgarTokens.textPrimary,
+                    ),
+                    decoration: InputDecoration(
                       counterText: '',
-                      hintText: 'پیام خود را بنویسید…',
-                      border: OutlineInputBorder(),
+                      hintText: 'پیام…',
+                      hintStyle: const TextStyle(
+                        fontSize: 14,
+                        color: DadgarTokens.textFaint,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      filled: true,
+                      fillColor: DadgarTokens.surface,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: DadgarTokens.control,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: DadgarTokens.primary,
+                        ),
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: DadgarTokens.control,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: DadgarTokens.s8),
-                IconButton.filled(
-                  onPressed: ui.busy ? null : onSend,
-                  icon: ui.busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_outlined),
+                // دکمه‌ی ارسال — `.composer .send` طرح (۴۴px نزدیک‌سیاه)
+                Material(
+                  color: ui.busy
+                      ? DadgarTokens.control
+                      : DadgarTokens.textPrimary,
+                  borderRadius: BorderRadius.circular(10),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: ui.busy ? null : onSend,
+                    child: const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Icon(
+                        Icons.send_outlined,
+                        size: 18,
+                        color: DadgarTokens.surface,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -160,7 +240,9 @@ final class _Thread extends StatelessWidget {
   }
 }
 
-/// حباب پیام چت — mine از سرور
+/// حباب پیام چت — ترجمه‌ی `.msg.me`/`.msg.them` طرح: mine = ته‌رنگ
+/// data-soft با دم، them = سطح سفید با لبه‌ی کارت. سمت حباب‌ها طبق
+/// قرارداد فارسی (خودم=چپ) — F6 باز برای پروتوتایپ، کد دست نمی‌خورد.
 final class _Bubble extends StatelessWidget {
   const _Bubble({required this.m});
 
@@ -171,54 +253,56 @@ final class _Bubble extends StatelessWidget {
     final created = JalaliCalendar.fromEpochSeconds(m.createdAt);
     return Align(
       alignment: m.mine ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        padding: const EdgeInsets.all(DadgarTokens.s12),
-        decoration: BoxDecoration(
-          color: m.mine ? DadgarTokens.primary : DadgarTokens.surface,
-          borderRadius: BorderRadius.circular(DadgarTokens.radius),
-          border: m.mine
-              ? null
-              : Border.all(
-                  color: DadgarTokens.textSecondary.withValues(alpha: 0.25),
-                ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!m.mine)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  MessagesContract.labelOfRole(m.role),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: DadgarTokens.primary,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 300),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: m.mine ? DadgarTokens.pillDataBg : DadgarTokens.surface,
+            border: m.mine
+                ? null
+                : Border.all(color: DadgarTokens.cardBorder),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              // دم حباب — رو به سمت گوینده
+              bottomLeft: Radius.circular(m.mine ? 4 : 14),
+              bottomRight: Radius.circular(m.mine ? 14 : 4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!m.mine)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    MessagesContract.labelOfRole(m.role),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: DadgarTokens.primary,
+                    ),
                   ),
                 ),
+              Text(
+                m.body,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  height: 1.7,
+                  color: DadgarTokens.textPrimary,
+                ),
               ),
-            Text(
-              m.body,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.7,
-                color: m.mine
-                    ? DadgarTokens.onPrimary
-                    : DadgarTokens.textPrimary,
+              const SizedBox(height: 4),
+              Text(
+                JalaliCalendar.formatNumeric(created),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: DadgarTokens.textFaint,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              JalaliCalendar.formatNumeric(created),
-              style: TextStyle(
-                fontSize: 10,
-                color: m.mine
-                    ? DadgarTokens.onPrimary.withValues(alpha: 0.7)
-                    : DadgarTokens.textSecondary,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -79,8 +79,8 @@ void main() {
     });
   });
 
-  group('DocumentsScreen — گاوصندوق اسناد', () {
-    testWidgets('کارت سند با سطح دسترسی و عملیات رندر می‌شود', (tester) async {
+  group('DocumentsScreen — گاوصندوق اسناد (طرح bDocs)', () {
+    testWidgets('ردیف سند + شیت عملیات: دانلود و حذف (سند خودی)', (tester) async {
       final container = dadgarContainer(
         documentsRepository: FakeDocumentsRepository(
           docs: [
@@ -106,12 +106,16 @@ void main() {
       expect(find.text('قرارداد.jpg'), findsOneWidget);
       expect(find.text('اشتراک با وکیل'), findsOneWidget);
       expect(find.text('۱ سند'), findsOneWidget);
+      // دکمه‌ی شبح پایان فهرست (FAB حذف شد — CMD-046)
+      expect(find.text('آپلود سند جدید'), findsOneWidget);
+      // عملیات در شیت — ابتدا تپ ردیف
+      await tester.tap(find.text('قرارداد.jpg'));
+      await tester.pumpAndSettle();
       expect(find.text('دانلود'), findsOneWidget);
       expect(find.text('حذف'), findsOneWidget);
-      expect(find.text('بارگذاری سند'), findsOneWidget);
     });
 
-    testWidgets('سند غیر خودی → دکمه‌ی حذف ندارد', (tester) async {
+    testWidgets('سند غیر خودی → شیت دکمه‌ی حذف ندارد', (tester) async {
       final container = dadgarContainer(
         documentsRepository: FakeDocumentsRepository(
           docs: [
@@ -135,10 +139,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('لایحه.pdf'), findsOneWidget);
+      await tester.tap(find.text('لایحه.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.text('دانلود'), findsOneWidget);
       expect(find.text('حذف'), findsNothing);
     });
 
-    testWidgets('خالی صادقانه', (tester) async {
+    testWidgets('خالی صادقانه + دکمه‌ی آپلود', (tester) async {
       final container = dadgarContainer(
         documentsRepository: FakeDocumentsRepository(),
       );
@@ -147,6 +154,7 @@ void main() {
       await _pumpApp(tester, container, const DocumentsScreen());
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('هنوز سندی بارگذاری نشده است'), findsOneWidget);
+      expect(find.text('آپلود سند جدید'), findsOneWidget);
     });
   });
 

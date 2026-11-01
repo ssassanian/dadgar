@@ -1,8 +1,15 @@
-/// صفحه‌ی «صورتحساب‌ها و پرداخت» مشتری — M4 (DOC-04 §۱۱ ردیف M4)
+/// صفحه‌ی «فاکتورها» مشتری — تب M4 (DOC-04 §۱۱ ردیف M4)
 ///
-/// آینه‌ی صفحه‌ی cBill وب (CMD-005): ستون‌های فاکتور/تاریخ/مبلغ/وضعیت به‌شکل
-/// کارت، خالی صادقانه با عین متن وب، دکمه‌ی «پرداخت آنلاین» با پیام صادقانه‌ی
-/// درگاه (تصمیم باز CMD-005 — هیچ پرداخت جعلی ثبت نمی‌شود) و pull-to-refresh.
+/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bInv` در
+/// `design-preview/prototype.html`): نوار بالای ۴۸px با شمارنده، پنل
+/// «بدهی فعلی» با رقم قهرمان، ردیف‌های دوخطی r-main/r-side با دکمه‌ی
+/// پرداخت/قرص پرداخت‌شده و یادداشت درگاه زیبال.
+///
+/// صداقت داده (S-4): سرور «سررسید» ندارد (مدل Invoice فقط
+/// createdAt/paidAt) → ردیف «صدور: …» و برای پرداخت‌شده «· پرداخت: …».
+/// رقم قهرمان = مجموع واقعی فاکتورهای pending بارگذاری‌شده.
+/// دکمه‌ی PDF (M6/CMD-028) و جریان پرداخت آنلاین (POST
+/// /api/payments/request — تا انتخاب درگاه 503 با پیام صادقانه) حفظ شدند.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,13 +17,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/time/jalali.dart';
+import '../../../design/d3_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/billing_controller.dart';
 import '../data/billing_contract.dart';
 import '../domain/invoice_models.dart';
 import '../pdf/invoice_pdf.dart';
 
-/// صفحه‌ی فاکتورهای من
+/// صفحه‌ی فاکتورهای من — تب پوسته (بدون AppBar؛ نوار بالای طرح)
 class InvoicesScreen extends ConsumerWidget {
   const InvoicesScreen({super.key});
 
@@ -26,21 +34,40 @@ class InvoicesScreen extends ConsumerWidget {
     final controller = ref.read(billingControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('صورتحساب‌ها و پرداخت')),
-      body: switch (ui.status) {
-        LoadStatus.loading => const _SkeletonList(),
-        LoadStatus.error => _ErrorPane(
-            message: ui.message ?? 'خطای نامشخص',
-            onRetry: controller.reload,
-          ),
-        LoadStatus.ready when ui.rows.isEmpty => const _EmptyPane(),
-        LoadStatus.ready => _InvoicesList(ui: ui),
-      },
+      backgroundColor: DadgarTokens.background,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: DadgarTokens.s16),
+              child: DadgarTopBar(
+                title: 'فاکتورها',
+                subtitle: ui.status == LoadStatus.ready
+                    ? '${BillingContract.toPersianDigits(ui.rows.length)} فاکتور'
+                    : null,
+              ),
+            ),
+            Expanded(
+              child: switch (ui.status) {
+                LoadStatus.loading => const _SkeletonList(),
+                LoadStatus.error => _ErrorPane(
+                    message: ui.message ?? 'خطای نامشخص',
+                    onRetry: controller.reload,
+                  ),
+                LoadStatus.ready when ui.rows.isEmpty => const _EmptyPane(),
+                LoadStatus.ready => _InvoicesList(ui: ui),
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-/// فهرست کارت فاکتورها — pull-to-refresh (پاسخ تخت سرور، بدون صفحه‌بندی)
+/// فهرست — پنل بدهی + پنل ردیف‌ها (عین bInv)
 final class _InvoicesList extends ConsumerWidget {
   const _InvoicesList({required this.ui});
 
@@ -48,70 +75,108 @@ final class _InvoicesList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(billingControllerProvider.notifier);
+    final unpaid = ui.rows
+        .where((r) => r.statusValue == InvoiceStatus.pending)
+        .toList(growable: false);
+    final debt =
+        unpaid.fold<int>(0, (sum, r) => sum + r.amount);
+
     return RefreshIndicator(
-      onRefresh: controller.reload,
-      child: ListView.separated(
+      onRefresh: ref.read(billingControllerProvider.notifier).reload,
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           DadgarTokens.s16,
-          DadgarTokens.s16,
+          DadgarTokens.s12,
           DadgarTokens.s16,
           DadgarTokens.s32,
         ),
-        itemCount: ui.rows.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: DadgarTokens.s8),
-        itemBuilder: (context, index) {
-          if (index == 0) return _SummaryBar(ui: ui);
-          return _InvoiceCard(row: ui.rows[index - 1]);
-        },
+        children: [
+          // ── پنل «بدهی فعلی» — رقم قهرمان از داده‌ی واقعی ──
+          DadgarPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'بدهی فعلی',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: DadgarTokens.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: DadgarTokens.s4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      BillingContract.toPersianDigits(debt),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                        color: DadgarTokens.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: DadgarTokens.s4),
+                    const Text(
+                      'تومان',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: DadgarTokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: DadgarTokens.s4),
+                Text(
+                  unpaid.isEmpty
+                      ? 'همه‌ی فاکتورها پرداخت شده است'
+                      : 'از ${BillingContract.toPersianDigits(unpaid.length)}'
+                          ' فاکتور پرداخت‌نشده',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: DadgarTokens.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: DadgarTokens.s12),
+          // ── پنل ردیف‌ها — r-main/r-side عین طرح ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: DadgarTokens.surface,
+              borderRadius: BorderRadius.circular(DadgarTokens.radius),
+              border: Border.all(color: DadgarTokens.cardBorder),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < ui.rows.length; i++) ...[
+                  if (i > 0) const DadgarRowRule(),
+                  _InvoiceRow(row: ui.rows[i]),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: DadgarTokens.s12),
+          const DadgarEmptyBox(
+            'پرداخت از طریق درگاه زیبال انجام می‌شود — تا اتصال زنده '
+            '(D-6) هیچ پرداخت واقعی ثبت نمی‌شود.',
+          ),
+        ],
       ),
     );
   }
 }
 
-/// نوار خلاصه — «۳ فاکتور • ۱ در انتظار» با ارقام فارسی
-final class _SummaryBar extends StatelessWidget {
-  const _SummaryBar({required this.ui});
-
-  final BillingUi ui;
-
-  @override
-  Widget build(BuildContext context) {
-    final parts = <String>[
-      '${BillingContract.toPersianDigits(ui.rows.length)} فاکتور',
-    ];
-    if (ui.pendingCount > 0) {
-      parts.add(
-        '${BillingContract.toPersianDigits(ui.pendingCount)} در انتظار',
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: DadgarTokens.s4),
-      child: Text(
-        parts.join(' • '),
-        style: const TextStyle(
-          fontSize: 12,
-          color: DadgarTokens.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-/// کارت فاکتور — شماره/تاریخ شمسی/مبلغ/وضعیت (همان ستون‌های وب)
-/// + دکمه‌ی «پرداخت آنلاین» زنده (CMD-028: POST /api/payments/request —
-/// تا انتخاب درگاه سرور 503 با عین پیام صادقانه می‌دهد) و دکمه‌ی PDF (M6)
-final class _InvoiceCard extends ConsumerWidget {
-  const _InvoiceCard({required this.row});
+/// ردیف فاکتور — عنوان/تاریخ + دکمه‌ی PDF (M6) + پرداخت یا قرص وضعیت
+final class _InvoiceRow extends ConsumerWidget {
+  const _InvoiceRow({required this.row});
 
   final Invoice row;
-
-  Color get _statusColor => switch (row.status) {
-        'paid' => DadgarTokens.accent,
-        'pending' => DadgarTokens.primary,
-        _ => DadgarTokens.textSecondary,
-      };
 
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
     final controller = ref.read(billingControllerProvider.notifier);
@@ -155,111 +220,69 @@ final class _InvoiceCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final created = JalaliCalendar.fromEpochSeconds(row.createdAt);
-    return Material(
-      color: DadgarTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        side: BorderSide(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
+    final pending = row.statusValue == InvoiceStatus.pending;
+    return DadgarListRow(
+      title: 'فاکتور ${BillingContract.toPersianDigits(row.id)}',
+      // خط دوم — مبلغ واقعی + تاریخ عین سرور (S-4: «سررسید» در مدل نیست)
+      subtitle: pending
+          ? '${BillingContract.formatToman(row.amount)}'
+              ' · صدور: ${JalaliCalendar.formatNumeric(created)}'
+          : '${BillingContract.formatToman(row.amount)}'
+              ' · پرداخت: ${JalaliCalendar.formatNumeric(JalaliCalendar.fromEpochSeconds(row.paidAt!))}',
+      side: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // M6/CMD-028 — PDF هر فاکتور (عنصر icon-btn ۴۰px خود طرح)
+          IconButton(
+            tooltip: 'PDF فاکتور',
+            onPressed: () => _sharePdf(context, ref),
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            visualDensity: VisualDensity.compact,
+            color: DadgarTokens.textSecondary,
+          ),
+          const SizedBox(width: DadgarTokens.s4),
+          pending
+              ? _PayButton(onPay: () => _pay(context, ref))
+              : DadgarPill(
+                  row.statusValue.labelFa,
+                  variant: DadgarPillVariant.positive,
+                ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(DadgarTokens.s12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DadgarTokens.s8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    row.statusValue.labelFa,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: _statusColor,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'PDF فاکتور',
-                  onPressed: () => _sharePdf(context, ref),
-                  icon: const Icon(
-                    Icons.picture_as_pdf_outlined,
-                    size: 18,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                ),
-                Text(
-                  'فاکتور ${BillingContract.toPersianDigits(row.id)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: DadgarTokens.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: DadgarTokens.s8),
-            Text(
-              BillingContract.formatToman(row.amount),
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: DadgarTokens.textPrimary,
+      minHeight: 72,
+    );
+  }
+}
+
+/// دکمه‌ی کوچک پرداخت — کلاس `.btn.sm` طرح (لمس ≥۴۴ — F4)
+final class _PayButton extends StatelessWidget {
+  const _PayButton({required this.onPay});
+
+  final VoidCallback onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: Material(
+        color: DadgarTokens.textPrimary,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPay,
+          child: const SizedBox(
+            height: 44,
+            padding: EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            child: Text(
+              'پرداخت آنلاین',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: DadgarTokens.surface,
               ),
             ),
-            const SizedBox(height: DadgarTokens.s4),
-            Row(
-              children: [
-                const Icon(
-                  Icons.receipt_long_outlined,
-                  size: 14,
-                  color: DadgarTokens.textSecondary,
-                ),
-                const SizedBox(width: DadgarTokens.s4),
-                Text(
-                  JalaliCalendar.formatNumeric(created),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: DadgarTokens.textSecondary,
-                  ),
-                ),
-                if (row.paidAt != null) ...[
-                  const SizedBox(width: DadgarTokens.s8),
-                  const Text('•',
-                      style: TextStyle(color: DadgarTokens.textSecondary)),
-                  const SizedBox(width: DadgarTokens.s8),
-                  Text(
-                    'پرداخت: ${JalaliCalendar.formatNumeric(JalaliCalendar.fromEpochSeconds(row.paidAt!))}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.accent,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            if (row.statusValue == InvoiceStatus.pending) ...[
-              const SizedBox(height: DadgarTokens.s8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _pay(context, ref),
-                  icon: const Icon(Icons.payment_outlined, size: 18),
-                  label: const Text('پرداخت آنلاین'),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -281,9 +304,7 @@ final class _SkeletonList extends StatelessWidget {
         decoration: BoxDecoration(
           color: DadgarTokens.surface,
           borderRadius: BorderRadius.circular(DadgarTokens.radius),
-          border: Border.all(
-            color: DadgarTokens.textSecondary.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: DadgarTokens.cardBorder),
         ),
       ),
     );
@@ -351,11 +372,7 @@ final class _ErrorPane extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
+            DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
           ],
         ),
       ),

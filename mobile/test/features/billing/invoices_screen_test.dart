@@ -1,4 +1,5 @@
-/// تست ویجت صفحه‌ی فاکتورها — فهرست، خالی صادقانه، خطا، دکمه‌ی درگاه
+/// تست ویجت صفحه‌ی فاکتورها — ساختار bInv (CMD-046): پنل بدهی، ردیف‌ها،
+/// خالی صادقانه، خطا، دکمه‌ی درگاه و PDF (M6)
 library;
 
 import 'package:dadgar_mobile/core/api/api_client.dart';
@@ -25,8 +26,8 @@ Future<void> _pumpApp(
 }
 
 void main() {
-  group('InvoicesScreen — فهرست فاکتورها', () {
-    testWidgets('کارت فاکتور: مبلغ فارسی + وضعیت + تاریخ شمسی رندر می‌شود',
+  group('InvoicesScreen — فهرست فاکتورها (طرح bInv)', () {
+    testWidgets('پنل بدهی + ردیف پرداخت‌شده: مبلغ فارسی + قرص + PDF',
         (tester) async {
       final repo = FakeBillingRepository(
         response: InvoicesResponse(
@@ -49,11 +50,18 @@ void main() {
       await _pumpApp(tester, container, const InvoicesScreen());
       await tester.pump(const Duration(milliseconds: 50));
 
+      // پنل بدهی فعلی — صفر (همه پرداخت‌شده)
+      expect(find.text('بدهی فعلی'), findsOneWidget);
+      expect(find.text('همه‌ی فاکتورها پرداخت شده است'), findsOneWidget);
+      // ردیف — عنوان/مبلغ/قرص/تاریخ پرداخت
+      expect(find.text('فاکتور ۱۲'), findsOneWidget);
       expect(find.text('۲۵٬۰۰۰٬۰۰۰ تومان'), findsOneWidget);
       expect(find.text('پرداخت‌شده'), findsOneWidget);
-      expect(find.text('فاکتور ۱۲'), findsOneWidget);
+      expect(find.textContaining('پرداخت: '), findsOneWidget);
+      // شمارنده‌ی نوار بالا
       expect(find.text('۱ فاکتور'), findsOneWidget);
-      // پرداخت‌شده: دکمه‌ی درگاه ندارد
+      // PDF (M6) هست؛ دکمه‌ی درگاه نیست
+      expect(find.byTooltip('PDF فاکتور'), findsOneWidget);
       expect(find.text('پرداخت آنلاین'), findsNothing);
     });
 
@@ -81,8 +89,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('در انتظار'), findsOneWidget);
-      expect(find.text('۱ فاکتور • ۱ در انتظار'), findsOneWidget);
+      expect(find.text('۱ فاکتور'), findsOneWidget);
+      expect(find.text('از ۱ فاکتور پرداخت‌نشده'), findsOneWidget);
       expect(find.text('پرداخت آنلاین'), findsOneWidget);
+      // ردیف pending هم PDF (M6) دارد
+      expect(find.byTooltip('PDF فاکتور'), findsOneWidget);
 
       await tester.tap(find.text('پرداخت آنلاین'));
       await tester.pump(); // شروع انیمیشن SnackBar

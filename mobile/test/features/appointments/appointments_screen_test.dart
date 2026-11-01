@@ -109,8 +109,8 @@ void main() {
     await tester.tap(slotFinder);
     await tester.pumpAndSettle();
 
-    // دکمه‌ی رزرو (باز هم پایین‌تر)
-    final bookFinder = find.text('رزرو این بازه');
+    // دکمه‌ی رزرو (باز هم پایین‌تر) — برچسب عین طرح bAppt
+    final bookFinder = find.textContaining('ثبت نوبت');
     await tester.scrollUntilVisible(
       bookFinder,
       220,

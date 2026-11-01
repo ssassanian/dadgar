@@ -69,7 +69,7 @@ final class DadgarPanel extends StatelessWidget {
 }
 
 /// قرص وضعیت — کلاس `.pill` (ارتفاع ۲۲، قطر کامل، ۱۱px/۵۰۰)
-enum DadgarPillVariant { neutral, data }
+enum DadgarPillVariant { neutral, data, positive }
 
 final class DadgarPill extends StatelessWidget {
   const DadgarPill(this.label, {super.key, this.variant = DadgarPillVariant.neutral});
@@ -82,6 +82,7 @@ final class DadgarPill extends StatelessWidget {
     final (bg, ink) = switch (variant) {
       DadgarPillVariant.neutral => (DadgarTokens.pillNeutralBg, DadgarTokens.pillNeutralInk),
       DadgarPillVariant.data => (DadgarTokens.pillDataBg, DadgarTokens.primary),
+      DadgarPillVariant.positive => (DadgarTokens.pillPositiveBg, DadgarTokens.pillPositiveInk),
     };
     return Container(
       height: 22,
@@ -103,11 +104,20 @@ final class DadgarPill extends StatelessWidget {
 
 /// چیپ فیلتر — کلاس `.chip` با تصحیح F4: لمس ≥۴۸dp (طرح خودش ≥۴۴ خواسته بود)
 final class DadgarChip extends StatelessWidget {
-  const DadgarChip(this.label, {super.key, required this.selected, this.onTap});
+  const DadgarChip(
+    this.label, {
+    super.key,
+    required this.selected,
+    this.onTap,
+    this.enabled = true,
+  });
 
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+
+  /// حالت ناتوان (بازه‌ی پر/گذشته) — متن کم‌رنگ، بدون تپ (CMD-046)
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +133,7 @@ final class DadgarChip extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: enabled ? onTap : null,
           child: Container(
             height: 40,
             constraints: const BoxConstraints(minWidth: 48),
@@ -134,7 +144,11 @@ final class DadgarChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1,
-                color: selected ? DadgarTokens.surface : DadgarTokens.textSecondary,
+                color: !enabled
+                    ? DadgarTokens.textSecondary.withValues(alpha: 0.5)
+                    : selected
+                        ? DadgarTokens.surface
+                        : DadgarTokens.textSecondary,
               ),
             ),
           ),
@@ -286,10 +300,18 @@ final class DadgarKvRule extends StatelessWidget {
 
 /// دکمه‌ی شبح تمام‌عرض — کلاس `.btn.ghost.full` (لمس ۴۴+)
 final class DadgarGhostButton extends StatelessWidget {
-  const DadgarGhostButton(this.label, {super.key, this.onPressed});
+  const DadgarGhostButton(
+    this.label, {
+    super.key,
+    this.onPressed,
+    this.destructive = false,
+  });
 
   final String label;
   final VoidCallback? onPressed;
+
+  /// حالت مخرب (خروج/حذف) — لبه و متن قرمز D-3 (CMD-046)
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +319,9 @@ final class DadgarGhostButton extends StatelessWidget {
       color: DadgarTokens.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: DadgarTokens.control),
+        side: BorderSide(
+          color: destructive ? DadgarTokens.error : DadgarTokens.control,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -307,10 +331,10 @@ final class DadgarGhostButton extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: DadgarTokens.textPrimary,
+              color: destructive ? DadgarTokens.error : DadgarTokens.textPrimary,
             ),
           ),
         ),

@@ -55,6 +55,12 @@ abstract final class DadgarTokens {
   /// پس‌زمینه‌ی قرص داده (سرمه‌ای خیلی کم‌رنگ) — `--pill-data-bg`
   static const Color pillDataBg = Color(0xFFE7ECF4);
 
+  /// پس‌زمینه‌ی قرص مثبت — `--pill-positive-bg` (ترجمه‌ی وفادار پالت قفل‌شده)
+  static const Color pillPositiveBg = Color(0xFFE2F0E2);
+
+  /// متن قرص مثبت — `--pill-positive-ink`
+  static const Color pillPositiveInk = Color(0xFF1D5423);
+
   // ── فاصله‌ها (مقیاس ۴) ──
   static const double s4 = 4;
   static const double s8 = 8;

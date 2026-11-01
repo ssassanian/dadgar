@@ -1,9 +1,13 @@
 /// صفحه‌ی بارگذاری سند — M5 (DOC-04 §۱۱ ردیف M5)
 ///
-/// جریان آینه‌ی POST /api/cases/:id/documents سرور: انتخاب پرونده‌ی خود
-/// (از M2) → انتخاب منبع (دوربین/گالری) → پیش‌نمایش نام/اندازه → ارسال
-/// با سقف ۴ مگابایت. از صفحه‌ی جزئیات پرونده با پرونده‌ی ازپیش‌انتخاب‌شده
-/// هم باز می‌شود (قفل‌شده).
+/// CMD-046 (فاز ۳): آراستگی D-3 (AppBar کاغذی + پنل‌ها/دکمه‌های kit) —
+/// منطق آپلود دست‌نخورده: جریان آینه‌ی POST /api/cases/:id/documents
+/// سرور: انتخاب پرونده‌ی خود (از M2) → انتخاب منبع (دوربین/گالری) →
+/// پیش‌نمایش نام/اندازه → ارسال با سقف ۴ مگابایت. از صفحه‌ی جزئیات
+/// پرونده با پرونده‌ی ازپیش‌انتخاب‌شده هم باز می‌شود (قفل‌شده).
+///
+/// انتخابگر فایل (image_picker) به‌صورت تزریق‌شدنی (`docPickerProvider`)
+/// جداست تا تست‌ها بدون پلتفرم کار کنند (DOC-04 §۹).
 library;
 
 import 'package:flutter/material.dart';
@@ -11,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/providers.dart';
+import '../../../design/d3_kit.dart';
 import '../../../design/tokens.dart';
 import '../../cases/domain/case_models.dart';
 import '../application/documents_controller.dart';
@@ -88,131 +93,144 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
     final casesAsync = ref.watch(uploadCasesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('بارگذاری سند')),
+      backgroundColor: DadgarTokens.background,
+      appBar: AppBar(
+        toolbarHeight: 56,
+        backgroundColor: DadgarTokens.background,
+        foregroundColor: DadgarTokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'بارگذاری سند',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: DadgarTokens.textPrimary,
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(DadgarTokens.s16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.caseId == null)
-              casesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(DadgarTokens.s24),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => const Text(
-                  'دریافت فهرست پرونده‌ها ناموفق بود — دوباره تلاش کنید',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: DadgarTokens.error,
-                  ),
-                ),
-                data: (rows) {
-                  if (rows.isEmpty) {
-                    return const Text(
-                      'برای بارگذاری سند، ابتدا یک پرونده ثبت کنید؛ '
-                      'سند به پرونده گره می‌خورد.',
+            // ── پنل مقصد — انتخاب پرونده (وقتی ازپیش‌انتخاب نیست) ──
+            DadgarPanel(
+              head: 'پرونده‌ی مقصد',
+              child: widget.caseId == null
+                  ? casesAsync.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(DadgarTokens.s12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => const Text(
+                        'دریافت فهرست پرونده‌ها ناموفق بود — دوباره تلاش کنید',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: DadgarTokens.error,
+                        ),
+                      ),
+                      data: (rows) {
+                        if (rows.isEmpty) {
+                          return const Text(
+                            'برای بارگذاری سند، ابتدا یک پرونده ثبت کنید؛ '
+                            'سند به پرونده گره می‌خورد.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.8,
+                              color: DadgarTokens.textSecondary,
+                            ),
+                          );
+                        }
+                        return DropdownButtonFormField<int>(
+                          initialValue: _caseId,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                          ),
+                          items: rows
+                              .map(
+                                (r) => DropdownMenuItem(
+                                  value: r.id,
+                                  child: Text(
+                                    'پرونده ${JalaliDigits.fa(r.id)} — ${r.title}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _caseId = v),
+                        );
+                      },
+                    )
+                  : const Text(
+                      'سند به پرونده‌ی انتخاب‌شده گره می‌خورد.',
                       style: TextStyle(
                         fontSize: 13,
+                        color: DadgarTokens.textSecondary,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── پنل منبع — دوربین/گالری (دکمه‌های شبح نیم‌عرض) ──
+            DadgarPanel(
+              head: 'منبع تصویر',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DadgarGhostButton(
+                      'دوربین',
+                      onPressed: () => _pick(ImageSource.camera),
+                    ),
+                  ),
+                  const SizedBox(width: DadgarTokens.s8),
+                  Expanded(
+                    child: DadgarGhostButton(
+                      'گالری',
+                      onPressed: () => _pick(ImageSource.gallery),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── پنل پیش‌نمایش ──
+            DadgarPanel(
+              head: 'پیش‌نمایش',
+              child: _picked != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _picked!.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: DadgarTokens.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: DadgarTokens.s4),
+                        Text(
+                          '${DocumentsContract.formatSize(_picked!.bytes.length)}'
+                          ' • سقف: ۴ مگابایت',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: DadgarTokens.textSecondary,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'تصویر مدرک را با دوربین بگیرید یا از گالری انتخاب کنید.',
+                      style: TextStyle(
+                        fontSize: 12,
                         height: 1.8,
                         color: DadgarTokens.textSecondary,
                       ),
-                    );
-                  }
-                  return DropdownButtonFormField<int>(
-                    initialValue: _caseId,
-                    decoration: const InputDecoration(
-                      labelText: 'پرونده‌ی مقصد',
-                      border: OutlineInputBorder(),
                     ),
-                    items: rows
-                        .map(
-                          (r) => DropdownMenuItem(
-                            value: r.id,
-                            child: Text(
-                              'پرونده ${JalaliDigits.fa(r.id)} — ${r.title}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _caseId = v),
-                  );
-                },
-              )
-            else
-              Text(
-                'سند به پرونده‌ی انتخاب‌شده گره می‌خورد.',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: DadgarTokens.textSecondary,
-                ),
-              ),
-            const SizedBox(height: DadgarTokens.s16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pick(ImageSource.camera),
-                    icon: const Icon(Icons.photo_camera_outlined),
-                    label: const Text('دوربین'),
-                  ),
-                ),
-                const SizedBox(width: DadgarTokens.s8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pick(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_outlined),
-                    label: const Text('گالری'),
-                  ),
-                ),
-              ],
             ),
-            const SizedBox(height: DadgarTokens.s12),
-            if (_picked != null)
-              Container(
-                padding: const EdgeInsets.all(DadgarTokens.s12),
-                decoration: BoxDecoration(
-                  color: DadgarTokens.surface,
-                  borderRadius: BorderRadius.circular(DadgarTokens.radius),
-                  border: Border.all(
-                    color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _picked!.name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: DadgarTokens.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: DadgarTokens.s4),
-                    Text(
-                      '${DocumentsContract.formatSize(_picked!.bytes.length)}'
-                      ' • سقف: ۴ مگابایت',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: DadgarTokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              const Text(
-                'تصویر مدرک را با دوربین بگیرید یا از گالری انتخاب کنید.',
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.8,
-                  color: DadgarTokens.textSecondary,
-                ),
-              ),
-            const SizedBox(height: DadgarTokens.s24),
+            const SizedBox(height: DadgarTokens.s16),
             if (ui.message != null && ui.isError) ...[
               Text(
                 ui.message!,
@@ -225,19 +243,12 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
               ),
               const SizedBox(height: DadgarTokens.s12),
             ],
-            FilledButton.icon(
+            DadgarPrimaryButton(
+              ui.busy ? 'در حال بارگذاری…' : 'بارگذاری',
               onPressed:
                   (ui.busy || _picked == null || _caseId == null)
                       ? null
                       : _submit,
-              icon: ui.busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.upload_outlined, size: 18),
-              label: const Text('بارگذاری'),
             ),
           ],
         ),

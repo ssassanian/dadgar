@@ -31,7 +31,24 @@ class MyAppointmentsScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('نوبت‌های من')),
+      backgroundColor: DadgarTokens.background,
+      // CMD-046: AppBar کاغذی هم‌سو با فاز ۳ — منطق دست‌نخورده
+      appBar: AppBar(
+        toolbarHeight: 56,
+        backgroundColor: DadgarTokens.background,
+        foregroundColor: DadgarTokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'نوبت‌های من',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: DadgarTokens.textPrimary,
+          ),
+        ),
+      ),
       body: switch (ui.status) {
         LoadStatus.loading => const Center(
             child: CircularProgressIndicator(color: DadgarTokens.primary),
