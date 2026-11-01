@@ -270,11 +270,11 @@ final class _PayButton extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPay,
-          child: const SizedBox(
+          child: Container(
             height: 44,
-            padding: EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
-            child: Text(
+            child: const Text(
               'پرداخت آنلاین',
               style: TextStyle(
                 fontSize: 12.5,
