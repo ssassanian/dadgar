@@ -44,13 +44,15 @@ void main() {
     expect(find.text('اعلان جلسات'), findsOneWidget);
 
     // عنصر امضایی — نمونه‌ی مسیر پرونده با برچسب صادقانه‌ی نمایشی
+    // (حکم F1 سند CMD-048: شش مرحله‌ی حقوقی عین طرح)
     expect(find.text('پرونده‌تان را قدم‌به‌قدم ببینید'), findsOneWidget);
     expect(find.textContaining('نمایشی'), findsOneWidget);
     expect(find.text('ثبت'), findsOneWidget);
-    expect(find.text('پیشنهاد'), findsOneWidget);
-    expect(find.text('تخصیص'), findsOneWidget);
-    expect(find.text('در حال انجام'), findsOneWidget);
-    expect(find.text('پایان'), findsOneWidget);
+    expect(find.text('بررسی مدارک'), findsOneWidget);
+    expect(find.text('طرح دعوا'), findsOneWidget);
+    expect(find.text('جلسات'), findsOneWidget);
+    expect(find.text('صدور رأی'), findsOneWidget);
+    expect(find.text('قطعی'), findsOneWidget);
 
     // فرم ورود عین M1 — منطق دست‌نخورده
     expect(find.text('ورود به دادگر'), findsOneWidget);
@@ -58,11 +60,40 @@ void main() {
     expect(find.text('رمز عبور'), findsOneWidget);
     expect(find.text('ورود'), findsOneWidget);
     expect(find.text('ورود با کد یک‌بارمصرف (OTP)'), findsOneWidget);
-    expect(find.textContaining('D-6'), findsOneWidget);
+    // F8 (حکم CMD-048): لینک فراموشی رمز زیر فرم
+    expect(find.text('فراموشی رمز عبور؟'), findsOneWidget);
+    expect(find.textContaining('CMD-026/REL-011'), findsOneWidget);
 
     // راستا: فارسی RTL — الزام DOC-04 §۷
     final BuildContext titleContext =
         tester.element(find.text('ورود به دادگر'));
     expect(Directionality.of(titleContext), TextDirection.rtl);
+  });
+
+  testWidgets('F8 (حکم CMD-048): فراموشی رمز — شیت دفترمحور صادقانه',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authControllerProvider.overrideWith(
+            () => FakeAuthController(const AuthUnauthenticated()),
+          ),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('فراموشی رمز عبور؟'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('بازیابی رمز عبور'), findsOneWidget);
+    expect(find.textContaining('دفتر موسسه'), findsWidgets);
+    expect(find.textContaining('۰۲۱-۰۰۰۰۰۰۰۰'), findsOneWidget);
+
+    // دکمه‌ی تماس — پیام صادقانه‌ی عین پروتوتایپ، بدون مسیر سرور جعلی
+    await tester.tap(find.textContaining('تماس با دفتر'));
+    await tester.pumpAndSettle();
+    expect(find.text('در اپ واقعی: تماس با دفتر موسسه'), findsOneWidget);
   });
 }

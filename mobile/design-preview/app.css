@@ -57,7 +57,7 @@ a { color: inherit; text-decoration: none; }
 .topbar { height: var(--topbar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
 .topbar .bar-title { flex: 1; font-size: 16px; font-weight: 600; }
 .topbar .bar-title small { display: block; font-size: 11px; font-weight: 400; color: var(--faint); line-height: 1.4; }
-.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; background: none; border-radius: 10px; color: var(--muted); cursor: pointer; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: none; border-radius: 10px; color: var(--muted); cursor: pointer; }
 .icon-btn:active { background: var(--active); }
 .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -81,7 +81,7 @@ a { color: inherit; text-decoration: none; }
 .panel + .panel, .stack > * + * { margin-top: 12px; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .panel-head h2 { font-size: var(--fs-section); font-weight: 600; }
-.card-link { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 0; color: var(--muted); font-size: var(--fs-small); cursor: pointer; }
+.card-link { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 0 2px; min-height: 44px; color: var(--muted); font-size: var(--fs-small); cursor: pointer; }
 .card-link::after { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--chev) center/10px no-repeat; mask: var(--chev) center/10px no-repeat; transform: scaleX(-1); }
 :root { --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 
@@ -102,13 +102,13 @@ a { color: inherit; text-decoration: none; }
 .row .r-t2 { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .r-side { flex: none; text-align: left; }
 .row .r-fig { font-size: 14px; }
-.row .r-meta { font-size: 11px; color: var(--faint); margin-top: 3px; }
+.row .r-meta { font-size: 12px; color: var(--faint); margin-top: 3px; }
 .row.unread .r-t1 { font-weight: 700; }
 .row.unread::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--data); margin-left: -1px; }
 .chev { width: 14px; height: 14px; flex: none; color: var(--faint); background: currentColor; -webkit-mask: var(--chev) center/14px no-repeat; mask: var(--chev) center/14px no-repeat; transform: scaleX(-1); }
 
 /* ---------- قرص وضعیت (پس‌زمینه‌ی کم‌رنگ + متن تیره‌ی همان رنگ) ---------- */
-.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; flex: none; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; }
 .pill.pos { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
 .pill.neg { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
 .pill.neu { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
@@ -123,11 +123,12 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- عنصر امضایی: مسیر پرونده (نوار مراحل) ---------- */
 .journey { display: flex; align-items: flex-start; gap: 0; margin-top: 4px; }
-.j-step { flex: 1; text-align: center; position: relative; padding-top: 14px; }
-.j-step::before { content: ""; position: absolute; top: 4px; right: 50%; left: -50%; height: 2px; background: var(--rule); }
+.j-step { flex: 1; min-width: 0; text-align: center; position: relative; padding-top: 14px; }
+.j-step .j-lbl { overflow-wrap: anywhere; }
+.j-step::before { content: ""; position: absolute; top: 4px; left: 50%; right: -50%; height: 2px; background: var(--rule); }
 .j-step:first-child::before { display: none; }
 .j-step .dot2 { position: absolute; top: 0; right: 50%; transform: translateX(50%); width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--rule); }
-.j-step .j-lbl { font-size: 10.5px; color: var(--faint); line-height: 1.4; }
+.j-step .j-lbl { font-size: 12px; color: var(--faint); line-height: 1.4; }
 .j-step.done::before { background: var(--data-soft); }
 .j-step.done .dot2 { background: var(--data-soft); border-color: var(--data-soft); }
 .j-step.now .dot2 { background: var(--data); border-color: var(--data); }
@@ -151,8 +152,8 @@ a { color: inherit; text-decoration: none; }
 /* ---------- گفتگو ---------- */
 .chat { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
 .msg { max-width: 78%; padding: 9px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; }
-.msg.me { align-self: flex-start; background: var(--data-soft); color: var(--text); border-bottom-right-radius: 4px; }
-.msg.them { align-self: flex-end; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.me { align-self: flex-end; background: var(--data-soft); color: var(--text); border-bottom-left-radius: 4px; }
+.msg.them { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-right-radius: 4px; }
 .msg .m-time { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
 .composer { position: absolute; bottom: 0; right: 0; left: 0; display: flex; gap: 8px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); }
 .composer input { flex: 1; height: 44px; border: 1px solid var(--control); border-radius: var(--radius-control); padding: 0 14px; background: var(--surface); }

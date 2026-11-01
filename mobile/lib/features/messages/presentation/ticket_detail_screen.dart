@@ -214,7 +214,7 @@ final class _Header extends StatelessWidget {
                 child: Text(
                   detail.statusValue.labelFa,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: _statusColor,
                   ),
@@ -269,7 +269,7 @@ final class _Bubble extends StatelessWidget {
                 child: Text(
                   MessagesContract.labelOfRole(m.role),
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: DadgarTokens.primary,
                   ),

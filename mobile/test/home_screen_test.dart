@@ -40,10 +40,11 @@ void main() {
     final BuildContext titleContext = tester.element(find.text('دادگر'));
     expect(Directionality.of(titleContext), TextDirection.rtl);
 
-    // کارت قهرمان — مسیر پرونده با پنج مرحله‌ی واقعی قرارداد سرور
+    // کارت قهرمان — مسیر پرونده با شش مرحله‌ی حقوقی (حکم F1 سند CMD-048)
     expect(find.text('مسیر پرونده'), findsOneWidget);
     expect(find.text('ثبت'), findsOneWidget);
-    expect(find.text('پایان'), findsOneWidget);
+    expect(find.text('قطعی'), findsOneWidget);
+    expect(find.text('صدور رأی'), findsOneWidget);
     expect(find.text('پرونده‌های من'), findsWidgets);
 
     // سه اقدام فوری (CMD-038)

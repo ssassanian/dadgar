@@ -1,0 +1,178 @@
+/* دادگر — طراحی صفحات موبایل (CMD-037) — پیش‌نمایش، منتظر تایید مدیر
+   سبک: achromatic-ledger (مهارت taste-skill، برگه seed 321804971)
+   پالت: D-3 قفل‌شده — primary #14345B / bg #FAF7F2 / accent #2E7D32
+   نقشه‌ی نقش‌ها: کاغذ گرم = ground | سرمه‌ای = رنگ داده (زیر ۱٪ پیکسل) | جوهری #1A1C1E = دکمه‌ی اصلی | سبز = سیگنال مثبت
+   قواعد §12 تلفن: هویت ۱۶px، نوار بالای ۴۸px، تب پایین ۵گانه، لمس ≥۴۴px، داده ۱۴px، زیرخط ۱۲px */
+
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn-Medium.ttf") format("truetype"); font-weight: 500; font-display: block; }
+@font-face { font-family: "Vazirmatn"; src: url("fonts/Vazirmatn-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+
+:root {
+  --ground: #faf7f2;          /* کاغذ رسمی — جهان محصول (چهره‌ی سبک) */
+  --surface: #ffffff;         /* کارت‌ها */
+  --raised: #f3efe8;          /* چاه‌های داخلی و ردیف‌های hover */
+  --active: #efe9e0;          /* تب فعال/ردیف انتخاب‌شده — خنثی */
+  --border: #e6dfd4;          /* لبه‌ی کارت روی کاغذ گرم (~۱٫۲:۱) */
+  --rule: #f0ebe2;            /* خط ردیف — یک پله روشن‌تر از لبه */
+  --control: #d8d0c3;         /* لبه‌ی ورودی‌ها — یک پله قوی‌تر */
+  --text: #1a1c1e;            /* مرکب */
+  --muted: #5a5f66;           /* متن ثانویه D-3 */
+  --faint: #6b6f76;           /* متا — روشن‌ترین خاکستری با ۴٫۵:۱ */
+  --data: #14345b;            /* سرمه‌ای D-3 — فقط روی عنصر داده‌ی اصلی (<۱٪) */
+  --data-soft: #e7ecf4;       /* ته‌رنگ خیلی کم‌رنگ سرمه‌ای برای پس‌زمینه‌ی داده */
+  --primary: #1a1c1e;         /* دکمه‌ی اصلی نزدیک‌سیاه — حرکت سبک */
+  --primary-ink: #ffffff;
+  --positive: #2e7d32;        /* سبز D-3 — فقط سیگنال وضعیت */
+  --negative: #b3261e;        /* خطای D-3 */
+  --pill-positive-bg: #e2f0e2; --pill-positive-ink: #1d5423;
+  --pill-negative-bg: #f9e3e1; --pill-negative-ink: #7f1d17;
+  --pill-neutral-bg: #efe9e0; --pill-neutral-ink: #4a4d52;
+  --pill-data-bg: #e7ecf4;    --pill-data-ink: #14345b;
+  --font: "Vazirmatn", system-ui, sans-serif;
+  --fs-title: 22px; --fs-section: 15px; --fs-body: 14px; --fs-small: 12px;
+  --gap: 16px; --pad: 16px; --card-pad: 16px;
+  --radius-card: 12px;        /* توکن D-3 */
+  --radius-control: 10px;
+  --control-h: 44px;          /* لمس موبایل ≥۴۴ */
+  --topbar-h: 48px; --tabbar-h: 60px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--ground); color: var(--text); font: var(--fs-body)/21px var(--font); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+ul[class], ol[class] { padding: 0; list-style: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* ---------- بدنه‌ی گوشی ۳۹۰×۸۴۴ ---------- */
+.screen { position: relative; width: 390px; height: 844px; margin: 0 auto; background: var(--ground); display: flex; flex-direction: column; overflow: hidden; }
+.body { flex: 1; padding: var(--pad); padding-bottom: 84px; overflow-y: auto; }
+.body.no-tab { padding-bottom: 24px; }
+
+/* ---------- نوار بالا ۴۸px ---------- */
+.topbar { height: var(--topbar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+.topbar .bar-title { flex: 1; font-size: 16px; font-weight: 600; }
+.topbar .bar-title small { display: block; font-size: 11px; font-weight: 400; color: var(--faint); line-height: 1.4; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; background: none; border-radius: 10px; color: var(--muted); cursor: pointer; }
+.icon-btn:active { background: var(--active); }
+.icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- نوار تب پایین ۵گانه ---------- */
+.tabbar { position: absolute; bottom: 0; right: 0; left: 0; height: var(--tabbar-h); flex: none; display: flex; background: var(--surface); border-top: 1px solid var(--border); padding: 4px 8px calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--faint); font-size: 11px; cursor: pointer; min-height: 44px; border-radius: 8px; }
+.tab svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-current="page"] { color: var(--text); }
+.tab .dot { position: absolute; margin-right: 22px; margin-top: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--negative); }
+.tab { position: relative; }
+
+/* ---------- دکمه‌ها ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--control-h); padding: 0 18px; border-radius: var(--radius-control); border: 0; background: var(--primary); color: var(--primary-ink); font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn.full { width: 100%; }
+.btn.ghost { background: none; border: 1px solid var(--control); color: var(--text); }
+.btn.text { background: none; color: var(--data); height: 40px; padding: 0 8px; }
+.btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- کارت و پنل ---------- */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--card-pad); }
+.panel + .panel, .stack > * + * { margin-top: 12px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.panel-head h2 { font-size: var(--fs-section); font-weight: 600; }
+.card-link { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 0; color: var(--muted); font-size: var(--fs-small); cursor: pointer; }
+.card-link::after { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--chev) center/10px no-repeat; mask: var(--chev) center/10px no-repeat; transform: scaleX(-1); }
+:root { --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+
+/* ---------- کاشی‌های شمارنده ۲×۲ (قاعده‌ی تلفن: هرگز چهار ستون فشرده) ---------- */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 12px 14px; min-height: 84px; }
+.tile .lbl { font-size: var(--fs-small); color: var(--muted); }
+.tile .val { margin-top: 3px; font-size: 24px; font-weight: 400; line-height: 1.25; }
+.tile .cap { margin-top: 2px; font-size: 11px; color: var(--faint); }
+.tile .val.money { font-weight: 700; } /* پول تنها استثنای درشت‌نویسی */
+
+/* ---------- ردیف دوخطی ۶۴px ---------- */
+.rows { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 2px; min-height: 64px; }
+.row + .row { border-top: 1px solid var(--rule); }
+.row .r-main { flex: 1; min-width: 0; }
+.row .r-t1 { font-size: 14px; font-weight: 600; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .r-t2 { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .r-side { flex: none; text-align: left; }
+.row .r-fig { font-size: 14px; }
+.row .r-meta { font-size: 11px; color: var(--faint); margin-top: 3px; }
+.row.unread .r-t1 { font-weight: 700; }
+.row.unread::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--data); margin-left: -1px; }
+.chev { width: 14px; height: 14px; flex: none; color: var(--faint); background: currentColor; -webkit-mask: var(--chev) center/14px no-repeat; mask: var(--chev) center/14px no-repeat; transform: scaleX(-1); }
+
+/* ---------- قرص وضعیت (پس‌زمینه‌ی کم‌رنگ + متن تیره‌ی همان رنگ) ---------- */
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; flex: none; }
+.pill.pos { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
+.pill.neg { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
+.pill.neu { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+.pill.dat { background: var(--pill-data-bg); color: var(--pill-data-ink); }
+
+/* ---------- فرم ---------- */
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+.field input { width: 100%; height: var(--control-h); padding: 0 14px; background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-control); font-size: 15px; }
+.field input::placeholder { color: var(--faint); }
+.field .hint { margin-top: 6px; font-size: 12px; color: var(--faint); }
+
+/* ---------- عنصر امضایی: مسیر پرونده (نوار مراحل) ---------- */
+.journey { display: flex; align-items: flex-start; gap: 0; margin-top: 4px; }
+.j-step { flex: 1; text-align: center; position: relative; padding-top: 14px; }
+.j-step::before { content: ""; position: absolute; top: 4px; right: 50%; left: -50%; height: 2px; background: var(--rule); }
+.j-step:first-child::before { display: none; }
+.j-step .dot2 { position: absolute; top: 0; right: 50%; transform: translateX(50%); width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--rule); }
+.j-step .j-lbl { font-size: 10.5px; color: var(--faint); line-height: 1.4; }
+.j-step.done::before { background: var(--data-soft); }
+.j-step.done .dot2 { background: var(--data-soft); border-color: var(--data-soft); }
+.j-step.now .dot2 { background: var(--data); border-color: var(--data); }
+.j-step.now .j-lbl { color: var(--data); font-weight: 500; }
+
+/* ---------- تقویم شمسی ---------- */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-head .m { font-size: 15px; font-weight: 600; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal .dow { text-align: center; font-size: 11px; color: var(--faint); padding: 4px 0; }
+.cal .day { position: relative; min-height: 44px; border: 1px solid transparent; border-radius: 8px; padding: 4px 2px 3px; text-align: center; font-size: 13px; }
+.cal .day .d-num { font-size: 13px; }
+.cal .day.out { color: var(--faint); opacity: .5; }
+.cal .day.today { border-color: var(--data); }
+.cal .day.today .d-num { color: var(--data); font-weight: 600; }
+.cal .day .bar { height: 4px; border-radius: 2px; margin: 5px auto 0; width: 70%; background: var(--rule); }
+.cal .day .bar.booked { background: var(--data); }   /* رنگ داده فقط روی عنصر اصلی */
+.cal .day.sel { background: var(--active); }
+.cal .day.free .bar { background: var(--pill-positive-bg); border: 1px solid var(--pill-positive-ink); }
+
+/* ---------- گفتگو ---------- */
+.chat { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.msg { max-width: 78%; padding: 9px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.7; }
+.msg.me { align-self: flex-start; background: var(--data-soft); color: var(--text); border-bottom-right-radius: 4px; }
+.msg.them { align-self: flex-end; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg .m-time { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.composer { position: absolute; bottom: 0; right: 0; left: 0; display: flex; gap: 8px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); }
+.composer input { flex: 1; height: 44px; border: 1px solid var(--control); border-radius: var(--radius-control); padding: 0 14px; background: var(--surface); }
+.composer .send { width: 44px; height: 44px; flex: none; border: 0; border-radius: var(--radius-control); background: var(--primary); color: var(--primary-ink); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.composer .send svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+/* ---------- ردیف کلید-مقدار ---------- */
+.kv { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; min-height: 32px; }
+.kv + .kv { border-top: 1px solid var(--rule); }
+.kv .k { color: var(--muted); font-size: 13px; flex: none; }
+.kv .v { font-size: 13.5px; text-align: left; }
+
+/* ---------- وضعیت خالی صادقانه ---------- */
+.empty { border: 1px dashed var(--control); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* ---------- سربرگ صفحه ---------- */
+.h1 { font-size: var(--fs-title); font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+.sub { margin-top: 2px; color: var(--muted); font-size: 13px; }
+.section-gap { height: 16px; }
+
+/* پول: درشت‌نویسی فقط برای عدد اصلی پاسخ‌دهنده */
+.lead-fig { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.lead-fig small { font-size: 13px; font-weight: 400; color: var(--muted); margin-right: 4px; }

@@ -64,7 +64,7 @@ dadgar lotfi
 ```
 dadgar/
 ├── README.md                        ← همین فایل
-├── dadgar/                          ← نسخه مرجع اصلی سایت (فاز ۱ و ۲ — عیناً از zip دریافتی، بدون تغییر)
+├── backups/monolith-dadgar/         ← نسخه مرجع اصلی سایت (فاز ۱ و ۲ — بایگانی‌شده با CMD-048؛ عیناً بدون تغییر)
 │   ├── server.js                    ← بک‌اند امن Node.js (بدون وابستگی بیرونی، SQLite داخلی)
 │   ├── public/index.html            ← سایت کامل (SPA)
 │   ├── lib/ · scripts/ · test/

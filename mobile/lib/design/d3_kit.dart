@@ -68,7 +68,7 @@ final class DadgarPanel extends StatelessWidget {
   }
 }
 
-/// قرص وضعیت — کلاس `.pill` (ارتفاع ۲۲، قطر کامل، ۱۱px/۵۰۰)
+/// قرص وضعیت — کلاس `.pill` (ارتفاع ۲۲، قطر کامل، ۱۲px/۵۰۰ — F5 سند CMD-048)
 enum DadgarPillVariant { neutral, data, positive }
 
 final class DadgarPill extends StatelessWidget {
@@ -92,7 +92,7 @@ final class DadgarPill extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
           color: ink,
           height: 1,
@@ -102,7 +102,7 @@ final class DadgarPill extends StatelessWidget {
   }
 }
 
-/// چیپ فیلتر — کلاس `.chip` با تصحیح F4: لمس ≥۴۸dp (طرح خودش ≥۴۴ خواسته بود)
+/// چیپ فیلتر — کلاس `.chip` با تصحیح F4 (حکم CMD-048): لمس ≥۴۴dp
 final class DadgarChip extends StatelessWidget {
   const DadgarChip(
     this.label, {
@@ -135,7 +135,7 @@ final class DadgarChip extends StatelessWidget {
         child: InkWell(
           onTap: enabled ? onTap : null,
           child: Container(
-            height: 40,
+            height: 44,
             constraints: const BoxConstraints(minWidth: 48),
             padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
@@ -405,7 +405,7 @@ final class DadgarEmptyBox extends StatelessWidget {
   }
 }
 
-/// لینک کارت — کلاس `.card-link` (۱۲px ثانویه با فلش RTL)
+/// لینک کارت — کلاس `.card-link` (۱۲px ثانویه با فلش RTL؛ لمس ≥۴۴ — F4 سند CMD-048)
 final class DadgarCardLink extends StatelessWidget {
   const DadgarCardLink(this.label, {super.key, this.onTap});
 
@@ -419,8 +419,10 @@ final class DadgarCardLink extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -525,7 +527,7 @@ final class DadgarLawyerMessage extends StatelessWidget {
               child: Text(
                 meta!,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: DadgarTokens.textFaint,
                 ),
               ),

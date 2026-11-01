@@ -145,7 +145,7 @@ final class _ThreadRow extends StatelessWidget {
       side: Text(
         JalaliCalendar.formatNumeric(last),
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           color: DadgarTokens.textFaint,
         ),
       ),

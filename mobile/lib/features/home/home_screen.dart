@@ -8,13 +8,15 @@ import '../../design/journey_bar.dart';
 import '../../design/tokens.dart';
 import '../auth/application/auth_controller.dart';
 import '../auth/application/session_controller.dart';
+import '../cases/data/cases_contract.dart';
 
 /// صفحه‌ی خانه M7 (CMD-040) — بازطراحی تاییدشده‌ی مدیر (CMD-038):
 /// روال «کار-اول» — عنصر امضایی «مسیر پرونده» قهرمان صفحه، سه اقدام
 /// فوری، سپس پنل‌های نقشه‌ی امکان؛ اعداد و آمار تا اتصال زنده (D-6)
 /// اینجا نمی‌نشیند و هیچ داده‌ی جعلی رندر نمی‌شود (S-4).
 ///
-/// چرخه‌ی نمایش‌داده‌شده پنج مرحله‌ی واقعی قرارداد سرور (CMD-003) است:
+/// چرخه‌ی نمایش‌داده‌شده شش مرحله‌ی حقوقی طرح است (حکم F1 سند CMD-048)
+/// با نگاشت نمایشی روی پنج وضعیت سرور (CMD-003):
 /// waiting → proposing → assigned → running → done.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -192,8 +194,8 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// کارت قهرمان — مسیر پرونده با پنج مرحله‌ی واقعی قرارداد سرور؛
-/// تا اتصال زنده نوار خنثی است و دکمه‌ها به ماژول‌های واقعی می‌روند.
+/// کارت قهرمان — مسیر پرونده با شش مرحله‌ی حقوقی (حکم F1 سند CMD-048،
+/// عین طرح CMD-040/041)؛ تا اتصال زنده نوار خنثی است و دکمه‌ها به ماژول‌های واقعی می‌روند.
 final class _JourneyHero extends StatelessWidget {
   const _JourneyHero();
 
@@ -230,9 +232,7 @@ final class _JourneyHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: DadgarTokens.s12),
-          const DadgarJourneyBar(
-            steps: ['ثبت', 'پیشنهاد', 'تخصیص', 'در حال انجام', 'پایان'],
-          ),
+          const DadgarJourneyBar(steps: CasesContract.legalJourney),
           const SizedBox(height: DadgarTokens.s12),
           Row(
             children: [

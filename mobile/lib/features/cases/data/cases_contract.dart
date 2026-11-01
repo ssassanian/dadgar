@@ -47,6 +47,30 @@ abstract final class CasesContract {
   static String labelOfStatus(String status) =>
       statusLabels[status] ?? status;
 
+  /// شش مرحله‌ی حقوقی مسیر پرونده — طرح تاییدشده CMD-041 (data.js) و حکم
+  /// F1 سند CMD-048: نگاشت نمایشی شش برچسب روی پنج وضعیت سرور، صفر DDL.
+  static const List<String> legalJourney = [
+    'ثبت',
+    'بررسی مدارک',
+    'طرح دعوا',
+    'جلسات',
+    'صدور رأی',
+    'قطعی',
+  ];
+
+  /// اندیس مرحله‌ی حقوقی جاری از وضعیت سرور (حکم F1 سند CMD-048):
+  /// waiting→ثبت، proposing→بررسی مدارک، assigned→طرح دعوا،
+  /// running→جلسات («صدور رأی» در گستره‌ی running می‌ماند و تا رسیدن
+  /// done پیش‌رو است)، done→قطعی. ناشناخته = null (نوار خنثی).
+  static int? legalJourneyIndexFor(String status) => switch (status) {
+        'waiting' => 0,
+        'proposing' => 1,
+        'assigned' => 2,
+        'running' => 3,
+        'done' => 5,
+        _ => null,
+      };
+
   /// محدوده‌های اعتبارسنجی POST — `str(c.body.title, 5, 120, 'عنوان پرونده')`
   static const int titleMin = 5;
   static const int titleMax = 120;

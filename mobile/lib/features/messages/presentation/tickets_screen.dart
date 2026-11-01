@@ -128,7 +128,7 @@ final class _TicketCard extends StatelessWidget {
                     child: Text(
                       row.statusValue.labelFa,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: _statusColor,
                       ),
@@ -138,7 +138,7 @@ final class _TicketCard extends StatelessWidget {
                   Text(
                     'تیکت ${JalaliCalendar.toPersianDigits(row.id)}',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       color: DadgarTokens.textSecondary,
                     ),
                   ),

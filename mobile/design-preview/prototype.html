@@ -47,7 +47,7 @@ code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
 .lawyer .av { width:46px; height:46px; border-radius:50%; background:var(--data-soft); color:var(--data); display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; flex:none; }
 .lawyer .lw-msg { margin-top:12px; }
 .lw-msg { background:var(--raised); border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.9; }
-.lw-msg .m-meta { color:var(--faint); font-size:11px; margin-top:5px; }
+.lw-msg .m-meta { color:var(--faint); font-size:12px; margin-top:5px; }
 .money { display:flex; align-items:center; gap:10px; padding:13px 14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); font-size:13px; color:var(--text); margin-top:12px; }
 .money .fig { margin-inline-start:auto; font-weight:700; font-size:14px; }
 
@@ -60,7 +60,7 @@ code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
 .cap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:12px 13px; display:flex; gap:10px; align-items:flex-start; min-height:64px; }
 .cap svg { width:21px; height:21px; flex:none; stroke:var(--data); stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; margin-top:2px; }
 .cap .ct { font-size:13px; font-weight:600; line-height:1.5; }
-.cap .cs { font-size:11px; color:var(--muted); line-height:1.6; margin-top:2px; }
+.cap .cs { font-size:12px; color:var(--muted); line-height:1.6; margin-top:2px; }
 .teaser { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:14px 16px 10px; margin-top:12px; }
 .teaser .tt { font-size:13px; font-weight:600; }
 .teaser .ts { font-size:11px; color:var(--faint); margin-top:2px; }
@@ -73,9 +73,9 @@ code { background:#f1ede5; border-radius:6px; padding:1px 7px; font-size:13px; }
 /* ===== افزوده‌های پروتوتایپ (همه از توکن‌های D-3 — صفر رنگ جدید) ===== */
 .row[role="button"] { cursor:pointer; }
 button.row { width:100%; background:none; border:0; font:inherit; color:inherit; text-align:right; cursor:pointer; padding:12px 2px; min-height:64px; display:flex; align-items:center; gap:12px; }
-.btn.sm { height:34px; padding:0 14px; font-size:12.5px; border-radius:8px; flex:none; }
+.btn.sm { height:44px; padding:0 14px; font-size:12.5px; border-radius:8px; flex:none; }
 .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.chip { height:34px; padding:0 14px; border-radius:999px; border:1px solid var(--control); background:var(--surface); font-size:12.5px; color:var(--muted); cursor:pointer; font-family:inherit; }
+.chip { height:44px; padding:0 14px; border-radius:999px; border:1px solid var(--control); background:var(--surface); font-size:12.5px; color:var(--muted); cursor:pointer; font-family:inherit; }
 .chip.on { background:var(--text); color:#fff; border-color:var(--text); }
 .otp-row { display:flex; gap:10px; margin:16px 0 6px; }
 .otp-row input { width:56px; height:60px; text-align:center; font-size:24px; border:1px solid var(--control); border-radius:10px; background:var(--surface); }
@@ -142,6 +142,7 @@ const S = {
   paid: new Set(), payNo: null,
   chatCase: 'DD-۱۴۰۴-۰۱۷', chatExtra: {},
   docsExtra: [],
+  ticketsExtra: [], ticketDraft: '', newCat: null, newCaseSent: false,
   apptDay: null, apptTime: null, booked: false,
   bio: true, notif: true, bellSeen: false,
 };
@@ -203,6 +204,19 @@ const EDGES = [
   { id:'profNotif',   f:'پروفایل', a:'سوییچ اعلان‌ها', t:'(همان صفحه — تغییر تنظیم)', k:'state', fn:()=>{ S.notif=!S.notif; } },
   { id:'profLogout',  f:'پروفایل', a:'دکمه «خروج از حساب»', t:'شیت تایید خروج', k:'sheet' },
   { id:'profLogoutOk', f:'شیت خروج', a:'تایید «خروج از حساب»', t:'ورود — پایان حلقه', k:'reset', fn:()=>{ showToast('از حساب خارج شدید — نمایشی'); } },
+  { id:'homeNewCase', f:'خانه', a:'ردیف «ثبت پرونده‌ی جدید»', t:'ثبت پرونده', tid:'newcase', k:'nav' },
+  { id:'homeTickets', f:'خانه', a:'ردیف «تیکت‌های پشتیبانی»', t:'تیکت‌ها', tid:'tickets', k:'nav' },
+  { id:'homeMine',    f:'خانه', a:'ردیف «نوبت‌های من»', t:'نوبت‌های من', tid:'mine', k:'nav' },
+  { id:'caseNew',     f:'پرونده‌ها', a:'دکمه‌ی شبح «ثبت پرونده‌ی جدید»', t:'ثبت پرونده', tid:'newcase', k:'nav' },
+  { id:'mineBack',    f:'نوبت‌های من', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'newPick',     f:'ثبت پرونده', a:'چیپ دسته', t:'(همان صفحه — انتخاب دسته)', k:'state', fn:a=>{ S.newCat=a; S.newCaseSent=false; } },
+  { id:'newSubmit',   f:'ثبت پرونده', a:'دکمه «ثبت پرونده»', t:'(همان صفحه — تایید ثبت)', k:'state', fn:()=>{ S.newCaseSent=true; showToast('پرونده ثبت شد — در انتظار بررسی (نمایشی)'); } },
+  { id:'newBack',     f:'ثبت پرونده', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'ticketsBack', f:'تیکت‌ها', a:'فلش بازگشت', t:'صفحه‌ی قبلی (پشته)', k:'back' },
+  { id:'ticketsNew',  f:'تیکت‌ها', a:'دکمه «تیکت جدید»', t:'شیت تیکت جدید', k:'sheet' },
+  { id:'ticketsNewOk', f:'شیت تیکت جدید', a:'ثبت تیکت', t:'(همان صفحه — تیکت به صف می‌رود)', k:'state', fn:()=>{ S.ticketsExtra.unshift({ id:'۱۲۵', subject:(S.ticketDraft&&S.ticketDraft.trim())||'تیکت پشتیبانی', case:'—', status:'در انتظار پاسخ', time:'الان' }); showToast('تیکت ثبت شد — کارشناسان پاسخ می‌دهند (نمایشی)'); } },
+  { id:'loginForgot', f:'ورود', a:'«فراموشی رمز عبور؟»', t:'شیت بازیابی رمز', k:'sheet' },
+  { id:'forgotCall',  f:'شیت بازیابی رمز', a:'دکمه تماس با دفتر', t:'—', k:'ext', msg:'در اپ واقعی: تماس با دفتر موسسه' },
 ];
 const E = {}; EDGES.forEach((e,i)=>{ E[e.id]=i; });
 
@@ -282,6 +296,7 @@ function bLogin(){
       <div class="field" style="margin-bottom:4px"><label for="p">رمز عبور</label><input id="p" type="password" placeholder="••••••••"></div>
       <button class="btn full" style="margin-top:14px" onclick="edge(E.loginGo)">ورود</button>
       <button class="btn text full" style="margin-top:4px" onclick="edge(E.loginOtp)">ورود با کد یک‌بارمصرف (OTP)</button>
+      <button class="btn text full" style="margin-top:2px" onclick="edge(E.loginForgot)">فراموشی رمز عبور؟</button>
     </div>
   </div>`;
 }
@@ -346,6 +361,14 @@ function bHome(){
         <div class="row" role="button" onclick="edge(E.homeCase1)"><div class="r-main"><div class="r-t1 num">${c1.no} · ${c1.title}</div><div class="r-t2">در انتظار بررسی مدارک توسط وکیل</div></div><div class="r-side"><span class="pill neu">${c1.status}</span></div></div>
       </div>
     </div>
+    <div class="panel">
+      <div class="panel-head"><h2>دسترسی سریع</h2></div>
+      <div class="rows">
+        <div class="row" role="button" onclick="edge(E.homeNewCase)"><div class="r-main"><div class="r-t1">ثبت پرونده‌ی جدید</div><div class="r-t2">درخواست مشاوره یا وکالت — تا ۵ پرونده در ساعت</div></div><span class="chev"></span></div>
+        <div class="row" role="button" onclick="edge(E.homeTickets)"><div class="r-main"><div class="r-t1">تیکت‌های پشتیبانی</div><div class="r-t2">پیگیری سوالات مالی و اداری</div></div><span class="chev"></span></div>
+        <div class="row" role="button" onclick="edge(E.homeMine)"><div class="r-main"><div class="r-t1">نوبت‌های من</div><div class="r-t2">نوبت‌های رزروشده و تاریخچه</div></div><span class="chev"></span></div>
+      </div>
+    </div>
     ${unpaid.length
       ? `<div class="money" role="button" onclick="edge(E.homeMoney)"><span class="pill neu">${fa(unpaid.length)} فاکتور پرداخت‌نشده</span><span class="fig num">${fmt(debt)} تومان</span><span class="chev"></span></div>`
       : `<div class="money"><span class="pill pos">فاکتورها پرداخت شد</span><span class="fig num">${fmt(DATA.paid)} تومان پرداخت‌شده</span></div>`}
@@ -370,6 +393,7 @@ function bCases(){
       </div>`;}).join('')}
       ${list.length===0?'<div class="empty">پرونده‌ای در این وضعیت ندارید.</div>':''}
     </div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="edge(E.caseNew)">ثبت پرونده‌ی جدید</button>
   </div>
   ${tabbar('cases')}`;
 }
@@ -405,7 +429,9 @@ function bDetail(){
         ${docs.map(d=>`<div class="row" style="min-height:56px"><div class="r-main"><div class="r-t1">${d.name}</div><div class="r-t2 num">${d.size} · ${d.date}</div></div><div class="r-side">${d.tag?'<span class="pill neu">محرمانه</span>':''}</div></div>`).join('')}
       </div>
     </div>
-    <button class="btn ghost full" style="margin-top:12px" onclick="edge(E.detailAppt)">رزرو نوبت با وکیل</button>
+    ${c.status==='بسته'
+      ? '<div class="empty" style="margin-top:12px">این پرونده بسته شده است — رزرو نوبت برای پرونده‌های فعال است.</div>'
+      : '<button class="btn ghost full" style="margin-top:12px" onclick="edge(E.detailAppt)">رزرو نوبت با وکیل</button>'}
   </div>`;
 }
 function dayClick(d){
@@ -567,7 +593,58 @@ function bProfile(){
   ${tabbar('profile')}`;
 }
 
-const BUILDERS = { login:bLogin, otp:bOtp, home:bHome, cases:bCases, detail:bDetail, appt:bAppt, inv:bInv, msgs:bMsgs, chat:bChat, docs:bDocs, profile:bProfile };
+function bMine(){
+  return `
+  <div class="topbar">${backBtn('mineBack')}<div class="bar-title">نوبت‌های من<small>رزروشده و تاریخچه</small></div></div>
+  <div class="body no-tab">
+    <div class="rows">
+      ${DATA.mine.map(m=>`
+      <div class="row">
+        <div class="r-main"><div class="r-t1 num">${m.day} — ساعت ${m.time}</div><div class="r-t2 num">${m.note} · ${m.mode}</div></div>
+        <div class="r-side"><span class="pill ${m.status==='تاییدشده'?'pos':'neu'}">${m.status}</span></div>
+      </div>`).join('')}
+      ${DATA.mine.length===0?'<div class="empty">نوبتی رزرو نکرده‌اید.</div>':''}
+    </div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="edge(E.tabAppt)">رزرو نوبت جدید</button>
+    <div class="empty" style="margin-top:12px">لغو یا جابجایی نوبت از طریق دفتر یا گفتگو با وکیل انجام می‌شود.</div>
+  </div>`;
+}
+function bNewCase(){
+  const cats = ['ملکی','خانواده','کیفری','شرکت‌ها','ارث و وصیت','قرارداد'];
+  return `
+  <div class="topbar">${backBtn('newBack')}<div class="bar-title">ثبت پرونده‌ی جدید<small>درخواست مشاوره یا وکالت</small></div></div>
+  <div class="body no-tab">
+    <div class="formcard">
+      <div class="fc-t">درخواست پرونده</div>
+      <div class="fc-s">دسته را انتخاب و موضوع را بنویسید — کارشناسان بررسی می‌کنند</div>
+      <div class="chips" style="margin:10px 0">
+        ${cats.map(c=>`<button class="chip ${S.newCat===c?'on':''}" onclick="edge(E.newPick,'${c}')">${c}</button>`).join('')}
+      </div>
+      <div class="field"><label for="nct">موضوع پرونده</label><input id="nct" type="text" placeholder="مثلاً: دعوی مطالبه‌ی خسارت"></div>
+      ${S.newCaseSent
+        ? '<div class="ok-box">درخواست شما ثبت شد — وضعیت «در انتظار بررسی» (نمایشی)</div>'
+        : '<button class="btn full" style="margin-top:12px" onclick="edge(E.newSubmit)">ثبت پرونده</button>'}
+      <div class="hint" style="margin-top:8px;font-size:12px;color:var(--faint)">سقف سرور: ۵ درخواست در هر ساعت.</div>
+    </div>
+  </div>`;
+}
+function bTickets(){
+  const rows = S.ticketsExtra.concat(DATA.tickets);
+  return `
+  <div class="topbar">${backBtn('ticketsBack')}<div class="bar-title">تیکت‌های پشتیبانی<small>سوالات مالی و اداری</small></div></div>
+  <div class="body no-tab">
+    <div class="rows">
+      ${rows.map(t=>`
+      <div class="row">
+        <div class="r-main"><div class="r-t1">${t.subject}</div><div class="r-t2 num">تیکت ${t.id} · ${t.case==='—'?'بدون پرونده':t.case}</div></div>
+        <div class="r-side"><span class="pill ${t.status==='بسته'?'neu':t.status==='در انتظار پاسخ'?'dat':'pos'}">${t.status}</span><div class="r-meta num">${t.time}</div></div>
+      </div>`).join('')}
+    </div>
+    <button class="btn full" style="margin-top:12px" onclick="edge(E.ticketsNew)">تیکت جدید</button>
+    <div class="empty" style="margin-top:12px">گفتگوهای پرونده‌ای از «پیام‌ها» پیگیری می‌شود؛ تیکت برای امور پشتیبانی است.</div>
+  </div>`;
+}
+const BUILDERS = { login:bLogin, otp:bOtp, home:bHome, cases:bCases, detail:bDetail, appt:bAppt, inv:bInv, msgs:bMsgs, chat:bChat, docs:bDocs, profile:bProfile, mine:bMine, newcase:bNewCase, tickets:bTickets };
 
 /* ================= شیت‌ها و توست ================= */
 const SHEETS = {
@@ -605,6 +682,24 @@ const SHEETS = {
       <button class="sh-opt" onclick="edge(E.docsUploadSrc)">${ICON.camera}گرفتن با دوربین</button>
       <button class="sh-opt" onclick="edge(E.docsUploadSrc)">${ICON.image}انتخاب از گالری</button>
       <button class="btn text full" onclick="closeSheet()">انصراف</button>
+    </div>`,
+  'شیت تیکت جدید': () => `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">تیکت پشتیبانی</div><div class="sh-s">پاسخ توسط کارشناسان دادگر داده می‌شود</div>
+      <div class="field"><label for="tkt">موضوع تیکت</label><input id="tkt" type="text" placeholder="مثلاً: سوال درباره‌ی فاکتور" oninput="S.ticketDraft=this.value"></div>
+      <button class="btn full" style="margin-top:12px" onclick="edge(E.ticketsNewOk)">ثبت تیکت</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">انصراف</button>
+    </div>`,
+  'شیت بازیابی رمز': () => `
+    <div class="scrim" onclick="closeSheet()"></div>
+    <div class="sh-card">
+      <div class="grab"></div>
+      <div class="sh-t">بازیابی رمز عبور</div><div class="sh-s">بازیابی رمز از طریق دفتر موسسه انجام می‌شود تا حساب شما امن بماند.</div>
+      <div class="empty" style="margin:10px 0 12px">با شماره‌ی ثبت‌شده‌ی حساب تماس بگیرید؛ پس از احراز هویت، رمز تازه صادر می‌شود.</div>
+      <button class="btn full" onclick="edge(E.forgotCall)">تماس با دفتر — ۰۲۱-۰۰۰۰۰۰۰۰</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">بستن</button>
     </div>`,
   'شیت تایید خروج': () => `
     <div class="scrim" onclick="closeSheet()"></div>

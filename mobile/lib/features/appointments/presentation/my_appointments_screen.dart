@@ -237,7 +237,7 @@ final class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         status.labelFa,
-        style: TextStyle(fontSize: 11, color: color),
+        style: TextStyle(fontSize: 12, color: color),
       ),
     );
   }

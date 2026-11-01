@@ -3,16 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
+import '../../../design/d3_kit.dart';
 import '../../../design/journey_bar.dart';
 import '../../../design/tokens.dart';
+import '../../cases/data/cases_contract.dart';
 
 /// صفحه‌ی ورود M7 (CMD-040) — بازطراحی تاییدشده‌ی مدیر (CMD-039):
 /// «امکانات کامل باید روی داشبورد و توی صفحه‌ی ورود باشد؛ لاگین‌کردن
 /// یا نکردن، تعیین‌کننده‌ی دیده‌شدن امکانات نیست.»
 ///
 /// ترتیب: برند → شش قابلیت → نمونه‌ی مسیر پرونده (عنصر امضایی) → فرم ورود.
-/// منطق احراز هویت عین M1 است؛ تا حکم مدیر بر D-6 سرور مسیر توکن را
-/// نمی‌شناسد (404) و پیام صادقانه‌ی «در انتظار D-6» نمایش داده می‌شود.
+/// منطق احراز هویت عین M1 است و به مسیر زنده‌ی توکن سرور وصل است
+/// (افزوده‌ی CMD-026/REL-011)؛ خطاها عین پیام سرور نمایش داده می‌شوند.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -193,10 +195,16 @@ final class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 : () => context.go('/otp'),
                             child: const Text('ورود با کد یک‌بارمصرف (OTP)'),
                           ),
+                          // F8 (حکم CMD-048): بازیابی رمز دفترمحور — صادقانه،
+                          // بدون جریان نمایشی جعلی و بدون مسیر سرور جدید (S-4).
+                          TextButton(
+                            onPressed: _submitting ? null : () => _showForgotSheet(context),
+                            child: const Text('فراموشی رمز عبور؟'),
+                          ),
                           const SizedBox(height: DadgarTokens.s12),
                           const Text(
-                            'اتصال زنده به سرور پس از حکم مدیر بر D-6 فعال '
-                            'می‌شود (DOC-04 §۵) — کد موبایل آماده است.',
+                            'اتصال زنده به سرور — ورود با همان حساب سایت '
+                            '(توکن Bearer؛ افزوده‌ی CMD-026/REL-011).',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
@@ -215,6 +223,65 @@ final class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
+
+/// F8 (حکم CMD-048): بازیابی رمز دفترمحور — عین شیت پروتوتایپ؛
+/// صادقانه (S-4): بدون مسیر سرور جعلی؛ تماس با شماره‌ی ثبت‌شده‌ی سایت.
+void _showForgotSheet(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: DadgarTokens.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(DadgarTokens.s16, 0, DadgarTokens.s16, DadgarTokens.s16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'بازیابی رمز عبور',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: DadgarTokens.textPrimary,
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s8),
+            const Text(
+              'بازیابی رمز از طریق دفتر موسسه انجام می‌شود تا حساب شما امن بماند؛ '
+              'با شماره‌ی ثبت‌شده‌ی حساب تماس بگیرید — پس از احراز هویت، رمز تازه صادر می‌شود.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.8,
+                color: DadgarTokens.textSecondary,
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s16),
+            DadgarGhostButton(
+              'تماس با دفتر — ۰۲۱-۰۰۰۰۰۰۰۰',
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text('در اپ واقعی: تماس با دفتر موسسه'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// برند — مونوگرام «د» + نام + وعده‌ی یک‌خطی
@@ -334,7 +401,7 @@ final class _CapabilityGrid extends StatelessWidget {
                   Text(
                     item.subtitle,
                     style: const TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       height: 1.5,
                       color: DadgarTokens.textSecondary,
                     ),
@@ -368,7 +435,7 @@ final class _CapabilityGrid extends StatelessWidget {
 }
 
 /// نمونه‌ی مسیر پرونده — عنصر امضایی با برچسب صریح «نمایشی»؛
-/// پنج مرحله‌ی واقعی چرخه‌ی سرور (S-4: هیچ مرحله‌ی اختراعی).
+/// شش مرحله‌ی حقوقی طرح (حکم F1 سند CMD-048؛ عین پروتوتایپ).
 final class _JourneyTeaser extends StatelessWidget {
   const _JourneyTeaser();
 
@@ -403,9 +470,7 @@ final class _JourneyTeaser extends StatelessWidget {
             ),
           ),
           const SizedBox(height: DadgarTokens.s12),
-          const DadgarJourneyBar(
-            steps: ['ثبت', 'پیشنهاد', 'تخصیص', 'در حال انجام', 'پایان'],
-          ),
+          const DadgarJourneyBar(steps: CasesContract.legalJourney),
         ],
       ),
     );

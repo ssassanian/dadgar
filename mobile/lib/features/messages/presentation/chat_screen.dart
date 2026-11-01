@@ -279,7 +279,7 @@ final class _Bubble extends StatelessWidget {
                   child: Text(
                     MessagesContract.labelOfRole(m.role),
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: DadgarTokens.primary,
                     ),

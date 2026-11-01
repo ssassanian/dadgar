@@ -5,9 +5,10 @@
 /// عنصر امضایی، «مشخصات پرونده» با ردیف‌های kv، «گفتگو با وکیل»، «اسناد
 /// پرونده» و دکمه‌ی شبح «رزرو نوبت با وکیل».
 ///
-/// صداقت داده (S-4) و نگاشت F1 بدون حدس:
-///   * مسیر پرونده = پنج وضعیت واقعی قرارداد سرور (waiting→done) —
-///     شش مرحله‌ی حقوقی پروتوتایپ فقط با حکم مدیر/افزوده‌ی سرور (D-6).
+/// صداقت داده (S-4) و نگاشت F1 (حکم مدیر — سند CMD-048):
+///   * مسیر پرونده = شش مرحله‌ی حقوقی طرح (ثبت/بررسی مدارک/طرح دعوا/جلسات/
+///     صدور رأی/قطعی) با نگاشت نمایشی روی پنج وضعیت سرور — صفر DDL؛
+///     جدول نگاشت در CasesContract.legalJourneyIndexFor.
 ///   * «گفتگو» فقط برای پرونده‌های دارای وکیل (assigned/running/done)
 ///     طبق قاعده‌ی سرور؛ بقیه پیام عین سرور می‌بینند
 ///     (MessagesContract.chatNotActiveMessage) و هیچ فراخوانی زده نمی‌شود.
@@ -68,15 +69,11 @@ bool _chatAllowed(CaseStatus status) => switch (status.value) {
       _ => false,
     };
 
-/// اندیس مرحله در چرخه‌ی پنج‌وضعیتی سرور — ناشناخته = null (نوار خنثی)
-int? _journeyIndex(CaseStatus status) => switch (status.value) {
-      'waiting' => 0,
-      'proposing' => 1,
-      'assigned' => 2,
-      'running' => 3,
-      'done' => 4,
-      _ => null,
-    };
+/// نگاشت F1 (حکم CMD-048): اندیس مرحله‌ی حقوقی جاری از وضعیت سرور —
+/// شش برچسب حقوقی روی پنج وضعیت (حکم‌شده در CasesContract.legalJourneyIndexFor)؛
+/// ناشناخته = null (نوار خنثی)
+int? _journeyIndex(CaseStatus status) =>
+    CasesContract.legalJourneyIndexFor(status.value);
 
 /// صفحه‌ی جزئیات پرونده
 final class CaseDetailScreen extends ConsumerWidget {
@@ -165,6 +162,7 @@ final class _DetailBody extends ConsumerWidget {
     final status = detail.statusValue;
     final active = status.value != CaseStatus.done.value;
     final journeyIdx = _journeyIndex(status);
+    const journeySteps = CasesContract.legalJourney;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(DadgarTokens.s16),
@@ -198,17 +196,17 @@ final class _DetailBody extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: DadgarTokens.s12),
-            // ── پنل مسیر پرونده (عنصر امضایی) — پنج وضعیت واقعی سرور ──
+            // ── پنل مسیر پرونده (عنصر امضایی) — شش مرحله‌ی حقوقی با نگاشت F1 ──
             DadgarPanel(
               head: 'مسیر پرونده',
               trailing: journeyIdx == null
                   ? null
                   : DadgarPill(
-                      'مرحله‌ی ${JalaliCalendar.toPersianDigits(journeyIdx + 1)} از ${JalaliCalendar.toPersianDigits(CasesContract.statusLabels.length)}',
+                      'مرحله‌ی ${JalaliCalendar.toPersianDigits(journeyIdx + 1)} از ${JalaliCalendar.toPersianDigits(journeySteps.length)}',
                       variant: DadgarPillVariant.data,
                     ),
               child: DadgarJourneyBar(
-                steps: CasesContract.statusLabels.values.toList(growable: false),
+                steps: journeySteps,
                 current: journeyIdx,
               ),
             ),
@@ -274,11 +272,18 @@ final class _DetailBody extends ConsumerWidget {
               child: _DocsSection(caseId: detail.id),
             ),
             const SizedBox(height: DadgarTokens.s12),
-            // رزرو نوبت = فعال‌سازی تب نوبت (عین یال طرح)
-            DadgarGhostButton(
-              'رزرو نوبت با وکیل',
-              onPressed: () => context.go('/appointments'),
-            ),
+            // رزرو نوبت = فعال‌سازی تب نوبت (عین یال طرح) — F7 (حکم CMD-048):
+            // روی پرونده‌ی بسته CTA مرده نمی‌ماند؛ یادداشت صادقانه جایگزین است.
+            if (active)
+              DadgarGhostButton(
+                'رزرو نوبت با وکیل',
+                onPressed: () => context.go('/appointments'),
+              )
+            else
+              const _PhaseChip(
+                icon: Icons.event_busy,
+                label: 'این پرونده بسته شده است — رزرو نوبت برای پرونده‌های فعال است.',
+              ),
             const SizedBox(height: DadgarTokens.s24),
             if (isAdmin)
               _AdminActionsSection(detail: detail)
@@ -557,7 +562,7 @@ final class _AdminActionsSection extends ConsumerWidget {
                         Text(
                           p.statusLabelFa,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             color: p.status == 'accepted'
                                 ? DadgarTokens.accent
                                 : p.status == 'rejected'
@@ -581,7 +586,7 @@ final class _AdminActionsSection extends ConsumerWidget {
                       Text(
                         p.note,
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           height: 1.7,
                           color: DadgarTokens.textSecondary,
                         ),

@@ -251,16 +251,21 @@ void main() {
       expect(find.text('جزئیات پرونده'), findsOneWidget);
       expect(find.text('پرونده ۷'), findsOneWidget);
 
-      // سربرگ طرح: عنوان + قرص وضعیت (قرص سربرگ + مرحله‌ی جاری نوار مسیر
-      // + ردیف وضعیت مشخصات = سه بار — عین طرح تاییدشده bDetail)
+      // سربرگ طرح: عنوان + قرص وضعیت؛ قرص سربرگ + ردیف وضعیت مشخصات = دو بار
+      // «تخصیص‌یافته» — مرحله‌ی جاری نوار مسیر اکنون برچسب حقوقی «طرح دعوا»
+      // است (حکم F1 سند CMD-048 — نگاشت ۶ روی ۵)
       expect(find.text('اختلاف بر سر مبیع'), findsOneWidget);
-      expect(find.text('تخصیص‌یافته'), findsNWidgets(3));
+      expect(find.text('تخصیص‌یافته'), findsNWidgets(2));
 
-      // پنل مسیر پرونده — پنج وضعیت واقعی سرور و مرحله‌ی ۳ از ۵
+      // پنل مسیر پرونده — شش مرحله‌ی حقوقی و مرحله‌ی ۳ از ۶
       expect(find.text('مسیر پرونده'), findsOneWidget);
-      expect(find.text('مرحله‌ی ۳ از ۵'), findsOneWidget);
-      expect(find.text('در انتظار بررسی'), findsOneWidget);
-      expect(find.text('بسته‌شده'), findsOneWidget);
+      expect(find.text('مرحله‌ی ۳ از ۶'), findsOneWidget);
+      expect(find.text('ثبت'), findsOneWidget);
+      expect(find.text('بررسی مدارک'), findsOneWidget);
+      expect(find.text('طرح دعوا'), findsOneWidget);
+      expect(find.text('جلسات'), findsOneWidget);
+      expect(find.text('صدور رأی'), findsOneWidget);
+      expect(find.text('قطعی'), findsOneWidget);
 
       // مشخصات پرونده — kvهای واقعی
       expect(find.text('مشخصات پرونده'), findsOneWidget);
@@ -316,8 +321,41 @@ void main() {
       // هیچ فراخوانی گفتگو زده نشد (قاعده‌ی سرور) و دکمه‌ی ورود هم نیست
       expect(messages.messageCalls, 0);
       expect(find.byType(DadgarPrimaryButton), findsNothing);
-      // وضعیت شناخته‌شده → قرص مرحله‌ی واقعی (آغاز چرخه)
-      expect(find.text('مرحله‌ی ۱ از ۵'), findsOneWidget);
+      // وضعیت شناخته‌شده → قرص مرحله‌ی واقعی (آغاز چرخه‌ی حقوقی شش‌مرحله‌ای)
+      expect(find.text('مرحله‌ی ۱ از ۶'), findsOneWidget);
+    });
+
+    testWidgets('F7 (حکم CMD-048): پرونده‌ی بسته — بدون CTA رزرو، با یادداشت صادقانه',
+        (tester) async {
+      final repo = FakeCasesRepository(details: {
+        9: const CaseDetail(
+          id: 9,
+          title: 'مطالبه‌ی وجه چک',
+          category: 'قرارداد',
+          status: 'done',
+          createdAt: 1792701000,
+          updatedAt: 1792787400,
+        ),
+      });
+      final container = dadgarContainer(
+        casesRepository: repo,
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
+      );
+      addTearDown(container.dispose);
+
+      await _pumpApp(tester, container, const CaseDetailScreen(caseId: 9));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // CTA رزرو نوبت روی پرونده‌ی بسته مرده نمی‌ماند (F7)
+      expect(find.text('رزرو نوبت با وکیل'), findsNothing);
+      expect(
+        find.text('این پرونده بسته شده است — رزرو نوبت برای پرونده‌های فعال است.'),
+        findsOneWidget,
+      );
+      // نوار مسیر به مرحله‌ی پایانی («قطعی»، مرحله‌ی ۶ از ۶) رسیده است
+      expect(find.text('مرحله‌ی ۶ از ۶'), findsOneWidget);
+      expect(find.text('قطعی'), findsOneWidget);
     });
 
     testWidgets('۴۰۴ ضدافشا → پیام عین سرور', (tester) async {

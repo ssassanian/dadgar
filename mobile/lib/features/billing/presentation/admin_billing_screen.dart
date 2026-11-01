@@ -215,7 +215,7 @@ final class _AdminInvoiceCard extends ConsumerWidget {
                   child: Text(
                     row.statusValue.labelFa,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: _statusColor,
                     ),
@@ -225,7 +225,7 @@ final class _AdminInvoiceCard extends ConsumerWidget {
                 Text(
                   'فاکتور ${BillingContract.toPersianDigits(row.id)}',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: DadgarTokens.textSecondary,
                   ),
                 ),
