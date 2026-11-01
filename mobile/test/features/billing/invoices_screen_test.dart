@@ -53,9 +53,9 @@ void main() {
       // پنل بدهی فعلی — صفر (همه پرداخت‌شده)
       expect(find.text('بدهی فعلی'), findsOneWidget);
       expect(find.text('همه‌ی فاکتورها پرداخت شده است'), findsOneWidget);
-      // ردیف — عنوان/مبلغ/قرص/تاریخ پرداخت
+      // ردیف — عنوان/مبلغ (در زیرنویس ترکیبی)/قرص/تاریخ پرداخت
       expect(find.text('فاکتور ۱۲'), findsOneWidget);
-      expect(find.text('۲۵٬۰۰۰٬۰۰۰ تومان'), findsOneWidget);
+      expect(find.textContaining('۲۵٬۰۰۰٬۰۰۰ تومان'), findsOneWidget);
       expect(find.text('پرداخت‌شده'), findsOneWidget);
       expect(find.textContaining('پرداخت: '), findsOneWidget);
       // شمارنده‌ی نوار بالا
@@ -88,10 +88,13 @@ void main() {
       await _pumpApp(tester, container, const InvoicesScreen());
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('در انتظار'), findsOneWidget);
+      // طرح bInv: ردیف پرداخت‌نشده فقط دکمه‌ی پرداخت دارد (قرص وضعیت فقط
+      // برای پرداخت‌شده است) — وضعیت از پنل بدهی و دکمه فهمیده می‌شود
+      expect(find.textContaining('۱٬۵۰۰٬۰۰۰ تومان'), findsOneWidget);
       expect(find.text('۱ فاکتور'), findsOneWidget);
       expect(find.text('از ۱ فاکتور پرداخت‌نشده'), findsOneWidget);
       expect(find.text('پرداخت آنلاین'), findsOneWidget);
+      expect(find.text('پرداخت‌شده'), findsNothing);
       // ردیف pending هم PDF (M6) دارد
       expect(find.byTooltip('PDF فاکتور'), findsOneWidget);
 
