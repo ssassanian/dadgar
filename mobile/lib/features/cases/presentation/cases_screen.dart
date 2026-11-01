@@ -1,7 +1,14 @@
 /// صفحه‌ی فهرست پرونده‌های من — M2 (DOC-04 §۱۱ ردیف M2)
 ///
-/// الگوی «لیست-کارت» §۷: کارت به‌جای جدول، pull-to-refresh، خالی صادقانه،
-/// صفحه‌بندی روی اسکرول (CASES_PER=10 سرور) و وضعیت‌نشان رنگی D-3.
+/// CMD-045 (فاز ۲): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bCases` در
+/// `design-preview/prototype.html`): نوار بالای ۴۸px با شمارنده، چیپ‌های
+/// «همه/در جریان/بسته» و ردیف‌های دوخطی `r-main/r-side` با قرص خنثی و فلش.
+///
+/// صداقت داده (S-4): قرارداد سرور پارامتر فیلتر وضعیت ندارد (فقط `page`)
+/// → چیپ‌ها فقط ردیف‌های بارگذاری‌شده را صافی می‌کنند و شمارنده‌ی «در
+/// جریان» تنها زمانی نمایش داده می‌شود که همه‌ی صفحات رسیده باشند.
+/// ورود «ثبت پرونده جدید» طبق شات تاییدشده‌ی CMD-037 به‌صورت دکمه‌ی شبح
+/// پایان فهرست حفظ شده (مسیر F3 هنوز بی‌حکم است — حذف قابلیت مجاز نبود).
 library;
 
 import 'package:flutter/material.dart';
@@ -10,46 +17,119 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/time/jalali.dart';
+import '../../../design/d3_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/cases_controller.dart';
 import '../domain/case_models.dart';
 
+/// صافی فهرست — سه حالت طرح (همه/در جریان/بسته)
+enum _CaseFilter { all, open, closed }
+
+extension _CaseFilterX on _CaseFilter {
+  /// برچسب عین طرح
+  String get label => switch (this) {
+        _CaseFilter.all => 'همه',
+        _CaseFilter.open => 'در جریان',
+        _CaseFilter.closed => 'بسته',
+      };
+
+  /// «در جریان» = هر وضعیت فعال سرور؛ «بسته» = فقط done
+  bool matches(CaseSummary row) => switch (this) {
+        _CaseFilter.all => true,
+        _CaseFilter.open => row.status != CaseStatus.done.value,
+        _CaseFilter.closed => row.status == CaseStatus.done.value,
+      };
+}
+
 /// صفحه‌ی فهرست پرونده‌ها
-class CasesScreen extends ConsumerWidget {
+final class CasesScreen extends ConsumerStatefulWidget {
   const CasesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CasesScreen> createState() => _CasesScreenState();
+}
+
+final class _CasesScreenState extends ConsumerState<CasesScreen> {
+  _CaseFilter _filter = _CaseFilter.all;
+
+  /// زیرنویس نوار بالا — فقط داده‌ی واقعی: شمار کل از سرور، شمار «در
+  /// جریان» از ردیف‌های بارگذاری‌شده و فقط وقتی همه‌ی صفحات رسیده‌اند
+  String _subtitle(CasesUi ui) {
+    if (ui.status != LoadStatus.ready) return '';
+    final total = JalaliCalendar.toPersianDigits(ui.total);
+    final allLoaded = !ui.hasMore;
+    if (!allLoaded) return '$total پرونده';
+    final open = ui.rows.where((r) => r.status != CaseStatus.done.value).length;
+    return '$total پرونده · ${JalaliCalendar.toPersianDigits(open)} در جریان';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ui = ref.watch(casesControllerProvider);
     final controller = ref.read(casesControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('پرونده‌های من')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/cases/new'),
-        icon: const Icon(Icons.post_add_outlined),
-        label: const Text('ثبت پرونده جدید'),
+      backgroundColor: DadgarTokens.background,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: DadgarTokens.s16),
+              child: DadgarTopBar(
+                title: 'پرونده‌ها',
+                subtitle: _subtitle(ui),
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // چیپ‌های فیلتر — عین `.chips` طرح؛ لمس ۴۸ (F4)
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DadgarTokens.s16,
+                ),
+                children: [
+                  for (final f in _CaseFilter.values) ...[
+                    DadgarChip(
+                      f.label,
+                      selected: _filter == f,
+                      onTap: () => setState(() => _filter = f),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s4),
+            Expanded(
+              child: switch (ui.status) {
+                LoadStatus.loading => const _SkeletonList(),
+                LoadStatus.error => _ErrorPane(
+                    message: ui.message ?? 'خطای نامشخص',
+                    onRetry: controller.reload,
+                  ),
+                LoadStatus.ready when ui.rows.isEmpty => _EmptyPane(
+                    onCreate: () => context.push('/cases/new'),
+                  ),
+                LoadStatus.ready => _CasesList(ui: ui, filter: _filter),
+              },
+            ),
+          ],
+        ),
       ),
-      body: switch (ui.status) {
-        LoadStatus.loading => const _SkeletonList(),
-        LoadStatus.error => _ErrorPane(
-            message: ui.message ?? 'خطای نامشخص',
-            onRetry: controller.reload,
-          ),
-        LoadStatus.ready when ui.rows.isEmpty => _EmptyPane(
-            onCreate: () => context.go('/cases/new'),
-          ),
-        LoadStatus.ready => _CasesList(ui: ui),
-      },
     );
   }
 }
 
 /// فهرست + صفحه‌بندی بی‌نهایت روی نزدیکی به انتهای اسکرول
 final class _CasesList extends ConsumerStatefulWidget {
-  const _CasesList({required this.ui});
+  const _CasesList({required this.ui, required this.filter});
 
   final CasesUi ui;
+  final _CaseFilter filter;
 
   @override
   ConsumerState<_CasesList> createState() => _CasesListState();
@@ -82,169 +162,85 @@ final class _CasesListState extends ConsumerState<_CasesList> {
 
   @override
   Widget build(BuildContext context) {
-    final ui = ref.watch(casesControllerProvider);
-    final controller = ref.read(casesControllerProvider.notifier);
-    final items = ui.rows.length + (ui.loadingMore ? 1 : 0);
+    final ui = widget.ui;
+    final visible = ui.rows.where(widget.filter.matches).toList();
 
     return RefreshIndicator(
-      onRefresh: controller.reload,
-      child: ListView.separated(
+      onRefresh: ref.read(casesControllerProvider.notifier).reload,
+      child: ListView(
         controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           DadgarTokens.s16,
-          DadgarTokens.s16,
+          DadgarTokens.s8,
           DadgarTokens.s16,
           DadgarTokens.s32,
         ),
-        itemCount: items + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: DadgarTokens.s8),
-        itemBuilder: (context, index) {
-          if (index == 0) return _TotalBar(total: ui.total);
-          final rowIndex = index - 1;
-          if (rowIndex >= ui.rows.length) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(DadgarTokens.s12),
-                child: ui.loadingMore
-                    ? const CircularProgressIndicator(strokeWidth: 2)
-                    : Text(
-                        ui.hasMore ? '' : 'پرونده‌ی بیشتری نیست',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: DadgarTokens.textSecondary,
-                        ),
-                      ),
+        children: [
+          if (visible.isEmpty)
+            // حالت خالی صادقانه‌ی طرح — عین رشته‌ی `bCases`
+            const DadgarEmptyBox('پرونده‌ای در این وضعیت ندارید.')
+          else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: DadgarTokens.surface,
+                borderRadius: BorderRadius.circular(DadgarTokens.radius),
+                border: Border.all(color: DadgarTokens.cardBorder),
               ),
-            );
-          }
-          return _CaseCard(row: ui.rows[rowIndex]);
-        },
-      ),
-    );
-  }
-}
-
-/// نوار شمارنده — «۳ پرونده» با ارقام فارسی
-final class _TotalBar extends StatelessWidget {
-  const _TotalBar({required this.total});
-
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: DadgarTokens.s4),
-      child: Text(
-        '${JalaliCalendar.toPersianDigits(total)} پرونده',
-        style: const TextStyle(
-          fontSize: 12,
-          color: DadgarTokens.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-/// کارت پرونده — شماره/عنوان/دسته/وضعیت/تاریخ (همان ستون‌های وب)
-final class _CaseCard extends StatelessWidget {
-  const _CaseCard({required this.row});
-
-  final CaseSummary row;
-
-  Color get _statusColor => switch (row.status) {
-        'done' => DadgarTokens.accent,
-        'running' => DadgarTokens.accent,
-        'waiting' => DadgarTokens.textSecondary,
-        _ => DadgarTokens.primary,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final created = JalaliCalendar.fromEpochSeconds(row.createdAt);
-    return Material(
-      color: DadgarTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        side: BorderSide(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/cases/${row.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(DadgarTokens.s12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: DadgarTokens.s8,
-                      vertical: 2,
+                  for (var i = 0; i < visible.length; i++) ...[
+                    if (i > 0) const DadgarRowRule(),
+                    DadgarListRow(
+                      title:
+                          'پرونده ${JalaliCalendar.toPersianDigits(visible[i].id)} · ${visible[i].title}',
+                      subtitle: _subtitleOf(visible[i]),
+                      side: DadgarPill(visible[i].statusValue.labelFa),
+                      showChevron: true,
+                      onTap: () => context.push('/cases/${visible[i].id}'),
                     ),
-                    decoration: BoxDecoration(
-                      color: _statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      row.statusValue.labelFa,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: _statusColor,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'پرونده ${JalaliCalendar.toPersianDigits(row.id)}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
+                  ],
                 ],
               ),
-              const SizedBox(height: DadgarTokens.s8),
-              Text(
-                row.title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: DadgarTokens.textPrimary,
+            ),
+          ],
+          const SizedBox(height: DadgarTokens.s12),
+          // ورود «ثبت پرونده جدید» — حفظ قابلیت M2 طبق شات تاییدشده‌ی CMD-037
+          DadgarGhostButton(
+            'ثبت پرونده جدید',
+            onPressed: () => context.push('/cases/new'),
+          ),
+          if (ui.loadingMore)
+            const Padding(
+              padding: EdgeInsets.all(DadgarTokens.s12),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (!ui.hasMore && ui.rows.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: DadgarTokens.s8),
+              child: Center(
+                child: Text(
+                  'پرونده‌ی بیشتری نیست',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: DadgarTokens.textSecondary,
+                  ),
                 ),
               ),
-              const SizedBox(height: DadgarTokens.s4),
-              Row(
-                children: [
-                  Text(
-                    row.category,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: DadgarTokens.s8),
-                  const Text('•',
-                      style: TextStyle(color: DadgarTokens.textSecondary)),
-                  const SizedBox(width: DadgarTokens.s8),
-                  Text(
-                    JalaliCalendar.formatNumeric(created),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
+  }
+
+  /// خط دوم ردیف — داده‌ی واقعی سرور: وکیل (اگر تخصیص یافته) یا دسته،
+  /// همراه تاریخ ثبت شمسی
+  String _subtitleOf(CaseSummary row) {
+    final base = row.lawyerName.isNotEmpty ? row.lawyerName : row.category;
+    final created = JalaliCalendar.fromEpochSeconds(row.createdAt);
+    return '$base · ${JalaliCalendar.formatNumeric(created)}';
   }
 }
 
@@ -263,9 +259,7 @@ final class _SkeletonList extends StatelessWidget {
         decoration: BoxDecoration(
           color: DadgarTokens.surface,
           borderRadius: BorderRadius.circular(DadgarTokens.radius),
-          border: Border.all(
-            color: DadgarTokens.textSecondary.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: DadgarTokens.cardBorder),
         ),
       ),
     );
@@ -299,11 +293,7 @@ final class _EmptyPane extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DadgarTokens.s16),
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.post_add_outlined, size: 18),
-              label: const Text('ثبت پرونده جدید'),
-            ),
+            DadgarGhostButton('ثبت پرونده جدید', onPressed: onCreate),
           ],
         ),
       ),
@@ -341,11 +331,7 @@ final class _ErrorPane extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
+            DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
           ],
         ),
       ),

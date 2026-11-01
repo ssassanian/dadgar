@@ -1,8 +1,19 @@
 /// صفحه‌ی جزئیات پرونده — M2 (DOC-04 §۱۱ ردیف M2)
 ///
-/// شکل داده همان `GET /api/cases/:id` سرور است: موکل توضیحات کامل می‌بیند،
-/// وکیل/مدیر طبق نقش (S-4 — هیچ نقش جدیدی اختراع نمی‌شود). تاریخ‌ها با
-/// تقویم شمسی نیتیو M3 و مبلغ با ارقام فارسی نمایش داده می‌شود.
+/// CMD-045 (فاز ۲): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bDetail` در
+/// `design-preview/prototype.html`): سربرگ عنوان+قرص، پنل «مسیر پرونده» با
+/// عنصر امضایی، «مشخصات پرونده» با ردیف‌های kv، «گفتگو با وکیل»، «اسناد
+/// پرونده» و دکمه‌ی شبح «رزرو نوبت با وکیل».
+///
+/// صداقت داده (S-4) و نگاشت F1 بدون حدس:
+///   * مسیر پرونده = پنج وضعیت واقعی قرارداد سرور (waiting→done) —
+///     شش مرحله‌ی حقوقی پروتوتایپ فقط با حکم مدیر/افزوده‌ی سرور (D-6).
+///   * «گفتگو» فقط برای پرونده‌های دارای وکیل (assigned/running/done)
+///     طبق قاعده‌ی سرور؛ بقیه پیام عین سرور می‌بینند
+///     (MessagesContract.chatNotActiveMessage) و هیچ فراخوانی زده نمی‌شود.
+///   * «اسناد پرونده» = پالایش فهرست واقعی `GET /api/documents` بر caseId.
+///
+/// اقدامات مدیر (M6/CMD-028) با همان منطق و رشته‌های سرور حفظ شده است.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,13 +22,65 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/time/jalali.dart';
+import '../../../design/d3_kit.dart';
+import '../../../design/journey_bar.dart';
 import '../../../design/tokens.dart';
 import '../../auth/application/session_controller.dart';
+import '../../documents/data/documents_contract.dart';
+import '../../documents/data/documents_repository.dart';
+import '../../documents/domain/document_models.dart';
+import '../../messages/data/messages_contract.dart';
+import '../../messages/data/messages_repository.dart';
+import '../../messages/domain/chat_models.dart';
 import '../application/cases_controller.dart';
+import '../data/cases_contract.dart';
 import '../domain/case_models.dart';
 
+/// آخرین پیام‌های گفتگوی پرونده — فقط برای پرونده‌ی دارای وکیل تماشا می‌شود
+///
+/// خطا عمداً بلند می‌شود تا AsyncValue تصمیم رندر را بگیرد (پیام صادقانه)،
+/// دکمه‌ی ورود به گفتگو همیشه حاضر است و خود صفحه‌ی چت خطا را زنده نشان
+/// می‌دهد. `retry: null` — همان استدلال caseDetailProvider: خطای ۴xx
+/// (۴۰۴/گفتگوی غیرفعال) وضعیت دائمی است و تکرارش معنا ندارد (Riverpod 3).
+final caseChatSnipProvider =
+    FutureProvider.family<List<ChatMessage>, int>(
+  (ref, caseId) async {
+    final repo = ref.watch(messagesRepositoryProvider);
+    final envelope = await repo.fetchMessages(caseId: caseId);
+    return envelope.rows;
+  },
+  retry: (retryCount, error) => null,
+);
+
+/// اسناد یک پرونده — پالایش فهرست واقعی اسناد بر شناسه‌ی پرونده
+final caseDocsSnipProvider =
+    FutureProvider.family<List<DocSummary>, int>(
+  (ref, caseId) async {
+    final repo = ref.watch(documentsRepositoryProvider);
+    final all = await repo.fetchDocuments();
+    return all.where((d) => d.caseId == caseId).toList(growable: false);
+  },
+  retry: (retryCount, error) => null,
+);
+
+/// پرونده‌ی دارای وکیل — قاعده‌ی سرور برای فعال‌بودن گفتگو
+bool _chatAllowed(CaseStatus status) => switch (status.value) {
+      'assigned' || 'running' || 'done' => true,
+      _ => false,
+    };
+
+/// اندیس مرحله در چرخه‌ی پنج‌وضعیتی سرور — ناشناخته = null (نوار خنثی)
+int? _journeyIndex(CaseStatus status) => switch (status.value) {
+      'waiting' => 0,
+      'proposing' => 1,
+      'assigned' => 2,
+      'running' => 3,
+      'done' => 4,
+      _ => null,
+    };
+
 /// صفحه‌ی جزئیات پرونده
-class CaseDetailScreen extends ConsumerWidget {
+final class CaseDetailScreen extends ConsumerWidget {
   const CaseDetailScreen({super.key, required this.caseId});
 
   final int caseId;
@@ -27,12 +90,42 @@ class CaseDetailScreen extends ConsumerWidget {
     final async = ref.watch(caseDetailProvider(caseId));
 
     return Scaffold(
+      backgroundColor: DadgarTokens.background,
       appBar: AppBar(
-        title: Text('پرونده ${JalaliCalendar.toPersianDigits(caseId)}'),
+        // نوار بالای طرح: کاغذ گرم، متن مرکب، زیرنویس پرونده
+        toolbarHeight: 56,
+        backgroundColor: DadgarTokens.background,
+        foregroundColor: DadgarTokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'جزئیات پرونده',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+                color: DadgarTokens.textPrimary,
+              ),
+            ),
+            Text(
+              'پرونده ${JalaliCalendar.toPersianDigits(caseId)}',
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: DadgarTokens.textFaint,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'بارگذاری سند',
-            onPressed: () => context.go('/cases/$caseId/upload'),
+            onPressed: () => context.push('/cases/$caseId/upload'),
             icon: const Icon(Icons.upload_outlined),
           ),
         ],
@@ -70,6 +163,9 @@ final class _DetailBody extends ConsumerWidget {
     final updated = JalaliCalendar.fromEpochSeconds(detail.updatedAt);
     final description =
         detail.description ?? detail.excerpt ?? 'توضیحی ثبت نشده است.';
+    final status = detail.statusValue;
+    final active = status.value != CaseStatus.done.value;
+    final journeyIdx = _journeyIndex(status);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(DadgarTokens.s16),
@@ -78,88 +174,75 @@ final class _DetailBody extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // سربرگ: عنوان + وضعیت‌نشان
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(DadgarTokens.s16),
-              decoration: BoxDecoration(
-                color: DadgarTokens.primary,
-                borderRadius: BorderRadius.circular(DadgarTokens.radius),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+            // ── سربرگ طرح (d-head): عنوان ۲۲px + قرص وضعیت ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
                     detail.title,
                     style: const TextStyle(
-                      color: DadgarTokens.onPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      height: 1.6,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                      color: DadgarTokens.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: DadgarTokens.s8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: DadgarTokens.s8,
-                      vertical: 2,
+                ),
+                const SizedBox(width: DadgarTokens.s8),
+                DadgarPill(
+                  status.labelFa,
+                  variant: active
+                      ? DadgarPillVariant.data
+                      : DadgarPillVariant.neutral,
+                ),
+              ],
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── پنل مسیر پرونده (عنصر امضایی) — پنج وضعیت واقعی سرور ──
+            DadgarPanel(
+              head: 'مسیر پرونده',
+              trailing: journeyIdx == null
+                  ? null
+                  : DadgarPill(
+                      'مرحله‌ی ${JalaliCalendar.toPersianDigits(journeyIdx + 1)} از ${JalaliCalendar.toPersianDigits(CasesContract.statusLabels.length)}',
+                      variant: DadgarPillVariant.data,
                     ),
-                    decoration: BoxDecoration(
-                      color: DadgarTokens.onPrimary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
+              child: DadgarJourneyBar(
+                steps: CasesContract.statusLabels.values.toList(growable: false),
+                current: journeyIdx,
+              ),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── مشخصات پرونده — ردیف‌های kv عین طرح ──
+            DadgarPanel(
+              head: 'مشخصات پرونده',
+              child: Column(
+                children: [
+                  _kv('وکیل',
+                      detail.lawyerName.isEmpty ? '— هنوز تخصیص نیافته' : detail.lawyerName),
+                  const DadgarKvRule(),
+                  _kv('دسته', detail.category),
+                  const DadgarKvRule(),
+                  _kv('وضعیت', status.labelFa),
+                  const DadgarKvRule(),
+                  _kv('تاریخ ثبت', JalaliCalendar.formatLong(created)),
+                  const DadgarKvRule(),
+                  _kv('آخرین به‌روزرسانی', JalaliCalendar.formatLong(updated)),
+                  if (detail.finalPrice != null) ...[
+                    const DadgarKvRule(),
+                    _kv(
+                      'مبلغ نهایی',
+                      '${JalaliCalendar.toPersianDigits(_grouped(detail.finalPrice!))} تومان',
                     ),
-                    child: Text(
-                      detail.statusValue.labelFa,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: DadgarTokens.onPrimary,
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: DadgarTokens.s16),
-            _InfoCard(
-              rows: [
-                ('دسته', detail.category),
-                ('وضعیت', detail.statusValue.labelFa),
-                ('تاریخ ثبت', JalaliCalendar.formatLong(created)),
-                ('آخرین به‌روزرسانی', JalaliCalendar.formatLong(updated)),
-                (
-                  'وکیل تخصیص‌یافته',
-                  detail.lawyerName.isEmpty
-                      ? '— هنوز تخصیص نیافته'
-                      : detail.lawyerName
-                ),
-                if (detail.finalPrice != null)
-                  (
-                    'مبلغ نهایی',
-                    '${JalaliCalendar.toPersianDigits(_grouped(detail.finalPrice!))} تومان'
-                  ),
-              ],
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            const Text(
-              'توضیحات پرونده',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: DadgarTokens.textPrimary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(DadgarTokens.s16),
-              decoration: BoxDecoration(
-                color: DadgarTokens.surface,
-                borderRadius: BorderRadius.circular(DadgarTokens.radius),
-                border: Border.all(
-                  color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-                ),
-              ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── توضیحات پرونده (حفظ قابلیت — داده‌ی واقعی مالک/مدیر) ──
+            DadgarPanel(
+              head: 'توضیحات پرونده',
               child: Text(
                 description,
                 style: const TextStyle(
@@ -168,6 +251,34 @@ final class _DetailBody extends ConsumerWidget {
                   color: DadgarTokens.textPrimary,
                 ),
               ),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── گفتگو با وکیل — قاعده‌ی سرور: فقط پرونده‌ی دارای وکیل ──
+            if (_chatAllowed(status))
+              DadgarPanel(
+                head: 'گفتگو با وکیل',
+                child: _ChatSection(caseId: detail.id),
+              )
+            else
+              DadgarPanel(
+                head: 'گفتگو با وکیل',
+                child: DadgarEmptyBox(MessagesContract.chatNotActiveMessage),
+              ),
+            const SizedBox(height: DadgarTokens.s12),
+            // ── اسناد پرونده — پالایش فهرست واقعی اسناد ──
+            DadgarPanel(
+              head: 'اسناد پرونده',
+              trailing: DadgarCardLink(
+                'همه‌ی اسناد گاوصندوق',
+                onTap: () => context.push('/documents'),
+              ),
+              child: _DocsSection(caseId: detail.id),
+            ),
+            const SizedBox(height: DadgarTokens.s12),
+            // رزرو نوبت = فعال‌سازی تب نوبت (عین یال طرح)
+            DadgarGhostButton(
+              'رزرو نوبت با وکیل',
+              onPressed: () => context.go('/appointments'),
             ),
             const SizedBox(height: DadgarTokens.s24),
             if (isAdmin)
@@ -183,7 +294,10 @@ final class _DetailBody extends ConsumerWidget {
     );
   }
 
-  /// جداکننده‌ی هزارگان برای مبلغ — بدون وابستگی به intl (همان الگوی _grouped)
+  /// یک ردیف kv — کلید ثانویه/مقدار اصلی
+  Widget _kv(String k, String v) => DadgarKvRow(k, v);
+
+  /// جداکننده‌ی هزارگان برای مبلغ — بدون وابستگی به intl
   static String _grouped(int value) {
     final s = value.toString();
     final b = StringBuffer();
@@ -196,64 +310,98 @@ final class _DetailBody extends ConsumerWidget {
   }
 }
 
-/// کارت اطلاعات — ردیف‌های برچسب/مقدار
-final class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.rows});
+/// بخش گفتگو — آخرین پیام واقعی + دکمه‌ی ورود به گفتگو
+final class _ChatSection extends ConsumerWidget {
+  const _ChatSection({required this.caseId});
 
-  final List<(String, String)> rows;
+  final int caseId;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(DadgarTokens.s16),
-      decoration: BoxDecoration(
-        color: DadgarTokens.surface,
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        border: Border.all(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < rows.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: DadgarTokens.s4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      rows[i].$1,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: DadgarTokens.textSecondary,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      rows[i].$2,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: DadgarTokens.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (i != rows.length - 1)
-              Divider(
-                height: 1,
-                color: DadgarTokens.textSecondary.withValues(alpha: 0.12),
-              ),
-          ],
-        ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chat = ref.watch(caseChatSnipProvider(caseId));
+
+    final button = Padding(
+      padding: const EdgeInsets.only(top: DadgarTokens.s12),
+      child: DadgarPrimaryButton(
+        'گفتگو با وکیل',
+        onPressed: () => context.push('/threads/$caseId'),
       ),
     );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        switch (chat) {
+          AsyncLoading() => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(DadgarTokens.s8),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          AsyncError() => const DadgarEmptyBox('گفتگو در دسترس نیست.'),
+          AsyncValue(:final value?) when value.isNotEmpty => DadgarLawyerMessage(
+              body: value.last.body,
+              meta: MessagesContract.labelOfRole(value.last.role),
+            ),
+          AsyncValue() => const DadgarEmptyBox(
+              'گفتگویی در این پرونده ثبت نشده است.',
+            ),
+        },
+        button,
+      ],
+    );
+  }
+}
+
+/// بخش اسناد — حداکثر دو سند آخر + لینک گاوصندوق در سربرگ پنل
+final class _DocsSection extends ConsumerWidget {
+  const _DocsSection({required this.caseId});
+
+  final int caseId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final docs = ref.watch(caseDocsSnipProvider(caseId));
+
+    return switch (docs) {
+      AsyncLoading() => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(DadgarTokens.s8),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      AsyncError() =>
+        const DadgarEmptyBox('فهرست اسناد در دسترس نیست.'),
+      AsyncValue(:final value?) when value.isEmpty => const DadgarEmptyBox(
+          'سندی برای این پرونده بارگذاری نشده است.',
+        ),
+      AsyncValue(:final value?) => Column(
+          children: [
+            for (var i = 0; i < value.length && i < 2; i++) ...[
+              if (i > 0) const DadgarRowRule(),
+              DadgarListRow(
+                title: value[i].name,
+                subtitle:
+                    '${DocumentsContract.formatSize(value[i].size)} · ${JalaliCalendar.formatNumeric(JalaliCalendar.fromEpochSeconds(value[i].createdAt))}',
+                side: DadgarPill(
+                  value[i].shared
+                      ? DocumentsContract.sharedLabel
+                      : DocumentsContract.privateLabel,
+                ),
+                minHeight: 56,
+              ),
+            ],
+          ],
+        ),
+    };
   }
 }
 
@@ -287,9 +435,7 @@ final class _PhaseChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: DadgarTokens.surface,
         borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        border: Border.all(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: DadgarTokens.cardBorder),
       ),
       child: Row(
         children: [
@@ -369,28 +515,11 @@ final class _AdminActionsSection extends ConsumerWidget {
     });
 
     final status = detail.statusValue;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(DadgarTokens.s16),
-      decoration: BoxDecoration(
-        color: DadgarTokens.surface,
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        border: Border.all(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
-      ),
+    return DadgarPanel(
+      head: 'اقدامات مدیر',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'اقدامات مدیر',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: DadgarTokens.textPrimary,
-            ),
-          ),
-          const SizedBox(height: DadgarTokens.s8),
           if (detail.proposals.isEmpty && (status.value == 'waiting' || status.value == 'proposing'))
             const Text(
               'هنوز پیشنهادی ثبت نشده است.',
@@ -407,9 +536,7 @@ final class _AdminActionsSection extends ConsumerWidget {
                 padding: const EdgeInsets.all(DadgarTokens.s8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(DadgarTokens.radius),
-                  border: Border.all(
-                    color: DadgarTokens.textSecondary.withValues(alpha: 0.15),
-                  ),
+                  border: Border.all(color: DadgarTokens.cardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,11 +694,7 @@ final class _ErrorPane extends StatelessWidget {
               ),
             ),
             const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
+            DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
           ],
         ),
       ),

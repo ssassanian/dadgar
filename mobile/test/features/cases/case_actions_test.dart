@@ -167,6 +167,9 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
+        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
       );
       addTearDown(container.dispose);
 
@@ -197,6 +200,9 @@ void main() {
             username: 'client_t',
           ),
         casesRepository: repo,
+        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
       );
       addTearDown(container.dispose);
 
@@ -220,6 +226,9 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
+        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
       );
       addTearDown(container.dispose);
 
@@ -253,6 +262,9 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
+        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
       );
       addTearDown(container.dispose);
 
@@ -276,6 +288,9 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
+        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        messagesRepository: FakeMessagesRepository(),
+        documentsRepository: FakeDocumentsRepository(),
       );
       addTearDown(container.dispose);
 

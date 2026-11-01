@@ -57,7 +57,14 @@ void main() {
   ) async {
     await pumpShell(tester);
 
-    await tester.tap(find.text('پرونده‌ها'));
+    // فایندر مقید به نوار پایین — CMD-045: نوار بالای صفحه‌ی پرونده‌ها هم
+    // «پرونده‌ها» دارد (عین طرح) و IndexedStack همه‌ی شاخه‌ها را می‌سازد
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('پرونده‌ها'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(CasesScreen), findsOneWidget);

@@ -28,6 +28,33 @@ abstract final class DadgarTokens {
   /// خطا
   static const Color error = Color(0xFFB3261E);
 
+  // ── توکن‌های سطح D-3 از `mobile/design-preview/app.css` (CMD-045 —
+  //    ترجمه‌ی وفادار مقادیر پالت قفل‌شده؛ صفر رنگ خارج از پالت) ──
+
+  /// لبه‌ی کارت روی کاغذ گرم — `--border`
+  static const Color cardBorder = Color(0xFFE6DFD4);
+
+  /// خط ردیف (یک پله روشن‌تر از لبه) — `--rule`
+  static const Color rowRule = Color(0xFFF0EBE2);
+
+  /// لبه‌ی ورودی‌ها/حالت خالی — `--control`
+  static const Color control = Color(0xFFD8D0C3);
+
+  /// چاه داخلی/پیام گفتگو — `--raised`
+  static const Color raised = Color(0xFFF3EFE8);
+
+  /// روشن‌ترین خاکستری با کنتراست ۴٫۵:۱ — `--faint`
+  static const Color textFaint = Color(0xFF6B6F76);
+
+  /// پس‌زمینه‌ی قرص خنثی — `--pill-neutral-bg`
+  static const Color pillNeutralBg = Color(0xFFEFE9E0);
+
+  /// متن قرص خنثی — `--pill-neutral-ink`
+  static const Color pillNeutralInk = Color(0xFF4A4D52);
+
+  /// پس‌زمینه‌ی قرص داده (سرمه‌ای خیلی کم‌رنگ) — `--pill-data-bg`
+  static const Color pillDataBg = Color(0xFFE7ECF4);
+
   // ── فاصله‌ها (مقیاس ۴) ──
   static const double s4 = 4;
   static const double s8 = 8;

@@ -22,8 +22,8 @@ class DadgarJourneyBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lineColor =
-        DadgarTokens.textSecondary.withValues(alpha: 0.18);
+    // خط ردیف عین `.j-step::before` در app.css — رنگ `--rule`
+    final lineColor = DadgarTokens.rowRule;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,20 +56,21 @@ class DadgarJourneyBar extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 SizedBox(
-                  height: 30,
+                  height: 32,
                   child: Text(
                     steps[i],
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    // قاعده‌ی خود طرح (CMD-042 F5): برچسب ≥۱۲sp
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1.3,
                       color: current == i
                           ? DadgarTokens.primary
-                          : DadgarTokens.textSecondary,
+                          : DadgarTokens.textFaint,
                       fontWeight:
-                          current == i ? FontWeight.w600 : FontWeight.w400,
+                          current == i ? FontWeight.w500 : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -89,7 +90,8 @@ final class _JourneyDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = DadgarTokens.textSecondary.withValues(alpha: 0.35);
+    // نقطه‌ی خالی عین `.j-step .dot2` — سطح سفید با لبه‌ی `--rule`
+    final border = DadgarTokens.rowRule;
     return Container(
       width: 12,
       height: 12,
@@ -98,7 +100,7 @@ final class _JourneyDot extends StatelessWidget {
         color: current
             ? DadgarTokens.primary
             : reached
-                ? DadgarTokens.primary.withValues(alpha: 0.35)
+                ? DadgarTokens.pillDataBg
                 : DadgarTokens.surface,
         border: Border.all(
           color: current ? DadgarTokens.primary : border,
