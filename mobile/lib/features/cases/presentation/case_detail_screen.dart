@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/time/jalali.dart';
 import '../../../design/d3_kit.dart';
@@ -27,10 +28,8 @@ import '../../../design/journey_bar.dart';
 import '../../../design/tokens.dart';
 import '../../auth/application/session_controller.dart';
 import '../../documents/data/documents_contract.dart';
-import '../../documents/data/documents_repository.dart';
 import '../../documents/domain/document_models.dart';
 import '../../messages/data/messages_contract.dart';
-import '../../messages/data/messages_repository.dart';
 import '../../messages/domain/chat_models.dart';
 import '../application/cases_controller.dart';
 import '../data/cases_contract.dart';
