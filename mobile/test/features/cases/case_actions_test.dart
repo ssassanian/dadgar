@@ -236,6 +236,10 @@ void main() {
 
       expect(find.text('شروع اجرا'), findsOneWidget);
 
+      // پنل اقدامات مدیر زیر پنل «مسیر پرونده» (افزوده‌ی CMD-045) است —
+      // ابتدا به دید آورده می‌شود (همان الگوی تست «تایید پیشنهاد»)
+      await tester.ensureVisible(find.text('شروع اجرا'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('شروع اجرا'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('شروع اجرا').last);

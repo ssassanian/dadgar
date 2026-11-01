@@ -251,9 +251,10 @@ void main() {
       expect(find.text('جزئیات پرونده'), findsOneWidget);
       expect(find.text('پرونده ۷'), findsOneWidget);
 
-      // سربرگ طرح: عنوان + قرص وضعیت (سربرگ و ردیف وضعیت = دو بار)
+      // سربرگ طرح: عنوان + قرص وضعیت (قرص سربرگ + مرحله‌ی جاری نوار مسیر
+      // + ردیف وضعیت مشخصات = سه بار — عین طرح تاییدشده bDetail)
       expect(find.text('اختلاف بر سر مبیع'), findsOneWidget);
-      expect(find.text('تخصیص‌یافته'), findsNWidgets(2));
+      expect(find.text('تخصیص‌یافته'), findsNWidgets(3));
 
       // پنل مسیر پرونده — پنج وضعیت واقعی سرور و مرحله‌ی ۳ از ۵
       expect(find.text('مسیر پرونده'), findsOneWidget);
