@@ -50,6 +50,7 @@ void main() {
       lockState: const AppLockState(enabled: true, unlocked: true),
       appointmentsRepository:
           FakeAppointmentsRepository(), // جریان M3 بدون شبکه
+      billingRepository: FakeBillingRepository(), // پوسته تب‌بار وضعیت مالی را تماشا می‌کند (CMD-044)
     );
     addTearDown(container.dispose);
 
@@ -69,6 +70,7 @@ void main() {
     final container = dadgarContainer(
       authStatus: const Authenticated('مدیر'),
       appointmentsRepository: FakeAppointmentsRepository(),
+      billingRepository: FakeBillingRepository(), // پوسته تب‌بار وضعیت مالی را تماشا می‌کند (CMD-044)
     );
     addTearDown(container.dispose);
 

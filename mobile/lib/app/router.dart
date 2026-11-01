@@ -24,8 +24,12 @@ import '../features/messages/presentation/tickets_screen.dart';
 import '../features/messages/presentation/threads_screen.dart';
 import '../features/profile/profile_screen.dart';
 import 'providers.dart';
+import 'tab_shell.dart';
 
 /// روتر اعلامی M1 با redirect مبتنی بر وضعیت نشست و قفل بیومتریک
+///
+/// CMD-044: پوسته‌ی پنج‌تبی (StatefulShellRoute) عین طرح تاییدشده‌ی
+/// CMD-041 — تب‌بار فقط روی پنج ریشه؛ جزئیات/ثانویه تمام‌صفحه بدون تب‌بار.
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(authControllerProvider, (_, __) => refresh.value++);
@@ -36,7 +40,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: refresh,
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashView(),
@@ -47,21 +50,47 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/otp', builder: (context, state) => const OtpScreen()),
       GoRoute(path: '/lock', builder: (context, state) => const LockScreen()),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
+      // ── پوسته‌ی پنج‌تبی — ترتیب شاخه‌ها = ترتیب تب‌ها (_kTabs) ──
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            DadgarTabShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/cases',
+              builder: (context, state) => const CasesScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/appointments',
+              builder: (context, state) => const AppointmentsScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/invoices',
+              builder: (context, state) => const InvoicesScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+            ),
+          ]),
+        ],
       ),
-      GoRoute(
-        path: '/appointments',
-        builder: (context, state) => const AppointmentsScreen(),
-      ),
+      // ── مسیرهای ثانویه — تمام‌صفحه با بازگشت پشته‌ای (بدون تب‌بار) ──
       GoRoute(
         path: '/appointments/mine',
         builder: (context, state) => const MyAppointmentsScreen(),
-      ),
-      GoRoute(
-        path: '/cases',
-        builder: (context, state) => const CasesScreen(),
       ),
       GoRoute(
         path: '/cases/new',
@@ -73,10 +102,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return CaseDetailScreen(caseId: id);
         },
-      ),
-      GoRoute(
-        path: '/invoices',
-        builder: (context, state) => const InvoicesScreen(),
       ),
       GoRoute(
         path: '/admin/billing',
