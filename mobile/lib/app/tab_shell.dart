@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design/tokens.dart';
-import '../features/billing/application/billing_controller.dart';
+import 'providers.dart';
 
 /// یک تب نوار پایین — برچسب/آیکون/مقصد (ترتیب = ترتیب شاخه‌های روتر)
 typedef _Tab = ({String label, IconData icon, IconData selected, String location});
