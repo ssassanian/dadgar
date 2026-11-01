@@ -84,6 +84,9 @@ void main() {
     );
     await tester.pump();
 
+    // دکمه زیر پنل‌های ویترین است (زیر خط دید) — الگوی ensureVisible درس ACT-097
+    await tester.ensureVisible(find.text('فراموشی رمز عبور؟'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('فراموشی رمز عبور؟'));
     await tester.pumpAndSettle();
 
