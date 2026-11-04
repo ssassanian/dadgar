@@ -1,18 +1,19 @@
-/// صفحه‌ی «گاوصندوق اسناد» مشتری — M5 (DOC-04 §۱۱ ردیف M5)
+/// CMD-051 — بازنویسی از صفر؛ نسل S
 ///
-/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bDocs` در
-/// `design-preview/prototype.html`): AppBar کاغذی «گاوصندوق اسناد» با
-/// زیرنویس محرمانگی، جعبه‌ی صادقانه‌ی رمزنگاری، ردیف‌های دوخطی با قرص
-/// دسترسی و دکمه‌ی شبح «آپلود سند جدید» پایان فهرست (حذف FAB خارج از
-/// زبان طرح — هم‌روال cases در CMD-045). عملیات دانلود/حذف در شیت پایین
-/// (زبان شیتِ خود طرح) با حفظ کامل منطق M5.
+/// صفحه‌ی «گاوصندوق اسناد» مشتری — M5 (DOC-04 §۱۱ ردیف M5) با هویت
+/// موبایل‌بومی «دادگر S» (اجرای حکم CMD-050؛ تنها پالت برند وب مشترک):
+/// سربرگ DsTopBar با شمارنده/زیرنویس محرمانگی، یادداشت صادقانه‌ی
+/// رمزنگاری روی tint آبی، کارت‌های گرد سند با قرص دسترسی (استنتاج
+/// سرور: اشتراک با وکیل / محرمانه — برچسب نمایشی «جدید» اتخاذ
+/// نمی‌شود S-4) و شیت پایین نسل S برای دانلود/حذف. صفر عنصر بصری از
+/// نسل قبل (کاغذ گرم/سرمه‌ای D-3) باقی نمانده است.
 ///
-/// آینه‌ی cDocs وب (CMD-008): نام/پرونده/اندازه/تاریخ + چیپ سطح دسترسی
-/// (استنتاج سرور: اشتراک با وکیل / محرمانه — برچسب نمایشی «جدید» طرح
-/// اتخاذ نمی‌شود S-4). دانلود بایت‌به‌بایت با ذخیره در پوشه‌ی اسناد اپ،
-/// حذف فقط اسناد خود، آپلود از دوربین/گالری (سقف ۴ مگابایت — DOC_MAX).
-/// یادداشت رمزنگاری عین حقیقت سرور است: name_enc/file با AES-256-GCM
-/// ذخیره می‌شود (web.js §documents).
+/// منطق M5 عین نسل قبل: دانلود بایت‌به‌بایت با ذخیره در پوشه‌ی اسناد
+/// اپ (docSaver تزریق‌شده §۹)، حذف فقط اسناد خود با دیالوگ تأیید،
+/// آپلود از دوربین/گالری (سقف ۴ مگابایت — DOC_MAX) و پیام‌های
+/// SnackBar و حالت‌های صادقانه بدون تغییر. یادداشت رمزنگاری عین
+/// حقیقت سرور است: name_enc/file با AES-256-GCM ذخیره می‌شود
+/// (web.js §documents).
 library;
 
 import 'package:flutter/material.dart';
@@ -20,7 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/jalali.dart';
-import '../../../design/d3_kit.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/documents_controller.dart';
 import '../data/documents_contract.dart';
@@ -36,44 +37,15 @@ class DocumentsScreen extends ConsumerWidget {
     final controller = ref.read(documentsControllerProvider.notifier);
 
     return Scaffold(
-      backgroundColor: DadgarTokens.background,
-      appBar: AppBar(
-        toolbarHeight: 56,
-        backgroundColor: DadgarTokens.background,
-        foregroundColor: DadgarTokens.textPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'گاوصندوق اسناد',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                color: DadgarTokens.textPrimary,
-              ),
-            ),
-            Text(
-              ui.status == LoadStatus.ready
-                  ? '${JalaliCalendar.toPersianDigits(ui.rows.length)} سند'
-                  : 'محرمانه — فقط شما و وکیل پرونده',
-              style: const TextStyle(
-                fontSize: 11,
-                height: 1.4,
-                color: DadgarTokens.textFaint,
-              ),
-            ),
-          ],
-        ),
+      appBar: DsTopBar(
+        'گاوصندوق اسناد',
+        showBack: true,
+        subtitle: ui.status == LoadStatus.ready
+            ? '${JalaliCalendar.toPersianDigits(ui.rows.length)} سند'
+            : 'محرمانه — فقط شما و وکیل پرونده',
       ),
       body: switch (ui.status) {
-        LoadStatus.loading => const Center(
-            child: CircularProgressIndicator(),
-          ),
+        LoadStatus.loading => const Center(child: DsRing(size: 28)),
         LoadStatus.error => _ErrorPane(
             message: ui.message ?? 'خطای نامشخص',
             onRetry: controller.reload,
@@ -85,6 +57,7 @@ class DocumentsScreen extends ConsumerWidget {
   }
 }
 
+/// فهرست آماده — یادداشت صادقانه + کارت سندها + اقدام آپلود
 final class _DocsList extends ConsumerWidget {
   const _DocsList({required this.ui});
 
@@ -99,48 +72,28 @@ final class _DocsList extends ConsumerWidget {
         children: [
           ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              DadgarTokens.s16,
-              DadgarTokens.s4,
-              DadgarTokens.s16,
-              DadgarTokens.s32,
-            ),
+            padding: const EdgeInsets.fromLTRB(Ds.s16, Ds.s8, Ds.s16, Ds.s32),
             children: [
-              // یادداشت صادقانه — عین bDocs طرح و حقیقت سرور (AES-256-GCM)
-              const DadgarEmptyBox(
-                'اسناد با رمزنگاری ذخیره می‌شوند و هر دانلود، '
-                'بایت‌به‌بایت ثبت می‌شود.',
-              ),
-              const SizedBox(height: DadgarTokens.s12),
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: DadgarTokens.surface,
-                  borderRadius: BorderRadius.circular(DadgarTokens.radius),
-                  border: Border.all(color: DadgarTokens.cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < ui.rows.length; i++) ...[
-                      if (i > 0) const DadgarRowRule(),
-                      _DocRow(row: ui.rows[i]),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: DadgarTokens.s12),
-              DadgarGhostButton(
+              // یادداشت صادقانه — عین حقیقت سرور (AES-256-GCM)
+              const _HonestNote(),
+              const SizedBox(height: Ds.s12),
+              for (var i = 0; i < ui.rows.length; i++) ...[
+                if (i > 0) const SizedBox(height: Ds.s8),
+                _DocRow(row: ui.rows[i]),
+              ],
+              const SizedBox(height: Ds.s12),
+              DsButton(
                 'آپلود سند جدید',
                 onPressed: () => context.push('/documents/upload'),
+                tone: DsButtonTone.outline,
+                expand: true,
               ),
             ],
           ),
           if (ui.message != null)
             Positioned(
-              left: DadgarTokens.s16,
-              right: DadgarTokens.s16,
+              left: Ds.s16,
+              right: Ds.s16,
               bottom: 16,
               child: _MessageBar(ui: ui),
             ),
@@ -150,38 +103,48 @@ final class _DocsList extends ConsumerWidget {
   }
 }
 
-/// نوار پیام وضعیت — خطا (قرمز) / موفقیت (سبز)
-final class _MessageBar extends StatelessWidget {
-  const _MessageBar({required this.ui});
-
-  final DocumentsUi ui;
+/// یادداشت صادقانه‌ی رمزنگاری — قاب tint آبی با آیکون قفل (نسل S)
+final class _HonestNote extends StatelessWidget {
+  const _HonestNote();
 
   @override
   Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
     return Container(
-      padding: const EdgeInsets.all(DadgarTokens.s12),
+      padding: const EdgeInsets.symmetric(horizontal: Ds.s12, vertical: 10),
       decoration: BoxDecoration(
-        color: DadgarTokens.surface,
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        border: Border.all(
-          color: ui.isError
-              ? DadgarTokens.error
-              : DadgarTokens.accent.withValues(alpha: 0.5),
-        ),
+        color: light ? Ds.wash : Ds.washDark,
+        borderRadius: BorderRadius.circular(Ds.radiusField),
+        border: Border.all(color: light ? Ds.line : Ds.lineDark),
       ),
-      child: Text(
-        ui.message!,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 12,
-          color: ui.isError ? DadgarTokens.error : DadgarTokens.accent,
-        ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.enhanced_encryption_outlined,
+            size: 18,
+            color: light ? Ds.primaryDeep : Ds.cyan,
+          ),
+          const SizedBox(width: Ds.s8),
+          Expanded(
+            child: Text(
+              'اسناد با رمزنگاری ذخیره می‌شوند و هر دانلود، '
+              'بایت‌به‌بایت ثبت می‌شود.',
+              style: TextStyle(
+                fontFamily: Ds.fontFamily,
+                fontSize: 12,
+                height: 1.6,
+                color: light ? Ds.inkSoft : Ds.inkSoftDark,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// ردیف سند — نام/پرونده/اندازه/تاریخ + قرص دسترسی؛ تپ → شیت عملیات
+/// ردیف سند — کارت گرد نسل S: نام/پرونده/اندازه/تاریخ + قرص دسترسی؛
+/// تپ → شیت عملیات (دانلود/حذف فقط اسناد خودی)
 final class _DocRow extends ConsumerWidget {
   const _DocRow({required this.row});
 
@@ -189,34 +152,82 @@ final class _DocRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final light = Theme.of(context).brightness == Brightness.light;
     final created = JalaliCalendar.fromEpochSeconds(row.createdAt);
-    return DadgarListRow(
-      title: row.name,
-      subtitle: '${row.caseTitle.isEmpty ? '—' : row.caseTitle}'
-          ' • ${DocumentsContract.formatSize(row.size)}'
-          ' • ${JalaliCalendar.formatNumeric(created)}',
-      side: DadgarPill(
-        row.shared ? DocumentsContract.sharedLabel : DocumentsContract.privateLabel,
-        variant: row.shared ? DadgarPillVariant.data : DadgarPillVariant.neutral,
-      ),
-      showChevron: true,
+    return DsCard(
       onTap: () => _showActions(context, ref),
+      padding: const EdgeInsets.all(Ds.s12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: light ? Ds.wash : Ds.washDark,
+              borderRadius: BorderRadius.circular(Ds.radiusField),
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              size: 21,
+              color: light ? Ds.primary : Ds.cyan,
+            ),
+          ),
+          const SizedBox(width: Ds.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: Ds.fontFamily,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.5,
+                    color: light ? Ds.ink : Ds.inkDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${row.caseTitle.isEmpty ? '—' : row.caseTitle}'
+                  ' • ${DocumentsContract.formatSize(row.size)}'
+                  ' • ${JalaliCalendar.formatNumeric(created)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: Ds.fontFamily,
+                    fontSize: 12,
+                    height: 1.5,
+                    color: light ? Ds.inkFaint : Ds.inkFaintDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Ds.s8),
+          DsPill(
+            row.shared
+                ? DocumentsContract.sharedLabel
+                : DocumentsContract.privateLabel,
+            tone: row.shared ? DsPillTone.info : DsPillTone.neutral,
+          ),
+        ],
+      ),
     );
   }
 
-  /// شیت عملیات — همان زبان شیتِ طرح؛ دانلود (M5) و حذف فقط اسناد خود
+  /// شیت عملیات نسل S — دانلود (M5) و حذف فقط اسناد خود
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
     final ui = ref.read(documentsControllerProvider);
     final controller = ref.read(documentsControllerProvider.notifier);
-    await showModalBottomSheet<void>(
+    final light = Theme.of(context).brightness == Brightness.light;
+    await showDsSheet<void>(
       context: context,
-      backgroundColor: DadgarTokens.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(DadgarTokens.s16),
+          padding: const EdgeInsets.fromLTRB(Ds.s16, Ds.s8, Ds.s16, Ds.s16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -225,15 +236,19 @@ final class _DocRow extends ConsumerWidget {
                 row.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: DadgarTokens.textPrimary,
+                style: TextStyle(
+                  fontFamily: Ds.fontFamily,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  height: 1.5,
+                  color: light ? Ds.ink : Ds.inkDark,
                 ),
               ),
-              const SizedBox(height: DadgarTokens.s12),
-              DadgarGhostButton(
+              const SizedBox(height: Ds.s12),
+              DsButton(
                 'دانلود',
+                tone: DsButtonTone.outline,
+                icon: Icons.download_outlined,
                 onPressed: ui.busy
                     ? null
                     : () async {
@@ -251,10 +266,11 @@ final class _DocRow extends ConsumerWidget {
                       },
               ),
               if (row.mine) ...[
-                const SizedBox(height: DadgarTokens.s8),
-                DadgarGhostButton(
+                const SizedBox(height: Ds.s8),
+                DsButton(
                   'حذف',
-                  destructive: true,
+                  tone: DsButtonTone.danger,
+                  icon: Icons.delete_outline,
                   onPressed: ui.busy
                       ? null
                       : () async {
@@ -272,6 +288,7 @@ final class _DocRow extends ConsumerWidget {
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {
+    final light = Theme.of(context).brightness == Brightness.light;
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -284,7 +301,9 @@ final class _DocRow extends ConsumerWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: DadgarTokens.error,
+              backgroundColor:
+                  light ? Ds.error : Ds.rose,
+              foregroundColor: Ds.onPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('حذف'),
@@ -296,7 +315,40 @@ final class _DocRow extends ConsumerWidget {
   }
 }
 
-/// خالی صادقانه
+/// نوار پیام وضعیت — خطا (رز) / موفقیت (سبز) با رنگ‌های نسل S
+final class _MessageBar extends StatelessWidget {
+  const _MessageBar({required this.ui});
+
+  final DocumentsUi ui;
+
+  @override
+  Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
+    final tone = ui.isError
+        ? (light ? Ds.error : Ds.rose)
+        : (light ? Ds.green : Ds.mint);
+    return Container(
+      padding: const EdgeInsets.all(Ds.s12),
+      decoration: BoxDecoration(
+        color: light ? Ds.surface : Ds.surfaceDark,
+        borderRadius: BorderRadius.circular(Ds.radiusField),
+        border: Border.all(color: tone),
+      ),
+      child: Text(
+        ui.message!,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: Ds.fontFamily,
+          fontSize: 12.5,
+          height: 1.6,
+          color: tone,
+        ),
+      ),
+    );
+  }
+}
+
+/// خالی صادقانه — DsEmptyState نسل S
 final class _EmptyPane extends StatelessWidget {
   const _EmptyPane();
 
@@ -304,38 +356,13 @@ final class _EmptyPane extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.folder_shared_outlined,
-              size: 48,
-              color: DadgarTokens.textSecondary,
-            ),
-            const SizedBox(height: DadgarTokens.s12),
-            const Text(
-              'هنوز سندی بارگذاری نشده است',
-              style: TextStyle(
-                fontSize: 14,
-                color: DadgarTokens.textSecondary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s8),
-            const Text(
-              'اسناد پرونده‌های شما (و مدارک وکیل) اینجا دیده می‌شود.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.8,
-                color: DadgarTokens.textSecondary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            DadgarGhostButton(
-              'آپلود سند جدید',
-              onPressed: () => context.push('/documents/upload'),
-            ),
-          ],
+        padding: const EdgeInsets.all(Ds.s24),
+        child: DsEmptyState(
+          icon: Icons.folder_shared_outlined,
+          title: 'هنوز سندی بارگذاری نشده است',
+          hint: 'اسناد پرونده‌های شما (و مدارک وکیل) اینجا دیده می‌شود.',
+          actionLabel: 'آپلود سند جدید',
+          onAction: () => context.push('/documents/upload'),
         ),
       ),
     );
@@ -353,27 +380,12 @@ final class _ErrorPane extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: DadgarTokens.error,
-            ),
-            const SizedBox(height: DadgarTokens.s12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.8,
-                color: DadgarTokens.textPrimary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
-          ],
+        padding: const EdgeInsets.all(Ds.s24),
+        child: DsEmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: message,
+          actionLabel: 'تلاش دوباره',
+          onAction: onRetry,
         ),
       ),
     );

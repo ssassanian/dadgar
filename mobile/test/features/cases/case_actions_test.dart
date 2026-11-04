@@ -1,4 +1,9 @@
-/// تست اقدامات مدیر روی پرونده — M6 (CMD-028)
+/// CMD-051 — تست اقدامات مدیر روی پرونده برای درخت «نسل S»
+///
+/// تست‌های کنترلر (M6/CMD-028) عیناً حفظ شده‌اند؛ تست‌های ویجت روی پوسته‌ی
+/// Ds بازنویسی شده‌اند. pumpAndSettle استفاده نمی‌شود — پس از گذار وضعیت،
+/// invalidه‌شدن جزئیات حلقه‌ی DsRing (انیمیشن بی‌پایان) می‌سازد؛ به‌جای آن
+/// pump با مدت مشخص.
 library;
 
 import 'package:dadgar_mobile/app/providers.dart';
@@ -139,7 +144,7 @@ void main() {
     });
   });
 
-  group('CaseDetailScreen — بخش اقدامات مدیر', () {
+  group('CaseDetailScreen — بخش اقدامات مدیر (پوسته‌ی نسل S)', () {
     testWidgets('مدیر: پیشنهادها با دکمه‌ی تایید رندر می‌شود', (tester) async {
       final repo = FakeCasesRepository(details: {
         56: detail(
@@ -167,7 +172,7 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
-        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        // پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
         messagesRepository: FakeMessagesRepository(),
         documentsRepository: FakeDocumentsRepository(),
       );
@@ -179,15 +184,15 @@ void main() {
       expect(find.text('وکیل تست چرخه'), findsOneWidget);
       expect(find.text('تایید پیشنهاد'), findsOneWidget);
 
-      // دکمه پایین فهرست است — ابتدا به دید آورده می‌شود
+      // دکمه پایین کارت اقدامات است — ابتدا به دید آورده می‌شود
       await tester.ensureVisible(find.text('تایید پیشنهاد'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('تایید پیشنهاد'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.textContaining('تایید شود؟'), findsOneWidget);
     });
 
-    testWidgets('مشتری: بخش اقدامات مدیر رندر نمی‌شود (چیپ D-6 می‌ماند)',
+    testWidgets('مشتری: بخش اقدامات مدیر رندر نمی‌شود (یادداشت D-6 می‌ماند)',
         (tester) async {
       final repo = FakeCasesRepository(details: {56: detail()});
       final container = dadgarContainer(
@@ -200,7 +205,7 @@ void main() {
             username: 'client_t',
           ),
         casesRepository: repo,
-        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        // پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
         messagesRepository: FakeMessagesRepository(),
         documentsRepository: FakeDocumentsRepository(),
       );
@@ -226,7 +231,7 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
-        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        // پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
         messagesRepository: FakeMessagesRepository(),
         documentsRepository: FakeDocumentsRepository(),
       );
@@ -236,14 +241,18 @@ void main() {
 
       expect(find.text('شروع اجرا'), findsOneWidget);
 
-      // پنل اقدامات مدیر زیر پنل «مسیر پرونده» (افزوده‌ی CMD-045) است —
-      // ابتدا به دید آورده می‌شود (همان الگوی تست «تایید پیشنهاد»)
+      // کارت اقدامات مدیر زیر کارت‌های دیگر است — ابتدا به دید آورده می‌شود
       await tester.ensureVisible(find.text('شروع اجرا'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('شروع اجرا'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
+      // دیالوگ تایید باز شد؛ دکمه‌ی تایید دیالوگ هم برچسب «شروع اجرا» دارد
       await tester.tap(find.text('شروع اجرا').last);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      // invalidه‌شدن جزئیات → رفرش داده با pump مشخص (بدون pumpAndSettle
+      // حول DsRing)
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(
         repo.setCaseStatusArgs.single,
@@ -251,8 +260,7 @@ void main() {
       );
     });
 
-    testWidgets('مدیر: پرونده‌ی running → دکمه‌ی بستن پرونده',
-        (tester) async {
+    testWidgets('مدیر: پرونده‌ی running → دکمه‌ی بستن پرونده', (tester) async {
       final repo = FakeCasesRepository(
         details: {56: detail(status: 'running')},
       );
@@ -266,7 +274,7 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
-        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        // پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
         messagesRepository: FakeMessagesRepository(),
         documentsRepository: FakeDocumentsRepository(),
       );
@@ -292,7 +300,7 @@ void main() {
             username: 'admin_t',
           ),
         casesRepository: repo,
-        // CMD-045: پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
+        // پنل اسناد جزئیات، فهرست اسناد را می‌خواند — فیک آب‌بند
         messagesRepository: FakeMessagesRepository(),
         documentsRepository: FakeDocumentsRepository(),
       );

@@ -1,7 +1,10 @@
-/// صفحه‌ی بارگذاری سند — M5 (DOC-04 §۱۱ ردیف M5)
+/// CMD-051 — بازنویسی از صفر؛ نسل S
 ///
-/// CMD-046 (فاز ۳): آراستگی D-3 (AppBar کاغذی + پنل‌ها/دکمه‌های kit) —
-/// منطق آپلود دست‌نخورده: جریان آینه‌ی POST /api/cases/:id/documents
+/// صفحه‌ی بارگذاری سند — M5 (DOC-04 §۱۱ ردیف M5) با هویت موبایل‌بومی
+/// «دادگر S» (اجرای حکم CMD-050): سربرگ DsTopBar، سربرگ‌های بخش
+/// DsSectionHeader و کارت‌های گرد نسل S برای مقصد/منبع/پیش‌نمایش.
+///
+/// منطق آپلود عین نسل قبل — جریان آینه‌ی POST /api/cases/:id/documents
 /// سرور: انتخاب پرونده‌ی خود (از M2) → انتخاب منبع (دوربین/گالری) →
 /// پیش‌نمایش نام/اندازه → ارسال با سقف ۴ مگابایت. از صفحه‌ی جزئیات
 /// پرونده با پرونده‌ی ازپیش‌انتخاب‌شده هم باز می‌شود (قفل‌شده).
@@ -15,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/providers.dart';
-import '../../../design/d3_kit.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 import '../../cases/domain/case_models.dart';
 import '../application/documents_controller.dart';
@@ -91,44 +94,31 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
   Widget build(BuildContext context) {
     final ui = ref.watch(documentsControllerProvider);
     final casesAsync = ref.watch(uploadCasesProvider);
+    final light = Theme.of(context).brightness == Brightness.light;
 
     return Scaffold(
-      backgroundColor: DadgarTokens.background,
-      appBar: AppBar(
-        toolbarHeight: 56,
-        backgroundColor: DadgarTokens.background,
-        foregroundColor: DadgarTokens.textPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        title: const Text(
-          'بارگذاری سند',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: DadgarTokens.textPrimary,
-          ),
-        ),
-      ),
+      appBar: const DsTopBar('بارگذاری سند', showBack: true),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s16),
+        padding: const EdgeInsets.all(Ds.s16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── پنل مقصد — انتخاب پرونده (وقتی ازپیش‌انتخاب نیست) ──
-            DadgarPanel(
-              head: 'پرونده‌ی مقصد',
+            // ── مقصد — انتخاب پرونده (وقتی ازپیش‌انتخاب نیست) ──
+            const DsSectionHeader('پرونده‌ی مقصد'),
+            DsCard(
               child: widget.caseId == null
                   ? casesAsync.when(
                       loading: () => const Padding(
-                        padding: EdgeInsets.all(DadgarTokens.s12),
-                        child: Center(child: CircularProgressIndicator()),
+                        padding: EdgeInsets.all(Ds.s12),
+                        child: Center(child: DsRing()),
                       ),
-                      error: (e, _) => const Text(
+                      error: (e, _) => Text(
                         'دریافت فهرست پرونده‌ها ناموفق بود — دوباره تلاش کنید',
                         style: TextStyle(
+                          fontFamily: Ds.fontFamily,
                           fontSize: 13,
-                          color: DadgarTokens.error,
+                          height: 1.6,
+                          color: light ? Ds.error : Ds.rose,
                         ),
                       ),
                       data: (rows) {
@@ -137,23 +127,25 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
                             'برای بارگذاری سند، ابتدا یک پرونده ثبت کنید؛ '
                             'سند به پرونده گره می‌خورد.',
                             style: TextStyle(
+                              fontFamily: Ds.fontFamily,
                               fontSize: 13,
                               height: 1.8,
-                              color: DadgarTokens.textSecondary,
+                              color: Ds.inkSoft,
                             ),
                           );
                         }
                         return DropdownButtonFormField<int>(
                           initialValue: _caseId,
                           decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
+                            hintText: 'انتخاب پرونده',
                           ),
                           items: rows
                               .map(
-                                (r) => DropdownMenuItem(
+                                (r) => DropdownMenuItem<int>(
                                   value: r.id,
                                   child: Text(
-                                    'پرونده ${JalaliDigits.fa(r.id)} — ${r.title}',
+                                    'پرونده ${JalaliDigits.fa(r.id)} — '
+                                    '${r.title}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -167,56 +159,66 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
                   : const Text(
                       'سند به پرونده‌ی انتخاب‌شده گره می‌خورد.',
                       style: TextStyle(
+                        fontFamily: Ds.fontFamily,
                         fontSize: 13,
-                        color: DadgarTokens.textSecondary,
+                        height: 1.6,
+                        color: Ds.inkSoft,
                       ),
                     ),
             ),
-            const SizedBox(height: DadgarTokens.s12),
-            // ── پنل منبع — دوربین/گالری (دکمه‌های شبح نیم‌عرض) ──
-            DadgarPanel(
-              head: 'منبع تصویر',
+            const SizedBox(height: Ds.s16),
+            // ── منبع — دوربین/گالری (دکمه‌های outline نیم‌عرض) ──
+            const DsSectionHeader('منبع تصویر'),
+            DsCard(
               child: Row(
                 children: [
                   Expanded(
-                    child: DadgarGhostButton(
+                    child: DsButton(
                       'دوربین',
                       onPressed: () => _pick(ImageSource.camera),
+                      tone: DsButtonTone.outline,
+                      icon: Icons.photo_camera_outlined,
                     ),
                   ),
-                  const SizedBox(width: DadgarTokens.s8),
+                  const SizedBox(width: Ds.s8),
                   Expanded(
-                    child: DadgarGhostButton(
+                    child: DsButton(
                       'گالری',
                       onPressed: () => _pick(ImageSource.gallery),
+                      tone: DsButtonTone.outline,
+                      icon: Icons.photo_library_outlined,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: DadgarTokens.s12),
-            // ── پنل پیش‌نمایش ──
-            DadgarPanel(
-              head: 'پیش‌نمایش',
+            const SizedBox(height: Ds.s16),
+            // ── پیش‌نمایش ──
+            const DsSectionHeader('پیش‌نمایش'),
+            DsCard(
               child: _picked != null
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _picked!.name,
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontFamily: Ds.fontFamily,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: DadgarTokens.textPrimary,
+                            height: 1.5,
+                            color: light ? Ds.ink : Ds.inkDark,
                           ),
                         ),
-                        const SizedBox(height: DadgarTokens.s4),
+                        const SizedBox(height: Ds.s4),
                         Text(
                           '${DocumentsContract.formatSize(_picked!.bytes.length)}'
                           ' • سقف: ۴ مگابایت',
-                          style: const TextStyle(
+                          style: TextStyle(
+                            fontFamily: Ds.fontFamily,
                             fontSize: 12,
-                            color: DadgarTokens.textSecondary,
+                            height: 1.6,
+                            color: light ? Ds.inkFaint : Ds.inkFaintDark,
                           ),
                         ),
                       ],
@@ -224,31 +226,34 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
                   : const Text(
                       'تصویر مدرک را با دوربین بگیرید یا از گالری انتخاب کنید.',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontFamily: Ds.fontFamily,
+                        fontSize: 12.5,
                         height: 1.8,
-                        color: DadgarTokens.textSecondary,
+                        color: Ds.inkSoft,
                       ),
                     ),
             ),
-            const SizedBox(height: DadgarTokens.s16),
+            const SizedBox(height: Ds.s16),
             if (ui.message != null && ui.isError) ...[
               Text(
                 ui.message!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
+                  fontFamily: Ds.fontFamily,
                   fontSize: 13,
                   height: 1.8,
-                  color: DadgarTokens.error,
+                  color: light ? Ds.error : Ds.rose,
                 ),
               ),
-              const SizedBox(height: DadgarTokens.s12),
+              const SizedBox(height: Ds.s12),
             ],
-            DadgarPrimaryButton(
+            DsButton(
               ui.busy ? 'در حال بارگذاری…' : 'بارگذاری',
               onPressed:
                   (ui.busy || _picked == null || _caseId == null)
                       ? null
                       : _submit,
+              expand: true,
             ),
           ],
         ),
@@ -257,7 +262,7 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
   }
 }
 
-/// ارقام فارسی — پل کوچک به تقویم مشترک
+/// ارقام فارسی — پل کوچک به قرارداد مشترک اسناد
 class JalaliDigits {
   static String fa(Object v) => DocumentsContract.toPersianDigits(v);
 }

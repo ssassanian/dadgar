@@ -1,9 +1,14 @@
-/// تست ویجت صفحات پرونده‌ها — فهرست، جزئیات، فرم ثبت (CMD-045: بازطراحی D-3)
+/// CMD-051 — تست ویجت صفحات پرونده‌ها برای درخت «نسل S»
+///
+/// همان پوشش رفتاری بازنویسی‌شده (فهرست/فیلتر/خالی صادقانه/خطا/جزئیات/
+/// فرم) — این بار روی پوسته‌ی Ds: DsTopBar، قرص‌های فیلتر، DsTile،
+/// DsJourneyBar و DsEmptyState. pumpAndSettle حول DsRing (انیمیشن
+/// بی‌پایان) استفاده نمی‌شود؛ فقط pump با مدت مشخص.
 library;
 
 import 'package:dadgar_mobile/app/providers.dart';
 import 'package:dadgar_mobile/core/api/api_client.dart';
-import 'package:dadgar_mobile/design/d3_kit.dart';
+import 'package:dadgar_mobile/design/ds_kit.dart';
 import 'package:dadgar_mobile/features/cases/domain/case_models.dart';
 import 'package:dadgar_mobile/features/cases/presentation/case_detail_screen.dart';
 import 'package:dadgar_mobile/features/cases/presentation/cases_screen.dart';
@@ -38,8 +43,8 @@ CasesPage _page(List<CaseSummary> rows) => CasesPage(
     );
 
 void main() {
-  group('CasesScreen — فهرست (طرح CMD-041)', () {
-    testWidgets('نوار بالا با شمارنده، چیپ‌ها و ردیف‌های دوخطی رندر می‌شود',
+  group('CasesScreen — فهرست (پوسته‌ی نسل S)', () {
+    testWidgets('سربرگ درشت با شمارنده، قرص‌های فیلتر و ردیف‌های DsTile',
         (tester) async {
       final repo = FakeCasesRepository(pages: {
         1: _page([
@@ -67,11 +72,12 @@ void main() {
       await _pumpApp(tester, container, const CasesScreen());
       await tester.pump(const Duration(milliseconds: 50));
 
-      // نوار بالای طرح: عنوان + شمارنده‌ی واقعی (کل از سرور، در جریان از ردیف‌ها)
+      // سربرگ نسل S: عنوان دقیق «پرونده‌ها» (وابستگی تست پوسته) + شمارنده‌ی
+      // واقعی (کل از سرور، در جریان از ردیف‌ها)
       expect(find.text('پرونده‌ها'), findsOneWidget);
       expect(find.text('۲ پرونده · ۱ در جریان'), findsOneWidget);
 
-      // چیپ‌های سه‌گانه‌ی طرح
+      // قرص‌های سه‌گانه‌ی فیلتر
       expect(find.text('همه'), findsOneWidget);
       expect(find.text('در جریان'), findsOneWidget);
       expect(find.text('بسته'), findsOneWidget);
@@ -83,12 +89,13 @@ void main() {
       expect(find.text('بسته‌شده'), findsOneWidget);
       expect(find.textContaining('ملکی'), findsOneWidget);
 
-      // ورود «ثبت پرونده جدید» — دکمه‌ی شبح پایان فهرست (شات CMD-037)
+      // ورود «ثبت پرونده جدید» — دکمه‌ی پایان فهرست (شات CMD-037)
       expect(find.text('ثبت پرونده جدید'), findsOneWidget);
-      expect(find.byType(DadgarGhostButton), findsOneWidget);
+      expect(find.widgetWithText(DsButton, 'ثبت پرونده جدید'), findsOneWidget);
     });
 
-    testWidgets('چیپ «بسته» فقط پرونده‌های بسته را نشان می‌دهد', (tester) async {
+    testWidgets('قرص «بسته» فقط پرونده‌های بسته را نشان می‌دهد',
+        (tester) async {
       final repo = FakeCasesRepository(pages: {
         1: _page([
           const CaseSummary(
@@ -127,7 +134,8 @@ void main() {
       expect(find.textContaining('اختلاف بر سر مبیع'), findsOneWidget);
     });
 
-    testWidgets('فیلتر بدون نتیجه → خالی صادقانه‌ی طرح', (tester) async {
+    testWidgets('فیلتر بدون نتیجه → خالی صادقانه (DsEmptyState)',
+        (tester) async {
       final repo = FakeCasesRepository(pages: {
         1: _page([
           const CaseSummary(
@@ -152,7 +160,7 @@ void main() {
       expect(find.text('پرونده‌ای در این وضعیت ندارید.'), findsOneWidget);
     });
 
-    testWidgets('خالی صادقانه — بدون داده‌ی جعلی', (tester) async {
+    testWidgets('خالی صادقانه — بدون داده‌ی جعلی (S-4)', (tester) async {
       final container = dadgarContainer(casesRepository: FakeCasesRepository());
       addTearDown(container.dispose);
 
@@ -163,7 +171,8 @@ void main() {
       expect(find.text('ثبت پرونده جدید'), findsOneWidget);
     });
 
-    testWidgets('خطای ۴۰۱ → پیام صادقانه‌ی D-6 + تلاش دوباره', (tester) async {
+    testWidgets('خطای ۴۰۱ → پیام صادقانه‌ی D-6 + تلاش دوباره',
+        (tester) async {
       final container = dadgarContainer(
         casesRepository: FakeCasesRepository(
           failWith: const ApiException('unauthorized', statusCode: 401),
@@ -179,7 +188,7 @@ void main() {
     });
   });
 
-  group('CaseDetailScreen — جزئیات (طرح CMD-041)', () {
+  group('CaseDetailScreen — جزئیات (پوسته‌ی نسل S)', () {
     const detail = CaseDetail(
       id: 7,
       title: 'اختلاف بر سر مبیع',
@@ -192,7 +201,7 @@ void main() {
       description: 'شرح کامل ماجرا',
     );
 
-    testWidgets('پنل‌های طرح: مسیر پنج‌وضعیتی، مشخصات، گفتگو، اسناد',
+    testWidgets('کارت‌های نسل S: مسیر DsJourneyBar، مشخصات، گفتگو، اسناد',
         (tester) async {
       final repo = FakeCasesRepository(details: {7: detail});
       final messages = FakeMessagesRepository(
@@ -247,17 +256,17 @@ void main() {
       await _pumpApp(tester, container, const CaseDetailScreen(caseId: 7));
       await tester.pump(const Duration(milliseconds: 100));
 
-      // نوار بالا: عنوان + زیرنویس شماره پرونده
+      // سربرگ نسل S: عنوان + زیرنویس شماره پرونده
       expect(find.text('جزئیات پرونده'), findsOneWidget);
       expect(find.text('پرونده ۷'), findsOneWidget);
 
-      // سربرگ طرح: عنوان + قرص وضعیت؛ قرص سربرگ + ردیف وضعیت مشخصات = دو بار
-      // «تخصیص‌یافته» — مرحله‌ی جاری نوار مسیر اکنون برچسب حقوقی «طرح دعوا»
-      // است (حکم F1 سند CMD-048 — نگاشت ۶ روی ۵)
+      // سربرگ محتوایی: عنوان + قرص وضعیت؛ قرص سربرگ + ردیف وضعیت مشخصات =
+      // دو بار «تخصیص‌یافته» — مرحله‌ی جاری نوار مسیر اکنون برچسب حقوقی
+      // «طرح دعوا» است (حکم F1 سند CMD-048 — نگاشت ۶ روی ۵)
       expect(find.text('اختلاف بر سر مبیع'), findsOneWidget);
       expect(find.text('تخصیص‌یافته'), findsNWidgets(2));
 
-      // پنل مسیر پرونده — شش مرحله‌ی حقوقی و مرحله‌ی ۳ از ۶
+      // کارت مسیر پرونده — شش مرحله‌ی حقوقی و مرحله‌ی ۳ از ۶
       expect(find.text('مسیر پرونده'), findsOneWidget);
       expect(find.text('مرحله‌ی ۳ از ۶'), findsOneWidget);
       expect(find.text('ثبت'), findsOneWidget);
@@ -273,7 +282,7 @@ void main() {
       expect(find.text('۲۵,۰۰۰,۰۰۰ تومان'), findsOneWidget);
       expect(find.text('شرح کامل ماجرا'), findsOneWidget);
 
-      // گفتگو با وکیل — آخرین پیام واقعی + دکمه‌ی ورود
+      // گفتگو با وکیل — آخرین پیام واقعی (DsBubble) + دکمه‌ی ورود
       expect(find.textContaining('قرارداد ضمیمه را بررسی کنید'), findsOneWidget);
       // «وکیل» دو بار: کلید ردیف مشخصات + نقش فرستنده‌ی پیام
       expect(find.text('وکیل'), findsNWidgets(2));
@@ -286,7 +295,7 @@ void main() {
       expect(find.text('سند پرونده‌ی دیگر.pdf'), findsNothing);
       expect(find.text('همه‌ی اسناد گاوصندوق'), findsOneWidget);
 
-      // دکمه‌ی شبح رزرو نوبت
+      // دکمه‌ی رزرو نوبت (پرونده‌ی فعال)
       expect(find.text('رزرو نوبت با وکیل'), findsOneWidget);
     });
 
@@ -320,7 +329,7 @@ void main() {
       );
       // هیچ فراخوانی گفتگو زده نشد (قاعده‌ی سرور) و دکمه‌ی ورود هم نیست
       expect(messages.messageCalls, 0);
-      expect(find.byType(DadgarPrimaryButton), findsNothing);
+      expect(find.widgetWithText(DsButton, 'گفتگو با وکیل'), findsNothing);
       // وضعیت شناخته‌شده → قرص مرحله‌ی واقعی (آغاز چرخه‌ی حقوقی شش‌مرحله‌ای)
       expect(find.text('مرحله‌ی ۱ از ۶'), findsOneWidget);
     });
@@ -375,11 +384,14 @@ void main() {
     });
   });
 
-  group('NewCaseScreen — فرم ثبت', () {
-    testWidgets('شش دسته‌ی قرارداد به‌صورت چیپ نمایش داده می‌شود',
+  group('NewCaseScreen — فرم ثبت (پوسته‌ی نسل S)', () {
+    testWidgets('شش دسته‌ی قرارداد به‌صورت چیپ نمایش داده و انتخاب می‌شود',
         (tester) async {
-      await _pumpApp(tester, dadgarContainer(), const NewCaseScreen());
-      await tester.pump();
+      final container = dadgarContainer();
+      addTearDown(container.dispose);
+
+      await _pumpApp(tester, container, const NewCaseScreen());
+      await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('دسته‌بندی پرونده'), findsOneWidget);
       expect(find.text('ملکی'), findsOneWidget);
@@ -388,27 +400,33 @@ void main() {
       expect(find.text('شرکت‌ها'), findsOneWidget);
       expect(find.text('ارث و وصیت'), findsOneWidget);
       expect(find.text('قرارداد'), findsOneWidget);
+
+      // انتخاب دسته → کنترلر قرارداد به‌روز می‌شود
+      await tester.tap(find.text('خانواده'));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(container.read(createCaseControllerProvider).category, 'خانواده');
     });
 
     testWidgets('عنوان کوتاه → خطای اعتبارسنجی بدون POST', (tester) async {
       final container = dadgarContainer(casesRepository: FakeCasesRepository());
       addTearDown(container.dispose);
 
-      await _pumpApp(
-        tester,
-        container,
-        const NewCaseScreen(),
-      );
-      await tester.pump();
+      await _pumpApp(tester, container, const NewCaseScreen());
+      await tester.pump(const Duration(milliseconds: 50));
 
       await tester.enterText(find.byType(TextFormField).first, 'abcd');
+      // دکمه‌ی ثبت زیر خط دید است — الگوی ensureVisible (درس ACT-097)
+      await tester.ensureVisible(find.text('ثبت پرونده'));
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.text('ثبت پرونده'));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
       // اعتبارسنجی فرم جلوی submit را می‌گیرد — بدون فراخوانی سرور
       final repo =
           container.read(casesRepositoryProvider) as FakeCasesRepository;
       expect(repo.createCalls, 0);
+      // پیام آینه‌ی سرور در جعبه‌ی پیام رندر می‌شود
+      expect(find.textContaining('حداقل ۵ نویسه'), findsOneWidget);
     });
   });
 }

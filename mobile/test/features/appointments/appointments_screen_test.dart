@@ -1,4 +1,17 @@
+/// CMD-051 — بازنویسی تست برای درخت ویجت نسل S
+///
+/// پوشش رفتاری عین نسل قبل: تقویم شمسی نیتیو (ماه قرارداد، نام روزها،
+/// خانه‌ی امروز)، برچسب «پر» روی بازه‌ی اشغال‌شده، پیام صادقانه‌ی 401 با
+/// «تلاش دوباره» و جریان کامل رزرو تا ثبت موفق. تم، تم روشن نسل S است
+/// (هم‌سو با DadgarApp).
+///
+/// نکته‌ی ابزار: DsRing روی حالت بارگذاری بی‌پایان است
+/// (CircularProgressIndicator) → در همه‌جا از pump(Duration) استفاده
+/// می‌شود، نه pumpAndSettle.
+library;
+
 import 'package:dadgar_mobile/core/api/api_client.dart';
+import 'package:dadgar_mobile/design/tokens.dart';
 import 'package:dadgar_mobile/features/appointments/data/appointments_contract.dart';
 import 'package:dadgar_mobile/features/appointments/domain/appointment.dart';
 import 'package:dadgar_mobile/features/appointments/presentation/appointments_screen.dart';
@@ -20,21 +33,23 @@ Future<void> _pump(
         authStatus: const Authenticated('کاربر'),
         appointmentsRepository: repo,
       ),
-      child: const MaterialApp(
-        locale: Locale('fa'),
-        supportedLocales: [Locale('fa')],
-        localizationsDelegates: [
+      child: MaterialApp(
+        locale: const Locale('fa'),
+        supportedLocales: const [Locale('fa')],
+        localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: AppointmentsScreen(),
+        theme: Ds.lightTheme(),
+        home: const AppointmentsScreen(),
       ),
     ),
   );
+  // بدون pumpAndSettle — DsRing بی‌پایان است؛ پمپ‌های زمان‌دار
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 50));
-  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 80));
+  await tester.pump(const Duration(milliseconds: 80));
 }
 
 AppointmentsPage _openPage({Set<String> taken = const {}}) {
@@ -61,7 +76,9 @@ void main() {
     // بازه‌ها برای روز انتخاب‌شده نمایش داده می‌شوند
     expect(find.text('۰۹:۰۰'), findsWidgets);
     expect(find.text('۱۷:۳۰'), findsWidgets);
-    // یادآوری صادقانه
+    // قرص «امروز» نسل S روی سربرگ ماه
+    expect(find.text('امروز: ۷ آبان'), findsOneWidget);
+    // یادآوری صادقانه — فقط یک متن حاوی D-6 در صفحه‌ی آماده
     expect(find.textContaining('D-6'), findsOneWidget);
   });
 
@@ -105,22 +122,22 @@ void main() {
       220,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 120));
     await tester.tap(slotFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 120));
 
-    // دکمه‌ی رزرو (باز هم پایین‌تر) — برچسب عین طرح bAppt
+    // دکمه‌ی رزرو (باز هم پایین‌تر) — برچسب عین نسل قبل
     final bookFinder = find.textContaining('ثبت نوبت');
     await tester.scrollUntilVisible(
       bookFinder,
       220,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 120));
     await tester.tap(bookFinder);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(repo.bookCalls, 1);
     expect(repo.bookArgs.single.kind, 'حضوری');

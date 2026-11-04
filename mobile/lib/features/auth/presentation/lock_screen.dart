@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 
-/// قفل اپ — وقتی کاربر قفل بیومتریک را فعال کرده باشد (DOC-04 §۸)
+/// قفل اپ «دادگر S» — کد تازه از صفر (CMD-051)؛ منطق عین DOC-04 §۸
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 
@@ -48,65 +49,100 @@ final class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(DadgarTokens.s24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.lock_outline,
-                    size: 64, color: DadgarTokens.primary),
-                const SizedBox(height: DadgarTokens.s16),
-                const Text(
-                  'دادگر قفل است',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: DadgarTokens.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: DadgarTokens.s8),
-                const Text(
-                  'برای ادامه، هویت خود را تایید کنید',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: DadgarTokens.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: DadgarTokens.s24),
-                FilledButton.icon(
-                  onPressed: _checking ? null : _unlock,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: DadgarTokens.primary,
-                    foregroundColor: DadgarTokens.onPrimary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: DadgarTokens.s24,
-                      vertical: DadgarTokens.s16,
+      body: Column(
+        children: [
+          // ── بلوک آبی برند با قفل ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(bottom: 56),
+            decoration: const BoxDecoration(
+              color: Ds.primary,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(Ds.radiusSheet),
+                bottomRight: Radius.circular(Ds.radiusSheet),
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  const SizedBox(height: Ds.s32),
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_outline,
+                      size: 34,
+                      color: Colors.white,
                     ),
                   ),
-                  icon: _checking
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: DadgarTokens.onPrimary,
-                          ),
-                        )
-                      : const Icon(Icons.fingerprint),
-                  label: const Text('بازکردن با بیومتریک'),
-                ),
-                const SizedBox(height: DadgarTokens.s12),
-                TextButton(
-                  onPressed:
-                      _checking ? null : () => _signOutInstead(),
-                  child: const Text('خروج از حساب و ورود با رمز'),
-                ),
-              ],
+                  const SizedBox(height: Ds.s16),
+                  const Text(
+                    'دادگر قفل است',
+                    style: TextStyle(
+                      fontFamily: Ds.fontFamily,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'برای ادامه، هویت خود را تایید کنید',
+                    style: TextStyle(
+                      fontFamily: Ds.fontFamily,
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
+          // ── برگه‌ی اقدام ──
+          Expanded(
+            child: Transform.translate(
+              offset: const Offset(0, -24),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.brightness ==
+                          Brightness.light
+                      ? Ds.bg
+                      : Ds.bgDark,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(Ds.radiusSheet),
+                  ),
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(Ds.s24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        DsButton(
+                          'بازکردن با بیومتریک',
+                          onPressed: _checking ? null : _unlock,
+                          expand: true,
+                          icon: Icons.fingerprint,
+                        ),
+                        const SizedBox(height: Ds.s12),
+                        TextButton(
+                          onPressed:
+                              _checking ? null : () => _signOutInstead(),
+                          child: const Text('خروج از حساب و ورود با رمز'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

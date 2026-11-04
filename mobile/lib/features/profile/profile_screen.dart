@@ -1,14 +1,16 @@
-/// پروفایل M1 — تب پوسته (بدون AppBar؛ نوار بالای طرح)
+/// CMD-051 — بازنویسی از صفر؛ نسل S
 ///
-/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bProfile` در
-/// `design-preview/prototype.html`): کارت حساب (آواتار حرف اول + نام کاربری
-/// + قرص «حساب فعال» از وضعیت Authenticated واقعی) و پنل امنیت با سوییچ
-/// بیومتریک (M1) و خروج.
+/// پروفایل M1 — تب پوسته با هویت موبایل‌بومی «دادگر S» (اجرای حکم
+/// CMD-050؛ تنها پالت برند وب مشترک): سربرگ DsTopBar، کارت حساب
+/// (آواتار حرف اول در tint آبی + نام کاربری + قرص «حساب فعال» از
+/// وضعیت Authenticated واقعی) و بخش امنیت با ردیف DsTile و سوییچ
+/// بیومتریک (M1) و دکمه‌ی خروج مخرب. صفر عنصر بصری نسل قبل باقی نمانده.
 ///
 /// صداقت داده (S-4): «تغییر رمز عبور» و «دستگاه‌های من» طرح بدون API/داده
 /// در قرارداد موبایل نیستند (M1 فقط بیومتریک دارد) → اضافه نمی‌شوند
 /// (آفورد مرده = نقض S-4)؛ «خروج از همه‌ی دستگاه‌ها» به‌صورت یادداشت
-/// صادقانه می‌ماند. نشست + قفل بیومتریک + خروج (DOC-04 §۸) حفظ شده است.
+/// صادقانه می‌ماند. نشست + قفل بیومتریک + خروج (DOC-04 §۸) عین
+/// نسل قبل حفظ شده است.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
-import '../../design/d3_kit.dart';
+import '../../design/ds_kit.dart';
 import '../../design/tokens.dart';
 import '../auth/application/auth_controller.dart';
 
@@ -30,7 +32,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 final class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _toggleLock(bool value) async {
-    final ok = await ref.read(appLockControllerProvider.notifier).setEnabled(value);
+    final ok =
+        await ref.read(appLockControllerProvider.notifier).setEnabled(value);
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context)
@@ -45,6 +48,7 @@ final class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    final light = Theme.of(context).brightness == Brightness.light;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -57,7 +61,8 @@ final class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: DadgarTokens.error,
+              backgroundColor: light ? Ds.error : Ds.rose,
+              foregroundColor: Ds.onPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('خروج'),
@@ -81,128 +86,102 @@ final class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _ => 'کاربر دادگر',
     };
     final initial = username.isNotEmpty ? username.characters.first : 'د';
+    final light = Theme.of(context).brightness == Brightness.light;
 
     return Scaffold(
-      backgroundColor: DadgarTokens.background,
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            DadgarTokens.s16,
-            DadgarTokens.s12,
-            DadgarTokens.s16,
-            DadgarTokens.s32,
+      appBar: const DsTopBar('پروفایل', subtitle: 'حساب و امنیت'),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(Ds.s16, Ds.s8, Ds.s16, Ds.s32),
+        children: [
+          // ── کارت حساب — آواتار حرف اول + وضعیت واقعی نشست ──
+          DsCard(
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: light ? Ds.wash : Ds.washDark,
+                  ),
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      fontFamily: Ds.fontFamily,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: light ? Ds.primary : Ds.cyan,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: Ds.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: Ds.fontFamily,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          height: 1.5,
+                          color: light ? Ds.ink : Ds.inkDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'نشست موبایل دادگر — احراز هویت با توکن Bearer',
+                        style: TextStyle(
+                          fontFamily: Ds.fontFamily,
+                          fontSize: 12,
+                          height: 1.6,
+                          color: light ? Ds.inkSoft : Ds.inkSoftDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Ds.s8),
+                const DsPill('حساب فعال', tone: DsPillTone.success),
+              ],
+            ),
           ),
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 2),
-              child: DadgarTopBar(title: 'پروفایل', subtitle: 'حساب و امنیت'),
+          const SizedBox(height: Ds.s16),
+          // ── بخش امنیت — سوییچ بیومتریک M1 روی ردیف نسل S ──
+          const DsSectionHeader('امنیت'),
+          DsTile(
+            icon: Icons.fingerprint,
+            title: 'ورود با بیومتریک',
+            subtitle: 'بازکردن اپ با اثر انگشت یا چهره',
+            onTap: () => _toggleLock(!lock.enabled),
+            trailing: Switch(
+              value: lock.enabled,
+              onChanged: (value) => _toggleLock(value),
             ),
-            const SizedBox(height: DadgarTokens.s12),
-            // ── کارت حساب — کلاس `.lawyer` طرح ──
-            DadgarPanel(
-              child: Row(
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: DadgarTokens.pillDataBg,
-                    ),
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: DadgarTokens.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: DadgarTokens.s12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          username,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: DadgarTokens.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'نشست موبایل دادگر — احراز هویت با توکن Bearer',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: DadgarTokens.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: DadgarTokens.s8),
-                  const DadgarPill(
-                    'حساب فعال',
-                    variant: DadgarPillVariant.positive,
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: Ds.s24),
+          DsButton(
+            'خروج از این دستگاه',
+            onPressed: _logout,
+            tone: DsButtonTone.danger,
+            expand: true,
+          ),
+          const SizedBox(height: Ds.s8),
+          Text(
+            '«خروج از همه‌ی دستگاه‌ها» در فازهای بعدی پروفایل کامل می‌شود',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: Ds.fontFamily,
+              fontSize: 11.5,
+              height: 1.6,
+              color: light ? Ds.inkFaint : Ds.inkFaintDark,
             ),
-            const SizedBox(height: DadgarTokens.s12),
-            // ── پنل امنیت — سوییچ بیومتریک M1 ──
-            DadgarPanel(
-              head: 'امنیت',
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    value: lock.enabled,
-                    onChanged: (value) => _toggleLock(value),
-                    contentPadding: EdgeInsets.zero,
-                    // رنگ فعال از ColorScheme.lightTheme (primary سرمه‌ای) می‌آید
-                    secondary: const Icon(
-                      Icons.fingerprint,
-                      color: DadgarTokens.primary,
-                    ),
-                    title: const Text(
-                      'ورود با بیومتریک',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: DadgarTokens.textPrimary,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'بازکردن اپ با اثر انگشت یا چهره',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: DadgarTokens.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s24),
-            DadgarGhostButton(
-              'خروج از این دستگاه',
-              destructive: true,
-              onPressed: () => _logout(),
-            ),
-            const SizedBox(height: DadgarTokens.s8),
-            const Text(
-              '«خروج از همه‌ی دستگاه‌ها» در فازهای بعدی پروفایل کامل می‌شود',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: DadgarTokens.textFaint),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

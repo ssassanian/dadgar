@@ -1,8 +1,8 @@
-/// گیت‌های پوسته‌ی پنج‌تبی — CMD-044 (اجرای توصیه‌های F2 و F12 بازرسی CMD-042)
+/// گیت‌های پوسته‌ی ناوبری «دادگر S» — بازنویسی برای داک شناور (CMD-051)
 ///
-/// سه دروازه: (۱) نوار پایین پنج‌تبی با برچسب‌های فارسی عین طرح تاییدشده،
-/// (۲) سوییچ شاخه بدون گم‌شدن تب‌بار، (۳) نقطه‌ی فاکتور فقط با فاکتور
-/// پرداخت‌نشده‌ی واقعی (S-4 — صفر داده‌ی جعلی).
+/// سه دروازه: (۱) داک شناور پنج‌مقصدی با کلیدهای پایدار و برچسب فارسی
+/// مقصد فعال، (۲) سوییچ شاخه بدون گم‌شدن داک، (۳) نقطه‌ی فاکتور فقط با
+/// فاکتور پرداخت‌نشده‌ی واقعی (S-4 — صفر داده‌ی جعلی).
 library;
 
 import 'package:dadgar_mobile/app/app.dart';
@@ -17,7 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fakes.dart';
 
 void main() {
-  /// پمپ اپ کامل با نشست معتبر و فیک‌های همه‌ی شاخه‌های تب‌بار
+  /// پمپ اپ کامل با نشست معتبر و فیک‌های همه‌ی شاخه‌های داک
   Future<void> pumpShell(
     WidgetTester tester, {
     FakeBillingRepository? billing,
@@ -37,56 +37,58 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('دروازه ۱: نوار پایین پنج‌تبی با برچسب‌های فارسی', (
+  testWidgets('دروازه ۱: داک شناور پنج‌مقصدی + برچسب مقصد فعال', (
     tester,
   ) async {
     await pumpShell(tester);
 
     expect(find.byType(DadgarTabShell), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
-    expect(find.text('خانه'), findsWidgets);
-    expect(find.text('پرونده‌ها'), findsWidgets);
-    expect(find.text('نوبت'), findsWidgets);
-    expect(find.text('فاکتور'), findsWidgets);
-    expect(find.text('پروفایل'), findsWidgets);
+    expect(find.byType(DsDock), findsOneWidget);
+    for (final location in <String>[
+      '/',
+      '/cases',
+      '/appointments',
+      '/invoices',
+      '/profile',
+    ]) {
+      expect(find.byKey(ValueKey<String>('dock-$location')), findsOneWidget);
+    }
+    // داک فقط‌آیکونی است — نام مقصد فعال در Semantics حاضر است
+    // (قاعده‌ی مهارت: نام دسترس‌پذیر برای کنترل فقط‌آیکونی)
+    final semantics = tester.getSemantics(
+      find.byKey(const ValueKey<String>('dock-/')),
+    );
+    expect(semantics.label, 'خانه');
   });
 
-  testWidgets('دروازه ۲: تپ روی تب پرونده‌ها → فهرست پرونده‌ها با تب‌بار', (
+  testWidgets('دروازه ۲: تپ روی مقصد پرونده‌ها → فهرست پرونده‌ها با داک', (
     tester,
   ) async {
     await pumpShell(tester);
 
-    // فایندر مقید به نوار پایین — CMD-045: نوار بالای صفحه‌ی پرونده‌ها هم
-    // «پرونده‌ها» دارد (عین طرح) و IndexedStack همه‌ی شاخه‌ها را می‌سازد
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('پرونده‌ها'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('dock-/cases')));
     await tester.pumpAndSettle();
 
     expect(find.byType(CasesScreen), findsOneWidget);
-    // تب‌بار روی ریشه‌ها می‌ماند — عین tabbar() پروتوتایپ
-    expect(find.byType(NavigationBar), findsOneWidget);
+    // داک روی ریشه‌ها می‌ماند
+    expect(find.byType(DsDock), findsOneWidget);
   });
 
-  testWidgets('دروازه ۳ (F12): بدون فاکتور پرداخت‌نشده → بدون نقطه', (
+  testWidgets('دروازه ۳: بدون فاکتور پرداخت‌نشده → بدون نقطه', (
     tester,
   ) async {
     await pumpShell(tester, billing: FakeBillingRepository());
 
     expect(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(DsDock),
         matching: find.byType(Badge),
       ),
       findsNothing,
     );
   });
 
-  testWidgets('دروازه ۴ (F12): فاکتور pending → نقطه روی تب فاکتور', (
+  testWidgets('دروازه ۴: فاکتور pending → نقطه روی مقصد فاکتور', (
     tester,
   ) async {
     await pumpShell(
@@ -110,7 +112,7 @@ void main() {
 
     expect(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(DsDock),
         matching: find.byType(Badge),
       ),
       findsOneWidget,

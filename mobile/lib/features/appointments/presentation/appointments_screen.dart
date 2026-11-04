@@ -1,26 +1,45 @@
+/// CMD-051 — بازنویسی از صفر؛ نسل S
+///
+/// صفحه‌ی نوبت‌دهی «دادگر S» — تب «نوبت» پوسته‌ی پنج‌تبی (DsTopBar درون
+/// بدنه، بدون AppBar مستقل؛ هم‌سو با نسل قبل). رفتار عین نسل قبل
+/// پابرجاست: تقویم شمسی نیتیو با آفست هفتگی، پنج بازه‌ی ثابت روزانه‌ی
+/// قرارداد، قواعد «گذشته/پر» هم‌ساز سرور، رزرو/لغو با همان مسیرها و
+/// همان پیام‌ها. فقط پوسته‌ی بصری با کیت نسل S (Ds) از نو ساخته شده است:
+/// روزها کارتِ گرد با نوار امضایی، بازه‌ها چیپ قرصی، و همه‌جا دارک‌مودآگاه.
+///
+/// صداقت داده (S-4): نوار امضایی روز فقط وقتی معنا دارد که فهرست نوبت‌ها
+/// رسیده باشد (با 401 همگی خنثی‌اند)؛ یادداشت پایین صفحه وضعیت واقعی
+/// اتصال زنده را بدون ادعا نشان می‌دهد. عنوان صفحه دقیقاً «نوبت‌دهی»
+/// می‌ماند (آزمون router_test ردیف ۴ به آن وابسته است).
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/time/jalali.dart';
-import '../../../design/d3_kit.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/appointments_controller.dart';
 import '../data/appointments_contract.dart';
 
-/// صفحه‌ی نوبت‌دهی M3 — تب پوسته (بدون AppBar؛ نوار بالای طرح)
-///
-/// CMD-046 (فاز ۳): بازطراحی D-3 عین طرح تاییدشده‌ی CMD-041 (`bAppt` در
-/// `design-preview/prototype.html`): پنل تقویم با سربرگ ماه و قرص «امروز»،
-/// نوار امضایی روز (آزاد/پر — فقط از داده‌ی واقعی بازه‌ها)، چیپ‌های بازه‌ی
-/// پنج‌گانه و نوع ملاقات با kit و دکمه‌ی ثبت عین طرح.
-///
-/// صداقت داده (S-4): «وکیل: رضا محمدی» زیرعنوان data.js است — قرارداد
-/// appointments نام وکیل نمی‌دهد → زیرعنوان صادقانه. نوار روز فقط وقتی
-/// معنا دارد که فهرست نوبت‌ها رسیده باشد (با 401/D-6 همگی خنثی‌اند).
-/// داده از GET /api/appointments می‌آید؛ تا حکم D-6 پاسخ 401 است و
-/// پیام صادقانه با دکمه‌ی تلاش دوباره نمایش داده می‌شود.
+/// نئوترال‌های تم برای صفحه — رنگ فقط از Ds؛ تفسیر روشن/تاریک از
+/// Theme.of(context).brightness (قاعده‌ی الزام CMD-051)
+extension _Sx on BuildContext {
+  bool get isLight => Theme.of(this).brightness == Brightness.light;
+  Color get ink => isLight ? Ds.ink : Ds.inkDark;
+  Color get inkSoft => isLight ? Ds.inkSoft : Ds.inkSoftDark;
+  Color get inkFaint => isLight ? Ds.inkFaint : Ds.inkFaintDark;
+  Color get line => isLight ? Ds.line : Ds.lineDark;
+  Color get wash => isLight ? Ds.wash : Ds.washDark;
+  Color get accent => isLight ? Ds.primary : Ds.cyan;
+  Color get onAccent => isLight ? Ds.onPrimary : Ds.bgDark;
+  Color get danger => isLight ? Ds.error : Ds.rose;
+  Color get success => isLight ? Ds.green : Ds.mint;
+}
+
+/// صفحه‌ی نوبت‌دهی — تب سوم پوسته
 class AppointmentsScreen extends ConsumerWidget {
   const AppointmentsScreen({super.key});
 
@@ -35,32 +54,24 @@ class AppointmentsScreen extends ConsumerWidget {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(message),
-          backgroundColor:
-              isError ? DadgarTokens.error : DadgarTokens.accent,
+          backgroundColor: isError ? context.danger : context.success,
           behavior: SnackBarBehavior.floating,
         ));
     });
 
     return Scaffold(
-      backgroundColor: DadgarTokens.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: DadgarTokens.s16),
-              child: DadgarTopBar(
-                title: 'نوبت‌دهی',
-                subtitle: 'رزرو ملاقات با وکیل',
-              ),
+              padding: EdgeInsets.symmetric(horizontal: Ds.s16),
+              child: DsTopBar('نوبت‌دهی', subtitle: 'رزرو ملاقات با وکیل'),
             ),
             Expanded(
               child: switch (ui.status) {
-                LoadStatus.loading => const Center(
-                    child: CircularProgressIndicator(
-                        color: DadgarTokens.primary),
-                  ),
+                LoadStatus.loading => const Center(child: DsRing(size: 30)),
                 LoadStatus.error => _ErrorPane(
                     message: ui.message ?? 'دریافت اطلاعات ناموفق بود',
                     onRetry: () => ref
@@ -77,7 +88,7 @@ class AppointmentsScreen extends ConsumerWidget {
   }
 }
 
-/// وضعیت خطا — صادقانه با تلاش دوباره
+/// وضعیت خطا — صادقانه با تلاش دوباره (متن عین نسل قبل)
 final class _ErrorPane extends StatelessWidget {
   const _ErrorPane({required this.message, required this.onRetry});
 
@@ -88,27 +99,14 @@ final class _ErrorPane extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
+        padding: const EdgeInsets.all(Ds.s24),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_outlined,
-                  size: 48, color: DadgarTokens.error),
-              const SizedBox(height: DadgarTokens.s16),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 2,
-                  color: DadgarTokens.textPrimary,
-                ),
-              ),
-              const SizedBox(height: DadgarTokens.s24),
-              DadgarGhostButton('تلاش دوباره', onPressed: onRetry),
-            ],
+          child: DsEmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: message,
+            actionLabel: 'تلاش دوباره',
+            onAction: onRetry,
           ),
         ),
       ),
@@ -128,32 +126,45 @@ final class _CalendarBody extends ConsumerWidget {
         '${JalaliCalendar.monthNames[AppointmentContract.contractMonth - 1]} '
         '${JalaliCalendar.toPersianDigits(AppointmentContract.contractYear)}';
     final selectedDay = ui.selectedDay;
-    final inMonth = ui.todayDay >= 1 &&
-        ui.todayDay <= AppointmentContract.monthDays;
+    final inMonth =
+        ui.todayDay >= 1 && ui.todayDay <= AppointmentContract.monthDays;
     final todayText = inMonth
         ? 'امروز: ${JalaliCalendar.toPersianDigits(ui.todayDay)} '
             '${JalaliCalendar.monthNames[AppointmentContract.contractMonth - 1]}'
         : 'خارج از ماه قرارداد';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        DadgarTokens.s16,
-        DadgarTokens.s12,
-        DadgarTokens.s16,
-        DadgarTokens.s32,
-      ),
+      padding: const EdgeInsets.fromLTRB(Ds.s16, Ds.s4, Ds.s16, Ds.s32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── پنل تقویم — cal-head + cal عین طرح ──
-          DadgarPanel(
-            head: monthLabel,
-            trailing: DadgarPill(todayText),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          // ── پنل تقویم — کارت نسل S با سربرگ ماه و قرص «امروز» ──
+          DsCard(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        monthLabel,
+                        style: TextStyle(
+                          fontFamily: Ds.fontFamily,
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          color: context.ink,
+                        ),
+                      ),
+                    ),
+                    DsPill(
+                      todayText,
+                      tone: inMonth ? DsPillTone.info : DsPillTone.neutral,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Ds.s12),
                 const _WeekDayRow(),
-                const SizedBox(height: DadgarTokens.s4),
+                const SizedBox(height: Ds.s4),
                 _DayGrid(
                   selectedDay: selectedDay,
                   todayDay: ui.todayDay,
@@ -165,39 +176,39 @@ final class _CalendarBody extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: DadgarTokens.s12),
           if (selectedDay != null) ...[
+            const SizedBox(height: Ds.s12),
             _SlotSection(
               day: selectedDay,
               selectedSlot: ui.selectedSlot,
               slotStateFor: ui.slotStateFor,
               onSelect: controller.selectSlot,
             ),
-            const SizedBox(height: DadgarTokens.s12),
+            const SizedBox(height: Ds.s12),
             _KindSection(
               selectedKind: ui.selectedKind,
               onSelect: controller.selectKind,
             ),
-            const SizedBox(height: DadgarTokens.s16),
+            const SizedBox(height: Ds.s16),
             _BookButton(day: selectedDay),
           ],
-          const SizedBox(height: DadgarTokens.s16),
-          DadgarGhostButton(
+          const SizedBox(height: Ds.s16),
+          DsButton(
             'نوبت‌های من',
+            icon: Icons.event_note_outlined,
+            tone: DsButtonTone.outline,
+            expand: true,
             onPressed: () => context.push('/appointments/mine'),
           ),
-          const SizedBox(height: DadgarTokens.s12),
-          const DadgarEmptyBox(
-            'تقویم و بازه‌ها از سرور دادگر می‌آید (همان API سایت) — اتصال زنده '
-            'پس از حکم مدیر بر D-6 فعال می‌شود؛ کد موبایل آماده است.',
-          ),
+          const SizedBox(height: Ds.s12),
+          const _HonestNote(),
         ],
       ),
     );
   }
 }
 
-/// ردیف نام روزهای هفته — شنبه تا جمعه (کلاس `.dow` — ۱۱px faint)
+/// ردیف نام روزهای هفته — شنبه تا جمعه (برچسب ریز ۱۱٫۵، عین DsText.micro)
 final class _WeekDayRow extends StatelessWidget {
   const _WeekDayRow();
 
@@ -210,9 +221,11 @@ final class _WeekDayRow extends StatelessWidget {
             child: Text(
               name,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 11,
-                color: DadgarTokens.textFaint,
+              style: TextStyle(
+                fontFamily: Ds.fontFamily,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: context.inkFaint,
               ),
             ),
           ),
@@ -221,7 +234,8 @@ final class _WeekDayRow extends StatelessWidget {
   }
 }
 
-/// شبکه‌ی روزهای ماه — آفست هفتگی نیتیو از تقویم جلالی
+/// شبکه‌ی روزهای ماه — آفست هفتگی نیتیو از تقویم جلالی؛ ردیف‌های ۵۲dp
+/// (هدف لمس عمودی ≥۴۸) با خانه‌های کارتِ گرد نسل S
 final class _DayGrid extends StatelessWidget {
   const _DayGrid({
     required this.selectedDay,
@@ -245,38 +259,40 @@ final class _DayGrid extends StatelessWidget {
     final firstWeekIndex = JalaliCalendar.weekIndexOf(
       AppointmentContract.jalaliOfDay(1),
     );
-    final cells = <Widget>[
-      for (var i = 0; i < firstWeekIndex; i++) const _EmptyCell(),
-      for (var d = 1; d <= monthDays; d++)
-        _DayCell(
-          day: d,
-          isToday: d == todayDay,
-          isSelected: d == selectedDay,
-          isClosed: isDayClosed(d),
-          barState: _barStateOf(d),
-          onTap: () => onSelect(d),
-        ),
-    ];
-    final rows = (cells.length + 6) ~/ 7;
+    final rows = (firstWeekIndex + monthDays + 6) ~/ 7;
     return Column(
       children: [
         for (var r = 0; r < rows; r++)
-          Row(
-            children: [
-              for (var c = 0; c < 7; c++)
-                Expanded(
-                  child: (r * 7 + c) < cells.length
-                      ? cells[r * 7 + c]
-                      : const _EmptyCell(),
-                ),
-            ],
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                for (var c = 0; c < 7; c++)
+                  Expanded(child: _cellOf(r * 7 + c, firstWeekIndex)),
+              ],
+            ),
           ),
       ],
     );
   }
 
-  /// نوار روز — فقط از داده‌ی واقعی بازه‌ها (S-4): پر = هر پنج بازه
-  /// گرفته‌شده؛ آزاد = دست‌کم یک بازه‌ی آزاد؛ بقیه خنثی (`.bar` طرح)
+  Widget _cellOf(int index, int firstWeekIndex) {
+    final day = index - firstWeekIndex + 1;
+    if (day < 1 || day > AppointmentContract.monthDays) {
+      return const SizedBox.shrink();
+    }
+    return _DayCell(
+      day: day,
+      isToday: day == todayDay,
+      isSelected: day == selectedDay,
+      isClosed: isDayClosed(day),
+      barState: _barStateOf(day),
+      onTap: () => onSelect(day),
+    );
+  }
+
+  /// نوار امضایی روز — فقط از داده‌ی واقعی بازه‌ها (S-4):
+  /// پر = هر پنج بازه گرفته‌شده؛ آزاد = دست‌کم یک بازه‌ی آزاد
   _DayBarState _barStateOf(int day) {
     if (!hasData || isDayClosed(day)) return _DayBarState.none;
     var free = 0;
@@ -299,21 +315,11 @@ final class _DayGrid extends StatelessWidget {
   }
 }
 
-/// حالت نوار روز — عین `.bar` / `.bar.booked` / `.bar.free` طرح
+/// حالت نوار امضایی روز — آزاد/پر/خنثی (فقط از داده‌ی واقعی)
 enum _DayBarState { none, booked, free }
 
-final class _EmptyCell extends StatelessWidget {
-  const _EmptyCell();
-
-  @override
-  Widget build(BuildContext context) => const AspectRatio(
-        aspectRatio: 1,
-        child: SizedBox.shrink(),
-      );
-}
-
-/// خانه‌ی یک روز — کلاس `.day` طرح: مربع گرد ۸، شماره ۱۳px، نوار ۴px
-/// (امروز = لبه‌ی data و شماره‌ی ۶۰۰؛ انتخاب = زمینه‌ی active خنثی)
+/// خانه‌ی یک روز — کارت گردِ ۱۴ نسل S: انتخاب = قرص پرِ accent،
+/// امروز = لبه‌ی accent؛ نوار امضایی ۴px زیر رقم فارسی روز
 final class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
@@ -334,62 +340,60 @@ final class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = isClosed && !isSelected;
+    final accent = context.accent;
     final numColor = disabled
-        ? DadgarTokens.textFaint.withValues(alpha: 0.45)
-        : isToday
-            ? DadgarTokens.primary
-            : DadgarTokens.textPrimary;
+        ? context.inkFaint
+        : isSelected
+            ? context.onAccent
+            : isToday
+                ? accent
+                : context.ink;
+    final barColor = switch (barState) {
+      _DayBarState.booked => accent,
+      _DayBarState.free => context.success,
+      _DayBarState.none => context.line,
+    };
     return Padding(
       padding: const EdgeInsets.all(2),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Material(
-          color: isSelected ? DadgarTokens.pillNeutralBg : Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: isToday
-                ? const BorderSide(color: DadgarTokens.primary)
-                : BorderSide.none,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: disabled ? null : onTap,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  JalaliCalendar.toPersianDigits(day),
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.2,
-                    fontWeight: isToday ? FontWeight.w600 : FontWeight.w400,
-                    color: numColor,
+      child: Material(
+        color: isSelected ? accent : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: isToday && !isSelected
+              ? BorderSide(color: accent, width: 1.4)
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: disabled ? null : onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                JalaliCalendar.toPersianDigits(day),
+                style: TextStyle(
+                  fontFamily: Ds.fontFamily,
+                  fontSize: 13.5,
+                  height: 1.2,
+                  fontWeight: isSelected || isToday
+                      ? FontWeight.w800
+                      : FontWeight.w500,
+                  color: numColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // نوار امضایی نسل S — عرض ۵۶٪، ارتفاع ۴، گوشه‌ی ۲
+              FractionallySizedBox(
+                widthFactor: 0.56,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: barColor,
                   ),
                 ),
-                const SizedBox(height: 4),
-                // نوار امضایی — عرض ۷۰٪، ارتفاع ۴، گوشه‌ی ۲
-                FractionallySizedBox(
-                  widthFactor: 0.7,
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      color: switch (barState) {
-                        _DayBarState.booked => DadgarTokens.primary,
-                        _DayBarState.free => DadgarTokens.pillPositiveBg,
-                        _DayBarState.none => DadgarTokens.rowRule,
-                      },
-                      border: barState == _DayBarState.free
-                          ? Border.all(
-                              color: DadgarTokens.pillPositiveInk,
-                              width: 0.8,
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -397,7 +401,7 @@ final class _DayCell extends StatelessWidget {
   }
 }
 
-/// بازه‌های روز انتخاب‌شده — پنل با چیپ‌های kit (`.chips` طرح)
+/// بازه‌های روز انتخاب‌شده — کارت نسل S با چیپ‌های قرصی
 final class _SlotSection extends StatelessWidget {
   const _SlotSection({
     required this.day,
@@ -416,23 +420,43 @@ final class _SlotSection extends StatelessWidget {
     final dateLabel = JalaliCalendar.formatLong(
       AppointmentContract.jalaliOfDay(day),
     );
-    return DadgarPanel(
-      head: 'بازه‌های $dateLabel',
-      trailing: const DadgarPill('آزاد', variant: DadgarPillVariant.positive),
-      child: Wrap(
-        spacing: DadgarTokens.s8,
-        runSpacing: DadgarTokens.s8,
+    return DsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final slot in AppointmentContract.slotLabels.values)
-            switch (slotStateFor(day, slot)) {
-              SlotState.free => DadgarChip(
-                  slot,
-                  selected: slot == selectedSlot,
-                  onTap: () => onSelect(slot),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'بازه‌های $dateLabel',
+                  style: TextStyle(
+                    fontFamily: Ds.fontFamily,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                    color: context.ink,
+                  ),
                 ),
-              SlotState.taken => DadgarChip('$slot (پر)', selected: false),
-              SlotState.past => DadgarChip('$slot (گذشته)', selected: false),
-            },
+              ),
+              const DsPill('آزاد', tone: DsPillTone.success),
+            ],
+          ),
+          const SizedBox(height: Ds.s12),
+          Wrap(
+            spacing: Ds.s8,
+            runSpacing: Ds.s8,
+            children: [
+              for (final slot in AppointmentContract.slotLabels.values)
+                switch (slotStateFor(day, slot)) {
+                  SlotState.free => _SelectChip(
+                      label: slot,
+                      selected: slot == selectedSlot,
+                      onTap: () => onSelect(slot),
+                    ),
+                  SlotState.taken => _SelectChip.taken('$slot (پر)'),
+                  SlotState.past => _SelectChip.past('$slot (گذشته)'),
+                },
+            ],
+          ),
         ],
       ),
     );
@@ -448,25 +472,118 @@ final class _KindSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DadgarPanel(
-      head: 'نوع ملاقات',
-      child: Wrap(
-        spacing: DadgarTokens.s8,
-        runSpacing: DadgarTokens.s8,
+    return DsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final kind in AppointmentContract.kinds)
-            DadgarChip(
-              kind,
-              selected: kind == selectedKind,
-              onTap: () => onSelect(kind),
+          Text(
+            'نوع ملاقات',
+            style: TextStyle(
+              fontFamily: Ds.fontFamily,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: context.ink,
             ),
+          ),
+          const SizedBox(height: Ds.s12),
+          Wrap(
+            spacing: Ds.s8,
+            runSpacing: Ds.s8,
+            children: [
+              for (final kind in AppointmentContract.kinds)
+                _SelectChip(
+                  label: kind,
+                  selected: kind == selectedKind,
+                  onTap: () => onSelect(kind),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-/// دکمه‌ی رزرو — فعال فقط با بازه‌ی آزاد؛ برچسب عین bAppt طرح
+/// حالت چیپ — انتخاب‌شدنی / پر (اشغال) / گذشته
+enum _ChipMode { selectable, taken, past }
+
+/// چیپ انتخاب نسل S — کیت Ds چیپ تعاملی ندارد → ویجت خصوصی همین صفحه.
+/// ارتفاع ۴۸ (هدف لمس)، فرم قرصی (stadium)؛ حالت انتخاب = قرص پر accent.
+final class _SelectChip extends StatelessWidget {
+  const _SelectChip({
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  })  : _mode = _ChipMode.selectable;
+
+  const _SelectChip.taken(this.label)
+      : selected = false,
+        onTap = null,
+        _mode = _ChipMode.taken;
+
+  const _SelectChip.past(this.label)
+      : selected = false,
+        onTap = null,
+        _mode = _ChipMode.past;
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  final _ChipMode _mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, Color fg, BorderSide side) = switch (_mode) {
+      _ChipMode.selectable when selected => (
+          context.accent,
+          context.onAccent,
+          BorderSide.none,
+        ),
+      _ChipMode.selectable => (
+          context.wash,
+          context.isLight ? Ds.primaryDeep : Ds.cyan,
+          BorderSide(color: context.line),
+        ),
+      _ChipMode.taken => (
+          context.wash,
+          context.inkSoft,
+          BorderSide.none,
+        ),
+      _ChipMode.past => (
+          Colors.transparent,
+          context.inkFaint,
+          BorderSide(color: context.line),
+        ),
+    };
+    return Material(
+      color: bg,
+      shape: StadiumBorder(side: side),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Ds.s16,
+            vertical: Ds.s12,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: Ds.fontFamily,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// دکمه‌ی رزرو — فعال فقط با بازه‌ی آزاد؛ برچسب عین نسل قبل
 final class _BookButton extends ConsumerWidget {
   const _BookButton({required this.day});
 
@@ -486,23 +603,63 @@ final class _BookButton extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DadgarPrimaryButton(
+        DsButton(
           slot != null && slot.isNotEmpty
               ? 'ثبت نوبت — $dateLabel · ساعت $slot'
               : 'ثبت نوبت',
           onPressed: canBook
               ? () => ref.read(appointmentsControllerProvider.notifier).book()
               : null,
+          expand: true,
         ),
         if (slot == null || slot.isEmpty) ...[
-          const SizedBox(height: DadgarTokens.s8),
-          const Text(
+          const SizedBox(height: Ds.s8),
+          Text(
             'ابتدا یک ساعت آزاد را انتخاب کنید.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: DadgarTokens.textFaint),
+            style: TextStyle(
+              fontFamily: Ds.fontFamily,
+              fontSize: 12,
+              color: context.inkFaint,
+            ),
           ),
         ],
       ],
+    );
+  }
+}
+
+/// یادداشت وضعیت — متن عین نسل قبل (S-4: بدون ادعای اتصال زنده)
+final class _HonestNote extends StatelessWidget {
+  const _HonestNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Ds.s12),
+      decoration: BoxDecoration(
+        color: context.wash,
+        borderRadius: BorderRadius.circular(Ds.radiusField),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: context.accent),
+          const SizedBox(width: Ds.s8),
+          Expanded(
+            child: Text(
+              'تقویم و بازه‌ها از سرور دادگر می‌آید (همان API سایت) — اتصال زنده '
+              'پس از حکم مدیر بر D-6 فعال می‌شود؛ کد موبایل آماده است.',
+              style: TextStyle(
+                fontFamily: Ds.fontFamily,
+                fontSize: 12,
+                height: 1.7,
+                color: context.inkSoft,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

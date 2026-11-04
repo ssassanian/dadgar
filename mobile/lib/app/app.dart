@@ -7,8 +7,8 @@ import 'router.dart';
 
 /// ریشه‌ی اپ دادگر — فارسی، RTL کامل از هسته‌ی فریمورک (DOC-04 §۷)
 ///
-/// ناوبری اعلامی با go_router: مسیرها بر اساس وضعیت نشست
-/// (splash → login/home → lock) هدایت می‌شوند (M1).
+/// CMD-051: تم روشن + تم تاریک (قاعده‌ی مهارت ui-ux-pro-max —
+/// پشتیبانی دارک‌مود الزامی)؛ انتخاب تم = سیستم‌عامل.
 class DadgarApp extends ConsumerWidget {
   const DadgarApp({super.key});
 
@@ -18,7 +18,9 @@ class DadgarApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'دادگر',
       debugShowCheckedModeBanner: false,
-      theme: DadgarTokens.lightTheme(),
+      theme: Ds.lightTheme(),
+      darkTheme: Ds.darkTheme(),
+      themeMode: ThemeMode.system,
       locale: const Locale('fa'),
       supportedLocales: const [Locale('fa')],
       localizationsDelegates: const [

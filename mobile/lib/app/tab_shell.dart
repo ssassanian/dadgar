@@ -1,16 +1,13 @@
-/// پوسته‌ی ناوبری پنج‌تبی اپ دادگر — CMD-044 (اجرای توصیه‌ی F2 بازرسی CMD-042)
+/// پوسته‌ی ناوبری «دادگر S» — داک شناور (CMD-051؛ کد تازه از صفر)
 ///
-/// ترجمه‌ی مستقیم طرح تاییدشده‌ی CMD-041: تب‌بار فقط روی پنج صفحه‌ی ریشه
-/// (خانه/پرونده‌ها/نوبت/فاکتور/پروفایل — عین `tabbar()` در prototype.html)؛
-/// صفحه‌های جزئیات و ثانویه تمام‌صفحه با بازگشت پشته‌ای و بدون تب‌بار.
+/// حکم CMD-050/051: طراحی موبایل از صفر و موبایل‌بومی؛ تنها پالت برند
+/// وب مشترک است. این پوسته جایگزین NavigationBar استاندارد M3 نسل قبل
+/// شده است: داک گردِ شناور با قرص انتخاب آبی الکتریکی — الگویی که
+/// نه در وب دادگر هست و نه در نسل قبلی اپ.
 ///
-/// نقطه‌ی «فاکتور پرداخت‌نشده» روی تب فاکتور از داده‌ی واقعی سرور می‌آید
-/// (S-4 — صفر داده‌ی جعلی) — اجرای توصیه‌ی F12 سمت کد. کنترلر مالی در
-/// نخستین تماشا یک‌بار بارگذاری می‌شود و پس از پرداخت (setInvoiceStatus)
-/// نقطه به‌صورت زنده حذف می‌شود — عین رفتار پروتوتایپ.
-///
-/// قواعد خود طرح (CMD-042 F4/F5) از تولد رعایت است: لمس مقصدها ≥۴۸dp
-/// (استاندارد M3) و برچسب‌ها ۱۲sp+ (پیش‌فرض M3).
+/// ساختار ناوبری عین طرح تاییدشده‌ی CMD-041/044 می‌ماند: پنج مقصد
+/// ریشه‌ای (خانه/پرونده‌ها/نوبت/فاکتور/پروفایل) با StatefulShellRoute؛
+/// نقطه‌ی «فاکتور پرداخت‌نشده» از داده‌ی واقعی سرور (S-4).
 library;
 
 import 'package:flutter/material.dart';
@@ -20,7 +17,7 @@ import 'package:go_router/go_router.dart';
 import '../design/tokens.dart';
 import 'providers.dart';
 
-/// یک تب نوار پایین — برچسب/آیکون/مقصد (ترتیب = ترتیب شاخه‌های روتر)
+/// یک مقصد داک — برچسب/آیکون/مسیر (ترتیب = ترتیب شاخه‌های روتر)
 typedef _Tab = ({String label, IconData icon, IconData selected, String location});
 
 const List<_Tab> _kTabs = <_Tab>[
@@ -51,7 +48,106 @@ const List<_Tab> _kTabs = <_Tab>[
   ),
 ];
 
-/// بدنه = شاخه‌ی فعال (StatefulShellRoute.indexedStack) + نوار پایین پنج‌تبی
+/// داک شناور نسل S — سفید گردِ ۲۴ با قرص انتخاب آبی؛ هدف لمس ≥۴۸dp
+final class DsDock extends StatelessWidget {
+  const DsDock({
+    super.key,
+    required this.currentIndex,
+    required this.onDestinationSelected,
+    required this.pendingInvoices,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  /// تعداد فاکتور پرداخت‌نشده‌ی واقعی (S-4؛ صفر = بدون نقطه)
+  final int pendingInvoices;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final light = scheme.brightness == Brightness.light;
+    final dockColor = light ? Ds.surface : Ds.surfaceDark;
+    final idle = light ? Ds.inkSoft : Ds.inkSoftDark;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(Ds.s16, Ds.s4, Ds.s16, Ds.s12),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: dockColor,
+          borderRadius: BorderRadius.circular(Ds.radiusSheet),
+          border: Border.all(
+            color: light ? Ds.line : Ds.lineDark,
+          ),
+          boxShadow: Ds.cardShadow,
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < _kTabs.length; i++)
+              Expanded(child: _dockItem(context, i, idle)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dockItem(BuildContext context, int i, Color idle) {
+    final tab = _kTabs[i];
+    final selected = i == currentIndex;
+    final scheme = Theme.of(context).colorScheme;
+    final light = scheme.brightness == Brightness.light;
+    final accent = light ? Ds.primary : Ds.cyan;
+    final onAccent = light ? Ds.onPrimary : Ds.bgDark;
+
+    // داک فقط‌آیکونی (الگوی داک native): قرص انتخاب ۴۴×۴۴؛ نام مقصد
+    // برای دسترس‌پذیری در Semantics/Tooltip هست (قاعده‌ی مهارت:
+    // «کنترل فقط‌آیکونی باید نام دسترس‌پذیر داشته باشد»).
+    final iconWidget = Icon(
+      selected ? tab.selected : tab.icon,
+      size: 22,
+      color: selected ? onAccent : idle,
+    );
+
+    final content = Tooltip(
+      message: tab.label,
+      triggerMode: TooltipTriggerMode.longPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(Ds.radiusChip),
+        ),
+        child: tab.location == '/invoices' && pendingInvoices > 0 && !selected
+            ? Badge(
+                smallSize: 8,
+                backgroundColor: light ? Ds.error : Ds.rose,
+                child: iconWidget,
+              )
+            : iconWidget,
+      ),
+    );
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: tab.label,
+      child: InkWell(
+        key: ValueKey<String>('dock-${tab.location}'),
+        onTap: () => onDestinationSelected(i),
+        borderRadius: BorderRadius.circular(Ds.radiusChip),
+        child: Center(child: content),
+      ),
+    );
+  }
+}
+
+/// بدنه = شاخه‌ی فعال (StatefulShellRoute.indexedStack) + داک شناور
 final class DadgarTabShell extends ConsumerWidget {
   const DadgarTabShell({super.key, required this.navigationShell});
 
@@ -60,53 +156,20 @@ final class DadgarTabShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // تماشای وضعیت مالی → بارگذاری یک‌باره‌ی فاکتورهای کاربر (build کنترلر
-    // خودش microtask بارگذاری دارد) → نقطه‌ی تب فاکتور همیشه داده‌ی واقعی
+    // تماشای وضعیت مالی → بارگذاری یک‌باره‌ی فاکتورهای کاربر → نقطه‌ی
+    // داک همیشه از داده‌ی واقعی سرور (عین رفتار نسل قبل، پوسته‌ی تازه)
     final pendingCount = ref.watch(billingControllerProvider).pendingCount;
 
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
+      bottomNavigationBar: DsDock(
+        currentIndex: navigationShell.currentIndex,
         onDestinationSelected: (int i) => navigationShell.goBranch(
           i,
           initialLocation: i == navigationShell.currentIndex,
         ),
-        destinations: <Widget>[
-          for (var i = 0; i < _kTabs.length; i++)
-            NavigationDestination(
-              icon: _tabIcon(
-                _kTabs[i],
-                pendingCount: pendingCount,
-                selected: false,
-              ),
-              selectedIcon: _tabIcon(
-                _kTabs[i],
-                pendingCount: pendingCount,
-                selected: true,
-              ),
-              label: _kTabs[i].label,
-              tooltip: _kTabs[i].label,
-            ),
-        ],
+        pendingInvoices: pendingCount,
       ),
-    );
-  }
-
-  /// آیکون تب — فقط تب فاکتور با فاکتور پرداخت‌نشده نقطه‌ی قرمز دارد (F12)
-  Widget _tabIcon(
-    _Tab tab, {
-    required int pendingCount,
-    required bool selected,
-  }) {
-    final icon = Icon(selected ? tab.selected : tab.icon);
-    if (tab.location != '/invoices' || pendingCount == 0) {
-      return icon;
-    }
-    return Badge(
-      smallSize: 8,
-      backgroundColor: DadgarTokens.error,
-      child: icon,
     );
   }
 }

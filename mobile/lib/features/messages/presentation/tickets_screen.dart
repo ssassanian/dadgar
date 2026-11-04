@@ -1,7 +1,12 @@
-/// صفحه‌ی تیکت‌های پشتیبانی — M5 (DOC-04 §۱۱ ردیف M5)
+/// CMD-051 — بازنویسی از صفر؛ نسل S
 ///
-/// الگوی «لیست-کارت» §۷: کارت به‌جای جدول، pull-to-refresh، خالی صادقانه
-/// و وضعیت‌نشان رنگی D-3 — ستون‌های همان جدول وب (موضوع/بخش/وضعیت/شمار پیام).
+/// صفحه‌ی تیکت‌های پشتیبانی — M5 (DOC-04 §۱۱ ردیف M5).
+///
+/// بازطراحی موبایل‌بومی با کیت «دادگر S»: سربرگ DsTopBar با شمارنده به‌عنوان
+/// زیرنویس، کارت‌های DsCard با قرص وضعیت DsPill، حالت خالی/خطای صادقانه با
+/// DsEmptyState و بارگذاری با DsRing. رفتار عین قدیم: مسیرها ('/tickets/new'
+/// و '/tickets/:id')، pull-to-refresh، شمارنده‌ی فارسی و برچسب‌های وضعیت
+/// TK_ST سرور. FAB قدیمی به دکمه‌ی سطح‌بالای فهرست + اقدام حالت خالی منتقل شد.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,9 +14,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/time/jalali.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/tickets_controller.dart';
 import '../domain/ticket_models.dart';
+
+/// نگاشت وضعیت تیکت به تُن قرص نسل S — باز = جریان، بررسی = هشدار،
+/// پاسخ داده‌شده = موفقیت، بسته = خنثی
+DsPillTone _statusTone(String status) => switch (status) {
+      'open' => DsPillTone.info,
+      'review' => DsPillTone.warn,
+      'answered' => DsPillTone.success,
+      'closed' => DsPillTone.neutral,
+      _ => DsPillTone.info,
+    };
 
 /// صفحه‌ی تیکت‌های من
 class TicketsScreen extends ConsumerWidget {
@@ -23,25 +39,33 @@ class TicketsScreen extends ConsumerWidget {
     final controller = ref.read(ticketsControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('تیکت‌های پشتیبانی')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/tickets/new'),
-        icon: const Icon(Icons.support_agent_outlined),
-        label: const Text('تیکت جدید'),
+      appBar: DsTopBar(
+        'تیکت‌های پشتیبانی',
+        subtitle: ui.status == LoadStatus.ready
+            ? '${JalaliCalendar.toPersianDigits(ui.rows.length)} تیکت'
+            : null,
       ),
       body: switch (ui.status) {
-        LoadStatus.loading => const _SkeletonList(),
-        LoadStatus.error => _ErrorPane(
-            message: ui.message ?? 'خطای نامشخص',
-            onRetry: controller.reload,
+        LoadStatus.loading => const _LoadingPane(),
+        LoadStatus.error => DsEmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: ui.message ?? 'خطای نامشخص',
+            actionLabel: 'تلاش دوباره',
+            onAction: controller.reload,
           ),
-        LoadStatus.ready when ui.rows.isEmpty => const _EmptyPane(),
+        LoadStatus.ready when ui.rows.isEmpty => DsEmptyState(
+            icon: Icons.support_agent_outlined,
+            title: 'هنوز تیکتی ثبت نکرده‌اید',
+            actionLabel: 'تیکت جدید',
+            onAction: () => context.go('/tickets/new'),
+          ),
         LoadStatus.ready => _TicketsList(ui: ui),
       },
     );
   }
 }
 
+/// فهرست تیکت‌ها — اقدام «تیکت جدید» بالای فهرست + pull-to-refresh
 final class _TicketsList extends ConsumerWidget {
   const _TicketsList({required this.ui});
 
@@ -50,29 +74,23 @@ final class _TicketsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(ticketsControllerProvider.notifier);
+    final light = Theme.of(context).brightness == Brightness.light;
     return RefreshIndicator(
       onRefresh: controller.reload,
+      color: light ? Ds.primary : Ds.cyan,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          DadgarTokens.s16,
-          DadgarTokens.s16,
-          DadgarTokens.s16,
-          DadgarTokens.s32,
-        ),
+        padding: const EdgeInsets.fromLTRB(Ds.s16, Ds.s16, Ds.s16, Ds.s32),
         itemCount: ui.rows.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: DadgarTokens.s8),
+        separatorBuilder: (_, __) => const SizedBox(height: Ds.s12),
         itemBuilder: (context, index) {
           if (index == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: DadgarTokens.s4),
-              child: Text(
-                '${JalaliCalendar.toPersianDigits(ui.rows.length)} تیکت',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: DadgarTokens.textSecondary,
-                ),
-              ),
+            return DsButton(
+              'تیکت جدید',
+              icon: Icons.support_agent_outlined,
+              tone: DsButtonTone.tonal,
+              expand: true,
+              onPressed: () => context.go('/tickets/new'),
             );
           }
           return _TicketCard(row: ui.rows[index - 1]);
@@ -82,217 +100,74 @@ final class _TicketsList extends ConsumerWidget {
   }
 }
 
-/// کارت تیکت — موضوع/بخش/اولویت/وضعیت/شمار پیام/تاریخ
+/// کارت تیکت نسل S — قرص وضعیت/شناسه، موضوع، بخش/شمار پیام/تاریخ
 final class _TicketCard extends StatelessWidget {
   const _TicketCard({required this.row});
 
   final TicketSummary row;
 
-  Color get _statusColor => switch (row.status) {
-        'closed' => DadgarTokens.accent,
-        'answered' => DadgarTokens.primary,
-        'open' => DadgarTokens.textSecondary,
-        _ => DadgarTokens.primary,
-      };
-
   @override
   Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
+    final faint = light ? Ds.inkFaint : Ds.inkFaintDark;
+    final caption = DsText.caption.copyWith(
+      color: light ? Ds.inkSoft : Ds.inkSoftDark,
+    );
     final updated = JalaliCalendar.fromEpochSeconds(row.updatedAt);
-    return Material(
-      color: DadgarTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DadgarTokens.radius),
-        side: BorderSide(
-          color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/tickets/${row.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(DadgarTokens.s12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return DsCard(
+      onTap: () => context.go('/tickets/${row.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: DadgarTokens.s8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      row.statusValue.labelFa,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: _statusColor,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'تیکت ${JalaliCalendar.toPersianDigits(row.id)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: DadgarTokens.s8),
+              DsPill(row.statusValue.labelFa, tone: _statusTone(row.status)),
+              const Spacer(),
               Text(
-                row.subject,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: DadgarTokens.textPrimary,
-                ),
-              ),
-              const SizedBox(height: DadgarTokens.s4),
-              Row(
-                children: [
-                  if (row.dept.isNotEmpty) ...[
-                    Text(
-                      row.dept,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: DadgarTokens.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: DadgarTokens.s8),
-                    const Text('•',
-                        style: TextStyle(color: DadgarTokens.textSecondary)),
-                    const SizedBox(width: DadgarTokens.s8),
-                  ],
-                  Text(
-                    '${JalaliCalendar.toPersianDigits(row.msgCount)} پیام',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    JalaliCalendar.formatNumeric(updated),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
-                ],
+                'تیکت ${JalaliCalendar.toPersianDigits(row.id)}',
+                style: DsText.micro.copyWith(color: faint),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// اسکلت بارگذاری
-final class _SkeletonList extends StatelessWidget {
-  const _SkeletonList();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(DadgarTokens.s16),
-      itemCount: 4,
-      separatorBuilder: (_, __) => const SizedBox(height: DadgarTokens.s8),
-      itemBuilder: (_, __) => Container(
-        height: 88,
-        decoration: BoxDecoration(
-          color: DadgarTokens.surface,
-          borderRadius: BorderRadius.circular(DadgarTokens.radius),
-          border: Border.all(
-            color: DadgarTokens.textSecondary.withValues(alpha: 0.15),
+          const SizedBox(height: Ds.s8),
+          Text(
+            row.subject,
+            style: DsText.headline.copyWith(
+              color: light ? Ds.ink : Ds.inkDark,
+            ),
           ),
-        ),
+          const SizedBox(height: Ds.s4),
+          Row(
+            children: [
+              if (row.dept.isNotEmpty) ...[
+                Text(row.dept, style: caption),
+                const SizedBox(width: Ds.s8),
+                Text('•', style: TextStyle(color: faint)),
+                const SizedBox(width: Ds.s8),
+              ],
+              Text(
+                '${JalaliCalendar.toPersianDigits(row.msgCount)} پیام',
+                style: caption,
+              ),
+              const Spacer(),
+              Text(
+                JalaliCalendar.formatNumeric(updated),
+                style: DsText.caption.copyWith(color: faint),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// خالی صادقانه
-final class _EmptyPane extends StatelessWidget {
-  const _EmptyPane();
+/// بارگذاری — حلقه‌ی نسل S (بی‌پایان؛ در تست‌ها فقط pump ثابت)
+final class _LoadingPane extends StatelessWidget {
+  const _LoadingPane();
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.support_agent_outlined,
-              size: 48,
-              color: DadgarTokens.textSecondary,
-            ),
-            const SizedBox(height: DadgarTokens.s12),
-            const Text(
-              'هنوز تیکتی ثبت نکرده‌اید',
-              style: TextStyle(
-                fontSize: 14,
-                color: DadgarTokens.textSecondary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            FilledButton.icon(
-              onPressed: () => context.go('/tickets/new'),
-              icon: const Icon(Icons.support_agent_outlined, size: 18),
-              label: const Text('تیکت جدید'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// خطای صادقانه + تلاش دوباره
-final class _ErrorPane extends StatelessWidget {
-  const _ErrorPane({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: DadgarTokens.error,
-            ),
-            const SizedBox(height: DadgarTokens.s12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.8,
-                color: DadgarTokens.textPrimary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const Center(child: DsRing(size: 28));
   }
 }

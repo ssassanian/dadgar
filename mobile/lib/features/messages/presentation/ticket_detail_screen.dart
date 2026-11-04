@@ -1,14 +1,19 @@
-/// صفحه‌ی گفتگوی یک تیکت — M5 (DOC-04 §۱۱ ردیف M5)
+/// CMD-051 — بازنویسی از صفر؛ نسل S
 ///
-/// آینه‌ی GET /api/tickets/:id سرور: پیام‌ها با حباب «من/طرف» بر پایه‌ی
-/// `mine` سرور، پاسخ با POST replies — تیکت بسته با پیام عین سرور
-/// غیرفعال می‌شود و وضعیت پس از هر پاسخ با بازخوانی تازه می‌شود.
+/// صفحه‌ی گفتگوی یک تیکت — M5 (DOC-04 §۱۱ ردیف M5).
+///
+/// آینه‌ی GET /api/tickets/:id سرور: پیام‌ها با DsBubble بر پایه‌ی `mine`
+/// سرور (خودم = tint آبی)، پاسخ با POST replies، تیکت بسته با پیام عین
+/// سرور غیرفعال می‌شود و وضعیت پس از هر پاسخ با بازخوانی تازه می‌شود.
+/// نسل S: سربرگ DsCard با قرص وضعیت DsPill و ردیف‌های DsKvRow، حباب‌ها
+/// با برچسب نقشِ فرستنده روی حباب طرف مقابل.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/jalali.dart';
+import '../../../design/ds_kit.dart';
 import '../../../design/tokens.dart';
 import '../application/tickets_controller.dart';
 import '../data/messages_contract.dart';
@@ -49,14 +54,14 @@ final class _TicketDetailScreenState
         ref.read(ticketDetailProvider(widget.ticketId).notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('گفتگوی تیکت')),
+      appBar: const DsTopBar('گفتگوی تیکت', showBack: true),
       body: switch (ui.status) {
-        LoadStatus.loading => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        LoadStatus.error => _ErrorPane(
-            message: ui.message ?? 'خطای نامشخص',
-            onRetry: controller.reload,
+        LoadStatus.loading => const Center(child: DsRing(size: 28)),
+        LoadStatus.error => DsEmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: ui.message ?? 'خطای نامشخص',
+            actionLabel: 'تلاش دوباره',
+            onAction: controller.reload,
           ),
         LoadStatus.ready => _Conversation(
             ui: ui,
@@ -68,6 +73,7 @@ final class _TicketDetailScreenState
   }
 }
 
+/// گفتگوی تیکت — سربرگ + حباب‌ها + کامپوزر پاسخ
 final class _Conversation extends StatelessWidget {
   const _Conversation({
     required this.ui,
@@ -81,54 +87,54 @@ final class _Conversation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
     final detail = ui.detail!;
     return Column(
       children: [
-        _Header(detail: detail),
+        _TicketHeader(detail: detail),
         Expanded(
           child: detail.messages.isEmpty
-              ? const Center(
-                  child: Text(
-                    'هنوز پیامی ردوبدل نشده است',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: DadgarTokens.textSecondary,
-                    ),
-                  ),
+              ? const DsEmptyState(
+                  icon: Icons.forum_outlined,
+                  title: 'هنوز پیامی ردوبدل نشده است',
                 )
               : ListView.separated(
                   reverse: true,
-                  padding: const EdgeInsets.all(DadgarTokens.s16),
+                  padding: const EdgeInsets.all(Ds.s16),
                   itemCount: detail.messages.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: DadgarTokens.s8),
+                  separatorBuilder: (_, __) => const SizedBox(height: Ds.s12),
                   // نمایش از قدیمی به جدید با reverse: آخرین لیست = قدیمی‌ترین
-                  itemBuilder: (context, index) =>
-                      _Bubble(m: detail.messages[detail.messages.length - 1 - index]),
+                  itemBuilder: (context, index) => _MessageBubble(
+                    m: detail.messages[detail.messages.length - 1 - index],
+                  ),
                 ),
         ),
         if (ui.message != null)
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: DadgarTokens.s16,
-              vertical: DadgarTokens.s4,
+              horizontal: Ds.s16,
+              vertical: Ds.s4,
             ),
             child: Text(
               ui.message!,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
-                color: ui.isError ? DadgarTokens.error : DadgarTokens.accent,
+                fontFamily: Ds.fontFamily,
+                fontSize: 12.5,
+                color: ui.isError
+                    ? (light ? Ds.error : Ds.rose)
+                    : (light ? Ds.green : Ds.mint),
               ),
             ),
           ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(DadgarTokens.s12),
+            padding: const EdgeInsets.all(Ds.s12),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
+                    key: const ValueKey('composer-reply'),
                     controller: replyController,
                     maxLength: MessagesContract.replyBodyMax,
                     enabled: !ui.isClosed && !ui.busy,
@@ -137,19 +143,14 @@ final class _Conversation extends StatelessWidget {
                       hintText: ui.isClosed
                           ? 'تیکت بسته است'
                           : 'پاسخ خود را بنویسید…',
-                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
-                const SizedBox(width: DadgarTokens.s8),
+                const SizedBox(width: Ds.s8),
                 IconButton.filled(
                   onPressed: ui.isClosed || ui.busy ? null : onSend,
                   icon: ui.busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const DsRing()
                       : const Icon(Icons.send_outlined),
                 ),
               ],
@@ -161,32 +162,25 @@ final class _Conversation extends StatelessWidget {
   }
 }
 
-/// سربرگ تیکت — موضوع + بخش/اولویت + چیپ وضعیت
-final class _Header extends StatelessWidget {
-  const _Header({required this.detail});
+/// سربرگ تیکت نسل S — موضوع + قرص وضعیت + بخش/اولویت در DsKvRow
+final class _TicketHeader extends StatelessWidget {
+  const _TicketHeader({required this.detail});
 
   final TicketDetail detail;
 
-  Color get _statusColor => switch (detail.status) {
-        'closed' => DadgarTokens.accent,
-        'answered' => DadgarTokens.primary,
-        'open' => DadgarTokens.textSecondary,
-        _ => DadgarTokens.primary,
+  DsPillTone get _tone => switch (detail.status) {
+        'open' => DsPillTone.info,
+        'review' => DsPillTone.warn,
+        'answered' => DsPillTone.success,
+        'closed' => DsPillTone.neutral,
+        _ => DsPillTone.info,
       };
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(DadgarTokens.s12),
-      decoration: BoxDecoration(
-        color: DadgarTokens.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: DadgarTokens.textSecondary.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
+    final light = Theme.of(context).brightness == Brightness.light;
+    return DsCard(
+      margin: const EdgeInsets.fromLTRB(Ds.s16, Ds.s12, Ds.s16, Ds.s4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -195,41 +189,21 @@ final class _Header extends StatelessWidget {
               Expanded(
                 child: Text(
                   detail.subject,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: DadgarTokens.textPrimary,
+                  style: DsText.headline.copyWith(
+                    color: light ? Ds.ink : Ds.inkDark,
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DadgarTokens.s8,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  detail.statusValue.labelFa,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _statusColor,
-                  ),
-                ),
-              ),
+              const SizedBox(width: Ds.s8),
+              DsPill(detail.statusValue.labelFa, tone: _tone),
             ],
           ),
-          const SizedBox(height: DadgarTokens.s4),
-          Text(
-            'بخش: ${detail.dept.isEmpty ? '—' : detail.dept}'
-            ' • اولویت: ${detail.priority.isEmpty ? '—' : detail.priority}',
-            style: const TextStyle(
-              fontSize: 12,
-              color: DadgarTokens.textSecondary,
-            ),
+          const SizedBox(height: Ds.s4),
+          DsKvRow('بخش', detail.dept.isEmpty ? '—' : detail.dept),
+          DsKvRow(
+            'اولویت',
+            detail.priority.isEmpty ? '—' : detail.priority,
+            divider: false,
           ),
         ],
       ),
@@ -237,107 +211,41 @@ final class _Header extends StatelessWidget {
   }
 }
 
-/// حباب پیام — mine از سرور؛ نقش فرستنده روی حباب طرف مقابل
-final class _Bubble extends StatelessWidget {
-  const _Bubble({required this.m});
+/// حباب پیام تیکت — mine از سرور؛ برچسب نقش فقط روی حباب طرف مقابل.
+/// DsBubble در RTL خودم را سمت چپ (tint آبی) و طرف مقابل را سطح سفید
+/// می‌گذارد — عین قرارداد فارسی کد قدیم.
+final class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.m});
 
   final TicketMessage m;
 
   @override
   Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
     final created = JalaliCalendar.fromEpochSeconds(m.createdAt);
-    return Align(
-      alignment: m.mine ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        padding: const EdgeInsets.all(DadgarTokens.s12),
-        decoration: BoxDecoration(
-          color: m.mine ? DadgarTokens.primary : DadgarTokens.surface,
-          borderRadius: BorderRadius.circular(DadgarTokens.radius),
-          border: m.mine
-              ? null
-              : Border.all(
-                  color: DadgarTokens.textSecondary.withValues(alpha: 0.25),
-                ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!m.mine)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  MessagesContract.labelOfRole(m.role),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: DadgarTokens.primary,
-                  ),
-                ),
-              ),
-            Text(
-              m.body,
+    return Column(
+      crossAxisAlignment:
+          m.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        if (!m.mine)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              MessagesContract.labelOfRole(m.role),
               style: TextStyle(
-                fontSize: 13,
-                height: 1.7,
-                color: m.mine ? DadgarTokens.onPrimary : DadgarTokens.textPrimary,
+                fontFamily: Ds.fontFamily,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: light ? Ds.primaryDeep : Ds.cyan,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              JalaliCalendar.formatNumeric(created),
-              style: TextStyle(
-                fontSize: 10,
-                color: m.mine
-                    ? DadgarTokens.onPrimary.withValues(alpha: 0.7)
-                    : DadgarTokens.textSecondary,
-              ),
-            ),
-          ],
+          ),
+        DsBubble(
+          text: m.body,
+          mine: m.mine,
+          time: JalaliCalendar.formatNumeric(created),
         ),
-      ),
-    );
-  }
-}
-
-/// خطای صادقانه + تلاش دوباره
-final class _ErrorPane extends StatelessWidget {
-  const _ErrorPane({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DadgarTokens.s24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: DadgarTokens.error,
-            ),
-            const SizedBox(height: DadgarTokens.s12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.8,
-                color: DadgarTokens.textPrimary,
-              ),
-            ),
-            const SizedBox(height: DadgarTokens.s16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('تلاش دوباره'),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

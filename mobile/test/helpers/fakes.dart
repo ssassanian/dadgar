@@ -10,6 +10,7 @@ import 'package:dadgar_mobile/features/auth/domain/session_user.dart';
 import 'package:dadgar_mobile/features/billing/data/billing_repository.dart';
 import 'package:dadgar_mobile/features/billing/domain/invoice_models.dart';
 import 'package:dadgar_mobile/features/cases/data/cases_repository.dart';
+import 'package:dadgar_mobile/features/documents/application/documents_controller.dart';
 import 'package:dadgar_mobile/features/documents/data/documents_repository.dart';
 import 'package:dadgar_mobile/features/documents/domain/document_models.dart';
 import 'package:dadgar_mobile/features/messages/data/messages_repository.dart';
@@ -499,6 +500,12 @@ ProviderContainer dadgarContainer({
   /// M6 (CMD-028) — کاربر نشست ثابت برای sessionMeProvider
   /// (null = از فیک مخزن auth خوانده می‌شود — پیش‌فرض بدون نقش)
   SessionUser? sessionUser,
+
+  /// CMD-051 — ذخیره‌ساز تزریق‌شده‌ی دانلود سند (بدون پلتفرم §۹)؛
+  /// باید در همین کانتینر override شود چون کنترلرِ دانلود با ref همین
+  /// کانتینر docSaverProvider را می‌خواند (کانتینر فرزند به والدِ مشترک
+  /// نمی‌رسد — درس تست دانلود CMD-051).
+  Future<String> Function(String name, List<int> bytes)? docSaver,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
   final effectiveRepo = repository ?? FakeAuthRepository(store: store);
@@ -519,6 +526,7 @@ ProviderContainer dadgarContainer({
         messagesRepositoryProvider.overrideWithValue(messagesRepository),
       if (documentsRepository != null)
         documentsRepositoryProvider.overrideWithValue(documentsRepository),
+      if (docSaver != null) docSaverProvider.overrideWithValue(docSaver),
       if (!realAuthController)
         authControllerProvider
             .overrideWith(() => FakeAuthController(authStatus)),
