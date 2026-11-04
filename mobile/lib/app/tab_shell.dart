@@ -73,6 +73,11 @@ final class DsDock extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
+        // CMD-052 — ترمیم باگ کشف‌شده با رندر گولدن: Center درون InkWell
+        // با constraints بسته‌ی اسلات bottomNavigationBar تا کل ارتفاع
+        // صفحه منبسط می‌شد و بدنه صفر می‌گرفت؛ ارتفاع داک اکنون صریح است:
+        // ۴۸ محتوا + ۱۲ padding + ۲ border = ۶۲.
+        height: 62,
         margin: const EdgeInsets.fromLTRB(Ds.s16, Ds.s4, Ds.s16, Ds.s12),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
