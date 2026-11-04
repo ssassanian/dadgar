@@ -5,7 +5,7 @@
 | شماره دستور | **CMD-053** |
 | تاریخ | 2026-11-04 |
 | صادرکننده | مدیر پروژه (ssassanian) |
-| وضعیت | **بسته شد — push `f95576d..<SHA>` و HEAD==origin؛ Mobile CI سبز؛ تولید زنده: /mobile-preview با شات‌های پس از اصلاح + health ok؛ ۹ اصلاح املایی/ساختاری + یک‌دستی اصطلاح + حذف کد موازی؛ سیم‌کشی سبز کامل؛ صفر تغییر منطق و صفر تغییر web/ (جز بازسازی صفحه‌ی پیش‌نمایش)** |
+| وضعیت | **بسته شد — push `f95576d..176e4b4` و HEAD==origin؛ Mobile CI (run 41896074552) completed success روی 176e4b4؛ تولید زنده: /mobile-preview با ۱۲ شات پس از اصلاح و صفر U+FFFD + health ok؛ شیت شواهد v3 و ۱۲ PNG در download؛ ۹ اصلاح املایی/ساختاری اعمال شد؛ سیم‌کشی سبز کامل؛ صفر تغییر منطق وب (جز بازسازی صفحه‌ی پیش‌نمایش)** |
 
 ## متن دستور (رونوشت عینی)
 
@@ -67,8 +67,8 @@
 
 ## بستن — سینک GitHub و دروازه‌ی نهایی زنده
 
-- push با توکن هفتم (askpass؛ بدون چاپ مقدار): **`f95576d..<SHA>` موفق — HEAD==origin/main**.
-- Mobile CI: completed success روی کامیت اصلاحات (تغییر mobile/** — فیلتر مسیر در جهت اجرا صحیح).
+- push با توکن هفتم (askpass؛ بدون چاپ مقدار): **`f95576d..176e4b4` موفق — HEAD==origin/main**.
+- **Mobile CI (run 41896074552): completed success روی `176e4b4`** (تغییر mobile/** — فیلتر مسیر در جهت اجرا صحیح).
 - وارسی زنده‌ی production (بدون توکن): `/mobile-preview` با شات‌های پس از اصلاح و صفر U+FFFD + `/api/health` = `{"ok":true}`.
 - تحویل محلی مدیر: `download/CMD-053-dadgar-s-evidence.html` و `download/CMD-053-dadgar-s-shots/`.
 
