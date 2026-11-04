@@ -1,0 +1,56 @@
+name: dadgar_mobile
+description: "اپلیکیشن نیتیو موبایل دادگر (Flutter) — پوشه‌ی mobile/ مونوریپو ssassanian/dadgar طبق S-1 v2.1 (CMD-016)؛ مرجع الزامی: DOC-04 نسخه 2.1"
+publish_to: "none"
+version: 0.3.0+3
+
+environment:
+  sdk: ">=3.5.0 <5.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # intl همیشه با نسخه‌ای که flutter_localizations پین می‌کند حل می‌شود
+  intl: any
+  # استاندارد معماری DOC-04 §۴ (بند State)
+  flutter_riverpod: ^3.0.0
+  # کلاینت HTTP — تنها نقطه‌ی اتصال به API (S-4)
+  dio: ^5.7.0
+  # ناوبری اعلامی M1 — Bottom Tabs + استک (DOC-04 §۷)
+  go_router: ^16.0.0
+  # ذخیره‌ی امن توکن — Android Keystore / iOS Keychain (DOC-04 §۸)
+  flutter_secure_storage: ^10.0.0
+  # بازکردن اپ با بیومتریک (DOC-04 §۸ — ورود سریع)
+  local_auth: ^2.3.0
+  # M5 (تصمیم ثبت‌شده CMD-025): انتخاب سند از دوربین/گالری — افزونه‌ی رسمی flutter.dev
+  image_picker: ^1.1.2
+  # M5 (تصمیم ثبت‌شده CMD-025): ذخیره‌ی سند دانلودشده در پوشه‌ی اسناد اپ — افزونه‌ی رسمی flutter.dev
+  path_provider: ^2.1.4
+  # M6 (CMD-028): تولید PDF فاکتور — بسته‌ی استاندارد dart (RTL با فونت باندل‌شده‌ی Vazirmatn)
+  pdf: ^3.11.0
+  # M6 (CMD-028): اشتراک‌گذاری PDF فاکتور (share sheet سیستم)
+  share_plus: ^11.0.0
+  # M6 (CMD-028): بازکردن pay_url درگاه پس از فعال‌سازی (فقط https؛ لانچر تزریقی برای تست)
+  url_launcher: ^6.3.0
+  image: 4.5.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  # mock در تست‌های واحد لایه data/application (DOC-04 §۹-۲)
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/vazirmatn/Vazirmatn-Bold.ttf
+          weight: 700

@@ -73,7 +73,7 @@ void main() {
       expect(find.text('بدهی فعلی'), findsOneWidget);
       expect(find.text('۰'), findsOneWidget);
       expect(find.text('تومان'), findsOneWidget);
-      expect(find.text('همه‌ی فاکتورها پرداخت شده است'), findsOneWidget);
+      expect(find.text('همه‌ی فاکتورها پرداخت شده‌اند'), findsOneWidget);
       // کارت ردیف — عنوان + مبلغ واقعی + قرص سبز + ردیف تاریخ پرداخت
       expect(find.text('فاکتور ۱۲'), findsOneWidget);
       expect(find.text('۲۵٬۰۰۰٬۰۰۰ تومان'), findsOneWidget);

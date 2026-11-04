@@ -228,7 +228,7 @@ void _showForgotSheet(BuildContext context) {
             ),
             const SizedBox(height: Ds.s8),
             const Text(
-              'بازیابی رمز از طریق دفتر موسسه انجام می‌شود تا حساب شما امن بماند؛ '
+              'بازیابی رمز از طریق دفتر مؤسسه انجام می‌شود تا حساب شما امن بماند؛ '
               'با شماره‌ی ثبت‌شده‌ی حساب تماس بگیرید — پس از احراز هویت، رمز تازه صادر می‌شود.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -247,7 +247,7 @@ void _showForgotSheet(BuildContext context) {
                   ..hideCurrentSnackBar()
                   ..showSnackBar(
                     const SnackBar(
-                      content: Text('در اپ واقعی: تماس با دفتر موسسه'),
+                      content: Text('در اپ واقعی: تماس با دفتر مؤسسه'),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );

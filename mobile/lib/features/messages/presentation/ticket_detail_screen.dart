@@ -96,7 +96,7 @@ final class _Conversation extends StatelessWidget {
           child: detail.messages.isEmpty
               ? const DsEmptyState(
                   icon: Icons.forum_outlined,
-                  title: 'هنوز پیامی ردوبدل نشده است',
+                  title: 'هنوز پیامی رد و بدل نشده است',
                 )
               : ListView.separated(
                   reverse: true,

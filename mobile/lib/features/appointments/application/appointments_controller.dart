@@ -186,7 +186,7 @@ final class AppointmentsController extends Notifier<AppointmentsUi> {
       await _repo.book(day: day, slot: slot, kind: state.selectedKind);
       state = state.copyWith(
         busy: false,
-        message: 'نوبت ثبت شد — در انتظار تایید موسسه',
+        message: 'نوبت ثبت شد — در انتظار تایید مؤسسه',
         isError: false,
       );
       await _load(clear: false);

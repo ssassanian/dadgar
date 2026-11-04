@@ -57,7 +57,7 @@ void main() {
     expect(find.text('نوبت و مالی'), findsOneWidget);
     expect(find.text('تیکت‌های پشتیبانی'), findsOneWidget);
     expect(find.text('نوبت‌های من'), findsOneWidget);
-    expect(find.text('صورتحساب‌ها و پرداخت'), findsOneWidget);
+    expect(find.text('فاکتورها و پرداخت'), findsOneWidget);
 
     // وضعیت صادقانه‌ی M1 — بدون هیچ داده‌ی جعلی
     expect(find.textContaining('اتصال زنده به سرور دادگر'), findsOneWidget);

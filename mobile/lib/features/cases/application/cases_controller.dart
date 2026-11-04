@@ -255,7 +255,7 @@ final class CreateCaseController extends Notifier<CreateCaseUi> {
       state = state.copyWith(
         busy: false,
         doneId: id,
-        message: 'پرونده ثبت شد — در انتظار بررسی موسسه',
+        message: 'پرونده ثبت شد — در انتظار بررسی مؤسسه',
         isError: false,
       );
       return id;

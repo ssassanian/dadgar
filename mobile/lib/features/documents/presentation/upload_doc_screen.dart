@@ -144,7 +144,7 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
                                 (r) => DropdownMenuItem<int>(
                                   value: r.id,
                                   child: Text(
-                                    'پرونده ${JalaliDigits.fa(r.id)} — '
+                                    'پرونده ${DocumentsContract.toPersianDigits(r.id)} — '
                                     '${r.title}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -260,9 +260,4 @@ final class _UploadDocScreenState extends ConsumerState<UploadDocScreen> {
       ),
     );
   }
-}
-
-/// ارقام فارسی — پل کوچک به قرارداد مشترک اسناد
-class JalaliDigits {
-  static String fa(Object v) => DocumentsContract.toPersianDigits(v);
 }

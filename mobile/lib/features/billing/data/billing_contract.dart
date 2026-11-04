@@ -51,7 +51,7 @@ abstract final class BillingContract {
   static const String payOnlyPendingMessage =
       'فقط فاکتور «در انتظار» قابل پرداخت است.';
   static const String reopenOnlyPaidMessage =
-      'این فاکتور پرداخت‌نشده است؛ بازکردنی در کار نیست.';
+      'این فاکتور پرداخت‌نشده است؛ بازکردن در کار نیست.';
   static const String payAlreadyPaidMessage = 'این فاکتور پرداخت‌شده است.';
 
   /// اعتبارسنجی سمت کاربر — آینه‌ی قواعد سرور قبل از POST (صدور فاکتور)

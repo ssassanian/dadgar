@@ -630,7 +630,7 @@ final class _AdminActionsSection extends ConsumerWidget {
                         context,
                         title: 'بستن پرونده',
                         body:
-                            'پرونده بسته شود؟ این گذار پایانی است و برگشت‌پذیر نیست.',
+                            'پرونده بسته شود؟ این گذار پایانی است و بازگشت‌پذیر نیست.',
                         confirmLabel: 'بستن پرونده',
                         onOk: () => controller.setStatus('done'),
                       ),

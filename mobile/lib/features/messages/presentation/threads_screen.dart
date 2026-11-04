@@ -109,7 +109,7 @@ final class _ThreadRow extends StatelessWidget {
     return DsTile(
       title: row.title,
       subtitle: row.lastExcerpt.isEmpty
-          ? 'هنوز پیامی ردوبدل نشده است'
+          ? 'هنوز پیامی رد و بدل نشده است'
           : (row.lastMine ? 'شما: ' : '') + row.lastExcerpt,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

@@ -140,7 +140,7 @@ void main() {
       expect(repo.bookArgs.single.day, ui.selectedDay);
       expect(repo.bookArgs.single.slot, '۱۶:۰۰');
       expect(repo.bookArgs.single.kind, 'حضوری');
-      expect(ui.message, 'نوبت ثبت شد — در انتظار تایید موسسه');
+      expect(ui.message, 'نوبت ثبت شد — در انتظار تایید مؤسسه');
       expect(ui.isError, isFalse);
       expect(repo.fetchCalls, greaterThanOrEqualTo(2),
           reason: 'پس از رزرو داده دوباره خوانده می‌شود');

@@ -149,7 +149,7 @@ final class _DebtCard extends StatelessWidget {
           const SizedBox(height: Ds.s4),
           Text(
             settled
-                ? 'همه‌ی فاکتورها پرداخت شده است'
+                ? 'همه‌ی فاکتورها پرداخت شده‌اند'
                 : 'از ${BillingContract.toPersianDigits(unpaidCount)}'
                     ' فاکتور پرداخت‌نشده',
             style: TextStyle(

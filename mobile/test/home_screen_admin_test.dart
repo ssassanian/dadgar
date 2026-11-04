@@ -40,7 +40,7 @@ void main() {
       await _pumpApp(tester, container);
 
       expect(find.text('پنل مدیریت مالی'), findsOneWidget);
-      expect(find.text('صدور فاکتور، ثبت پرداخت و بازکردن (M6)'), findsOneWidget);
+      expect(find.text('صدور فاکتور، ثبت پرداخت و بازکردن'), findsOneWidget);
     });
 
     testWidgets('مشتری → کارت پنل هرگز رندر نمی‌شود', (tester) async {
@@ -59,7 +59,7 @@ void main() {
 
       expect(find.text('پنل مدیریت مالی'), findsNothing);
       // کارت‌های عادی سر جایشان هستند
-      expect(find.text('صورتحساب‌ها و پرداخت'), findsOneWidget);
+      expect(find.text('فاکتورها و پرداخت'), findsOneWidget);
     });
 
     testWidgets('نقش کشف‌نشده (بدون /api/me) → کارت پنل مخفی (پیش‌فرض امن)',

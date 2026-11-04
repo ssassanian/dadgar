@@ -89,28 +89,28 @@ class HomeScreen extends ConsumerWidget {
                           DsTile(
                             icon: Icons.folder_outlined,
                             title: 'پرونده‌های من',
-                            subtitle: 'فهرست و جزئیات پرونده‌ها (M2)',
+                            subtitle: 'فهرست و جزئیات پرونده‌ها',
                             onTap: () => context.go('/cases'),
                           ),
                           const SizedBox(height: Ds.s8),
                           DsTile(
                             icon: Icons.post_add_outlined,
                             title: 'ثبت پرونده جدید',
-                            subtitle: 'دسته، عنوان و توضیحات (M2)',
+                            subtitle: 'دسته، عنوان و توضیحات',
                             onTap: () => context.go('/cases/new'),
                           ),
                           const SizedBox(height: Ds.s8),
                           DsTile(
                             icon: Icons.forum_outlined,
                             title: 'گفتگو با وکیل',
-                            subtitle: 'گفتگوی پرونده‌های تخصیص‌یافته (M5)',
+                            subtitle: 'گفتگوی پرونده‌های تخصیص‌یافته',
                             onTap: () => context.go('/threads'),
                           ),
                           const SizedBox(height: Ds.s8),
                           DsTile(
                             icon: Icons.support_agent_outlined,
                             title: 'تیکت‌های پشتیبانی',
-                            subtitle: 'ثبت تیکت و پیگیری پاسخ (M5)',
+                            subtitle: 'ثبت تیکت و پیگیری پاسخ',
                             onTap: () => context.go('/tickets'),
                           ),
                           const SizedBox(height: Ds.s16),
@@ -120,14 +120,14 @@ class HomeScreen extends ConsumerWidget {
                           DsTile(
                             icon: Icons.event_note_outlined,
                             title: 'نوبت‌های من',
-                            subtitle: 'وضعیت نوبت‌ها و لغو (M3)',
+                            subtitle: 'وضعیت نوبت‌ها و لغو',
                             onTap: () => context.go('/appointments/mine'),
                           ),
                           const SizedBox(height: Ds.s8),
                           DsTile(
                             icon: Icons.receipt_long_outlined,
-                            title: 'صورتحساب‌ها و پرداخت',
-                            subtitle: 'فاکتورهای من، مبلغ و وضعیت (M4)',
+                            title: 'فاکتورها و پرداخت',
+                            subtitle: 'فاکتورهای من، مبلغ و وضعیت',
                             onTap: () => context.go('/invoices'),
                           ),
 
@@ -139,7 +139,7 @@ class HomeScreen extends ConsumerWidget {
                               icon: Icons.admin_panel_settings_outlined,
                               title: 'پنل مدیریت مالی',
                               subtitle:
-                                  'صدور فاکتور، ثبت پرداخت و بازکردن (M6)',
+                                  'صدور فاکتور، ثبت پرداخت و بازکردن',
                               onTap: () => context.go('/admin/billing'),
                             ),
                           ],
@@ -149,7 +149,7 @@ class HomeScreen extends ConsumerWidget {
                           // ── وضعیت صادقانه‌ی نشست (M1) — ته صفحه، بی‌ادعا ──
                           const _StatusChip(
                             icon: Icons.verified_user_outlined,
-                            label: 'توکن در Keystore/Keychain ذخیره می‌شود (§۸)',
+                            label: 'توکن در Keystore/Keychain ذخیره می‌شود',
                           ),
                           const SizedBox(height: Ds.s8),
                           const _StatusChip(

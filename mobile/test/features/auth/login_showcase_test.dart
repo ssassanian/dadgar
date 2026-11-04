@@ -91,12 +91,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('بازیابی رمز عبور'), findsOneWidget);
-    expect(find.textContaining('دفتر موسسه'), findsWidgets);
+    expect(find.textContaining('دفتر مؤسسه'), findsWidgets);
     expect(find.textContaining('۰۲۱-۰۰۰۰۰۰۰۰'), findsOneWidget);
 
     // دکمه‌ی تماس — پیام صادقانه‌ی عین پروتوتایپ، بدون مسیر سرور جعلی
     await tester.tap(find.textContaining('تماس با دفتر'));
     await tester.pumpAndSettle();
-    expect(find.text('در اپ واقعی: تماس با دفتر موسسه'), findsOneWidget);
+    expect(find.text('در اپ واقعی: تماس با دفتر مؤسسه'), findsOneWidget);
   });
 }

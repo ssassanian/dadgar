@@ -181,7 +181,7 @@ final class Proposal {
   /// برچسب فارسی وضعیت — ناشناخته = مقدار خام
   String get statusLabelFa => switch (status) {
         'pending' => 'در انتظار',
-        'accepted' => 'تایید‌شده',
+        'accepted' => 'تایید شده',
         'rejected' => 'رد شده',
         _ => status,
       };

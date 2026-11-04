@@ -232,7 +232,7 @@ void main() {
     test('setInvoiceStatus خطای سرور → پیام فارسی عین سرور', () async {
       final repo = FakeBillingRepository()
         ..failWith = const ApiException(
-          'این فاکتور پرداخت‌نشده است؛ بازکردنی در کار نیست.',
+          'این فاکتور پرداخت‌نشده است؛ بازکردن در کار نیست.',
           statusCode: 400,
         );
       final container = ProviderContainer(
