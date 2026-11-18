@@ -1,7 +1,12 @@
 'use strict';
-/* CMD-054 — اعمال DDL جدول media روی Supabase (idempotent — IF NOT EXISTS).
+/* CMD-054 — اعمال DDL جدول media (idempotent — IF NOT EXISTS).
  * اجرا: DATABASE_URL="postgresql://…" node scripts/apply-media-ddl.js
- * (الگوی apply-settings-ddl.js — CMD-011؛ رمز اتصال فقط از env، هرگز در کد یا کامیت.) */
+ * (الگوی apply-settings-ddl.js — CMD-011؛ رمز اتصال فقط از env، هرگز در کد یا کامیت.)
+ * ⚠️ کشف حین بستن CMD-054 (2026-11-18): نقش dadgar_app روی pooler سازگاری CREATE در
+ * schema public ندارد → این اسکریپت با «permission denied for schema public» شکست می‌خورد؛
+ * DDL از طریق Supabase Management API /database/query اعمال شد (الگوی cmd029-apply-ddl.py —
+ * اسکریپت cmd054-apply-ddl.py خارج از مخزن). این اسکریپت برای حالتی که DATABASE_URL به
+ * نقشی با مجوز CREATE ارتقا یابد نگه داشته می‌شود. */
 const { sql } = require('../lib/db.pg');
 
 (async () => {

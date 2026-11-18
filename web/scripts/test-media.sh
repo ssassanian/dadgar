@@ -28,6 +28,17 @@ CJ=/tmp/md_client.jar
 rm -f $AJ $CJ
 trap 'kill $SRV 2>/dev/null || true' EXIT
 
+# فایل‌های آزمایشی پیش از بخش ۲ ساخته می‌شوند (بخش ۲ در حالت degrade هم به PNG نیاز دارد)
+python3 - <<'PYEOF'
+import base64
+png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+jpg = base64.b64decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==')
+open('/tmp/md_test.png','wb').write(png)
+open('/tmp/md_test.jpg','wb').write(jpg)
+open('/tmp/md_test_big.png','wb').write(png + b'\x00'*(2*1024*1024))
+open('/tmp/md_test_fake.png','wb').write(b'this is not an image at all')
+PYEOF
+
 login() {
   curl -s -c "$1" -X POST $B/api/auth/login -H "Content-Type: application/json" -H "Origin: $B" \
     -d "{\"username\":\"$2\",\"password\":\"$3\"}" \
@@ -37,7 +48,7 @@ login() {
 echo "===== 1) logins ====="
 AC=$(login $AJ admin_t 'AdminT#2026x'); echo "admin csrf: ${AC:0:8}…"
 [ "$AC" != "FAIL" ] || { echo LOGIN_FAILED; kill $SRV; exit 1; }
-CC=$(login $CJ client_t 'ClientT#2026x'); echo "client csrf: ${CC:0:8}…"
+CC=$(login $CJ client_t 'ClientT#2026'); echo "client csrf: ${CC:0:8}…"
 [ "$CC" != "FAIL" ] || { echo LOGIN_FAILED; kill $SRV; exit 1; }
 
 echo "===== 2) access control ====="
@@ -51,10 +62,14 @@ curl -s -b $AJ -o /dev/null -w "public-serve-unset [%{http_code}] (404 مورد 
 echo "===== 3) shape: admin GET + وضعیت degrade/کامل ====="
 READY=$(curl -s -b $AJ $B/api/media | python3 -c "
 import json,sys; d=json.load(sys.stdin)
-assert d['ok'] and isinstance(d['rows'],list), d
-names=sorted(r['name'] for r in d['rows'])
-assert names==['ali','mahdi','office','sara'], names
-print('1' if d.get('ready') else '0')")
+assert d['ok'], d
+if d.get('ready') is False:
+    assert d['rows']==[], d
+    print('0')
+else:
+    names=sorted(r['name'] for r in d['rows'])
+    assert names==['ali','mahdi','office','sara'], names
+    print('1')")
 echo "media ready=$READY (1=چرخه‌ی کامل، 0=حالت degrade)"
 
 if [ "$READY" = "0" ]; then
@@ -67,16 +82,6 @@ if [ "$READY" = "0" ]; then
 fi
 
 echo "===== 4) full cycle: upload → serve → replace → delete ====="
-# فایل‌های آزمایشی: PNG و JPEG واقعی ۱×۱
-python3 - <<'PYEOF'
-import base64
-png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
-jpg = base64.b64decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==')
-open('/tmp/md_test.png','wb').write(png)
-open('/tmp/md_test.jpg','wb').write(jpg)
-open('/tmp/md_test_big.png','wb').write(png + b'\x00'*(2*1024*1024))
-open('/tmp/md_test_fake.png','wb').write(b'this is not an image at all')
-PYEOF
 
 curl -s -b $AJ -X POST "$B/api/media/ali" -H "Content-Type: image/png" -H "Origin: $B" -H "x-csrf-token: $AC" --data-binary @/tmp/md_test.png | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ok') and d['name']=='ali' and d['mime']=='image/png' and d['size']>0, d; print('ok | PNG uploaded:', d['size'], 'bytes')"
 curl -s -D /tmp/md_headers.txt -o /tmp/md_served.png $B/api/media/ali
