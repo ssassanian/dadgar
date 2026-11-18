@@ -13,7 +13,7 @@
  *  7) serveStatic فقط از پوشه dynamic/ سرو می‌کند (فقط index.html وجود دارد) — همان CSP nonce
  * ===================================================================== */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
-const cfg = require('./config'), sec = require('./security'), { db, now, audit, tx, toPg } = require('./db.pg'), sendSms = require('./sms');
+const cfg = require('./config'), sec = require('./security'), { db, sql, now, audit, tx, toPg } = require('./db.pg'), sendSms = require('./sms');
 const PUB = path.join(__dirname, '..', 'dynamic');
 const COOKIE = cfg.cookieSecure ? '__Host-sid' : 'sid';
 class HttpError extends Error { constructor(s, m) { super(m); this.s = s; } }
@@ -147,9 +147,14 @@ const clearFail = async (k) => { await db.prepare('DELETE FROM login_attempts WH
 
 /* ---------- routing (identical) ---------- */
 const routes = [];
+/* CMD-054 — پشتیبانی پارامتر متنی در روتر: الگوی «:name:s» → ([^/]+)؛
+ * بدون پسوند :s رفتار قبل حفظ می‌شود (\d+) تا مسیرهای عددی موجود (ضدافشا) دست‌نخورده بمانند. */
 function route(method, pattern, opts, fn) {
-  const keys = []; const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '(\\d+)'; }) + '$');
-  routes.push({ method, re, keys, opts, fn });
+  const keys = [], skeys = new Set();
+  const re = new RegExp('^' + pattern
+    .replace(/:(\w+):s/g, (_, k) => { keys.push(k); skeys.add(k); return '([^/]+)'; })
+    .replace(/:(\w+)/g, (_, k) => { keys.push(k); return '(\\d+)'; }) + '$');
+  routes.push({ method, re, keys, skeys, opts, fn });
 }
 const isAuth = { auth: true };
 const ROLE = (...r) => ({ auth: true, roles: r });
@@ -1110,6 +1115,84 @@ route('GET', '/api/settings/public', {}, async () => {
   }
 });
 
+/* ---------- CMD-054 — تصاویر سایت (media) ----------
+ * جای تصاویر ثابت صفحه‌ی اصلی: ali/sara/mahdi (وکلای موسسه) و office (محیط موسسه).
+ * ذخیره به همان سبک امن اسناد (CMD-008): محتوا با AES-256-GCM (برچسب aad مستقل
+ * media.content) رمزنگاری و در جدول media نگهداری می‌شود؛ سرو عمومی از /api/media/:name.
+ * امنیت: فقط مدیر؛ لیست سفید کلید و mime؛ راستی‌آزمایی بایت‌های جادویی تا محتوای
+ * غیرتصویری هرگز با mime تصویر سرو نشود؛ nosniff از baseHeaders؛ سقف ۲ مگابایت
+ * (زیر سقف بدنه‌ی سرورلس Vercel)؛ نرخ: ۳۰ بارگذاری در ساعت برای هر مدیر.
+ * degrade (الگوی CMD-010): اگر جدول media اعمال نشده باشد (42P01) — فهرست ready:false
+ * و نوشتن با 503 صادقانه؛ سرو عمومی تصویرِ تنظیم‌نشده = 404 و صفحه‌ی اصلی سیلوئت را نشان می‌دهد.
+ * تصمیم باز (ثبت‌شده): آپلود «لوگو» تا تعیین جای نمایش در هدر — وارد لیست سفید نشد.
+ * ========================================================================== */
+const MEDIA_KEYS = ['ali', 'sara', 'mahdi', 'office'];
+const MEDIA_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
+const MEDIA_MAX = 2 * 1024 * 1024;
+const mediaGuard = () => { if (!sql) throw new HttpError(503, 'دیتابیس در دسترس نیست.'); };
+const mediaMimeOk = (mime, buf) => (
+  (mime === 'image/png' && buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) ||
+  (mime === 'image/jpeg' && buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) ||
+  (mime === 'image/webp' && buf.length > 12 && buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP')
+);
+
+/* فهرست وضعیت تصاویر — فقط مدیر */
+route('GET', '/api/media', ROLE('admin'), async () => {
+  mediaGuard();
+  let rows;
+  try { rows = await db.prepare('SELECT name, mime, size, updated_at FROM media').all(); }
+  catch (e) { if (e.code === '42P01') return { ok: true, ready: false, rows: [] }; throw e; }
+  const m = {}; rows.forEach((r) => { m[r.name] = r; });
+  return { ok: true, ready: true, rows: MEDIA_KEYS.map((k) => ({ name: k, set: !!m[k], mime: m[k] ? m[k].mime : '', size: m[k] ? m[k].size : 0, updated_at: m[k] ? m[k].updated_at : 0 })) };
+});
+
+/* آپلود/جایگزینی تصویر — بدنه‌ی خام باینری (الگوی اسناد)؛ فقط مدیر */
+route('POST', '/api/media/:name:s', { auth: true, roles: ['admin'], raw: true }, async (c) => {
+  mediaGuard();
+  const name = String(c.params.name || '');
+  if (!MEDIA_KEYS.includes(name)) throw new HttpError(400, 'کلید تصویر پشتیبانی نمی‌شود.');
+  if (!(await rl('media:' + c.user.id, 30, 3600e3))) throw new HttpError(429, 'سقف بارگذاری تصویر در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const buf = await readBody(c.req, MEDIA_MAX);
+  if (!buf.length) throw new HttpError(400, 'فایل تصویر خالی است.');
+  const mime = String(c.req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (!MEDIA_MIMES.includes(mime)) throw new HttpError(415, 'فرمت تصویر پشتیبانی نمی‌شود؛ فقط PNG، JPG و WebP.');
+  if (!mediaMimeOk(mime, buf)) throw new HttpError(400, 'محتوای فایل با فرمت اعلام‌شده هم‌خوان نیست.');
+  try {
+    await db.prepare('INSERT INTO media(name,mime,size,file,updated_at,updated_by) VALUES(?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET mime=EXCLUDED.mime, size=EXCLUDED.size, file=EXCLUDED.file, updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by')
+      .run(name, mime, buf.length, sec.encFile(buf, 'media.content').toString('base64'), now(), c.user.id);
+  } catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ذخیره‌ی تصاویر هنوز فعال نشده است (جدول media روی دیتابیس اعمال نشده — طبق CMD-054).'); throw e; }
+  await audit(c.user.id, 'media_upload', 'media:' + name + ' mime:' + mime + ' size:' + buf.length, c.ip);
+  return { ok: true, name, mime, size: buf.length };
+});
+
+/* حذف تصویر — فقط مدیر؛ پس از حذف، صفحه‌ی اصلی سیلوئت پیش‌فرض را نشان می‌دهد */
+route('DELETE', '/api/media/:name:s', ROLE('admin'), async (c) => {
+  mediaGuard();
+  const name = String(c.params.name || '');
+  if (!MEDIA_KEYS.includes(name)) throw new HttpError(400, 'کلید تصویر پشتیبانی نمی‌شود.');
+  let r;
+  try { r = await db.prepare('DELETE FROM media WHERE name=?').run(name); }
+  catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ذخیره‌ی تصاویر هنوز فعال نشده است (جدول media روی دیتابیس اعمال نشده — طبق CMD-054).'); throw e; }
+  if (!r.changes) throw new HttpError(404, 'تصویری برای حذف ثبت نشده است.');
+  await audit(c.user.id, 'media_delete', 'media:' + name, c.ip);
+  return { ok: true };
+});
+
+/* سرو عمومی تصویر — inline با کش کوتاه (به‌روزرسانی عمومی حداکثر ۶۰ ثانیه پس از آپلود) */
+route('GET', '/api/media/:name:s', {}, async (c) => {
+  mediaGuard();
+  const name = String(c.params.name || '');
+  if (!MEDIA_KEYS.includes(name)) throw new HttpError(404, 'تصویر یافت نشد.');
+  let row;
+  try { row = await db.prepare('SELECT mime, file FROM media WHERE name=?').get(name); }
+  catch (e) { if (e.code === '42P01') throw new HttpError(404, 'تصویر یافت نشد.'); throw e; }
+  if (!row) throw new HttpError(404, 'تصویر یافت نشد.');
+  let buf;
+  try { buf = sec.decFile(Buffer.from(row.file, 'base64'), 'media.content'); } catch { throw new HttpError(500, 'تصویر قابل بازیابی نیست.'); }
+  c.res.writeHead(200, { 'Content-Type': row.mime, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=60' });
+  return c.res.end(buf);
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);
@@ -1122,7 +1205,7 @@ async function api(req, res, url, ip) {
       else if (req.headers['sec-fetch-site'] === 'cross-site') throw new HttpError(403, 'درخواست نامعتبر است.');
     }
     let r = null, params = {};
-    for (const x of routes) { if (x.method !== m) continue; const mm = url.pathname.match(x.re); if (mm) { r = x; params = Object.fromEntries(x.keys.map((k, i) => [k, +mm[i + 1]])); break; } }
+    for (const x of routes) { if (x.method !== m) continue; const mm = url.pathname.match(x.re); if (mm) { r = x; params = Object.fromEntries(x.keys.map((k, i) => [k, x.skeys.has(k) ? mm[i + 1] : +mm[i + 1]])); break; } }
     if (!r) throw new HttpError(routes.some((x) => x.re.test(url.pathname)) ? 405 : 404, 'یافت نشد.');
     /* نشست کوکی اول؛ در نبود آن، Bearer توکن موبایل (CMD-026) */
     let sess = await getSession(req);
