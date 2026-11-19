@@ -150,15 +150,206 @@ function teamIndex() {
     body: cardGrid(cards) + moreHTML([['وکلای موسسه', '/lawyers'], ['درباره ما', '/about-us'], ['فرصت‌های شغلی', '/careers']])
   };
 }
+/* ---------- CMD-061 — پروفایل کامل راهبران با تقویم حضور و درخواست نوبت ----------
+ * ساختار صفحه عین سایت مبدأ: بیوگرافی و معرفی کامل + تحصیلات + مسیر حرفه‌ای + تخصص‌ها +
+ * دوره‌ها/افتخارات + فرآیند همکاری + ماتریس ارزیابی مهارت‌ها + «تقویم حضور و زمان‌بندی»
+ * (گرید شمسی با نشان تعطیل/تکمیل ظرفیت) + فرم و دکمه‌ی «ثبت نوبت» + سؤالات متداول + مقالات نویسنده.
+ * داده‌ی تقویم از bio_blocks مهاجرت‌یافته می‌آید (حمیدی/تلخابی)؛ راهبرانی که در مبدأ تقویم ندارند
+ * (لطفی/طاهری/سرلک — وفادار به مبدأ، ثبت 2.60) تقویم پیش‌فرض موسسه می‌گیرند تا فرم نوبت برای همه فعال باشد. */
+const WD_FA = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+const MONTHS_FA = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+
+function jalToday() {
+  try {
+    const p = {};
+    new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'Asia/Tehran' }).formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+    const y = parseInt(p.year, 10), m = parseInt(p.month, 10), d = parseInt(p.day, 10);
+    if (y > 1300 && y < 1500 && m >= 1 && m <= 12 && d >= 1 && d <= 31) return { y, m, d };
+  } catch { }
+  return { y: 1405, m: 8, d: 28 };
+}
+function jalLeap(y) { return [1, 5, 9, 13, 17, 22, 26, 30].indexOf(((y % 33) + 33) % 33) >= 0; }
+function jalMonthLen(y, m) { return m <= 6 ? 31 : m <= 11 ? 30 : (jalLeap(y) ? 30 : 29); }
+function wdIdxFa(gMs) {
+  const s = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Asia/Tehran' }).format(new Date(gMs));
+  return ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'].indexOf(s);
+}
+
+/* تقویم راهبر: از بلوک‌های مهاجرت‌یافته؛ در نبودش تقویم ماه جاری شمسی با جمعه‌های تعطیل */
+function leaderCal(blocks) {
+  const t = jalToday();
+  let title = MONTHS_FA[t.m - 1] + ' ' + t.y, working = 'شنبه تا چهارشنبه', hours = 'از ساعت ۱۰ صبح الی ۱۸ عصر', raw = null;
+  for (let i = 0; i < (blocks || []).length; i++) {
+    const b = blocks[i];
+    if (b.t !== 'h2' || !/تقویم حضور/.test(b.x)) continue;
+    for (let j = i + 1; j < blocks.length && blocks[j].t !== 'h2'; j++) {
+      const c = blocks[j];
+      if (c.t === 'p' && /روزهای کاری/.test(c.x)) working = c.x.split(':').slice(1).join(':').trim() || working;
+      else if (c.t === 'p' && /زمان/.test(c.x)) hours = c.x.split(':').slice(1).join(':').trim() || hours;
+      else if (c.t === 'h3' && /\d{4}/.test(c.x.replace(/[۰-۹]/g, '0'))) title = c.x;
+      else if (c.t === 'ul' && Array.isArray(c.x) && c.x.some((s) => /^\s*\d+\s*(تعطیل|تکمیل)?\s*$/.test(String(s).trim()) || /^\s*$/.test(String(s)))) raw = c.x;
+    }
+    break;
+  }
+  let cells;
+  if (raw) {
+    cells = raw.map((s) => {
+      const m2 = String(s).trim().match(/^(\d+)\s*(.*)$/);
+      if (!m2) return { empty: true };
+      return { d: parseInt(m2[1], 10), mark: /تعطیل/.test(m2[2]) ? 'hol' : (/تکمیل/.test(m2[2]) ? 'full' : '') };
+    });
+  } else {
+    const len = jalMonthLen(t.y, t.m), off = wdIdxFa(Date.now() - (t.d - 1) * 86400000);
+    cells = [];
+    for (let i2 = 0; i2 < off; i2++) cells.push({ empty: true });
+    for (let n = 1; n <= len; n++) cells.push({ d: n, mark: cells.length % 7 === 6 ? 'hol' : '' });
+  }
+  return { title, working, hours, cells };
+}
+
+/* گزینه‌های روز نوبت: فقط روزهای آزاد (نه تعطیل، نه تکمیل ظرفیت، نه گذشته) */
+function bkOptions(cal, t) {
+  const mm = cal.title.trim().match(/^(\S+)\s+(\d{4})$/);
+  const mi = mm ? MONTHS_FA.indexOf(mm[1]) : -1, yy = mm ? parseInt(mm[2], 10) : 0;
+  const cur = mi >= 0 && yy === t.y && (mi + 1) === t.m;
+  const mn = mi >= 0 ? mi : t.m - 1;
+  const out = [];
+  cal.cells.forEach((c, idx) => {
+    if (c.empty || !c.d || c.mark) return;
+    if (cur && c.d < t.d) return;
+    out.push({ d: c.d, label: WD_FA[idx % 7] + ' ' + faNum(c.d) + ' ' + MONTHS_FA[mn] });
+  });
+  return out;
+}
+
+function bookingBox(slug, opts) {
+  const optsHTML = opts.length ? opts.map((o) => '<option value="' + esc(o.label) + '">' + o.label + '</option>').join('') : '<option value="">—</option>';
+  return '<div class="bkbox"><div class="bk-i"><h3>درخواست نوبت مشاوره</h3><p>از تقویم بالا یک روزِ آزاد انتخاب کنید و درخواست خود را ثبت کنید؛ دفتر موسسه برای هماهنگی ساعت، با شما تماس می‌گیرد.</p></div>'
+    + '<button class="btn bk-open" type="button">ثبت نوبت<span class="ar">←</span></button>'
+    + '<form class="bk-form" hidden data-slug="' + esc(slug) + '"><div class="bk-g">'
+    + '<label>نام و نام‌خانوادگی<input name="bname" required maxlength="80" placeholder="مثلاً زهرا محمدی"></label>'
+    + '<label>شماره‌ی موبایل<input name="bphone" inputmode="tel" required maxlength="14" dir="ltr" placeholder="0912…"></label>'
+    + '<label>روز نوبت<select name="bday">' + optsHTML + '</select></label>'
+    + '<label class="bk-w">توضیح کوتاه (اختیاری)<textarea name="bnote" rows="3" maxlength="500" placeholder="موضوع مشاوره"></textarea></label>'
+    + '</div><div class="bk-a"><button class="btn" type="submit">ارسال درخواست نوبت</button><span class="bk-msg" hidden></span></div></form>'
+    + '<p class="bk-alt">یا با تلفن موسسه تماس بگیرید: <a href="tel:+982191002026" dir="ltr">۰۲۱-۹۱۰۰۲۰۲۶</a></p></div>';
+}
+
+function calSection(cal, opts, slug, t) {
+  const mm = cal.title.trim().match(/^(\S+)\s+(\d{4})$/);
+  const mi = mm ? MONTHS_FA.indexOf(mm[1]) : -1, yy = mm ? parseInt(mm[2], 10) : 0;
+  const cur = mi >= 0 && yy === t.y && (mi + 1) === t.m;
+  const cells = cal.cells.map((c) => {
+    if (c.empty) return '<i class="ce"></i>';
+    const cls = ['cd2']; let tag = '';
+    if (c.mark === 'hol') { cls.push('hol'); tag = '<small>تعطیل</small>'; }
+    else if (c.mark === 'full') { cls.push('full'); tag = '<small>تکمیل ظرفیت</small>'; }
+    else if (cur && c.d < t.d) cls.push('past');
+    else if (cur && c.d === t.d) cls.push('tdy');
+    return '<span class="' + cls.join(' ') + '"><b>' + faNum(c.d) + '</b>' + tag + '</span>';
+  }).join('');
+  return '<section class="calbk" id="calbk"><h2>تقویم حضور و زمان‌بندی</h2>'
+    + '<div class="calmeta"><span><b>روزهای کاری</b>' + esc(faNum(cal.working)) + '</span><span><b>زمان‌بندی پاسخگویی</b>' + esc(faNum(cal.hours)) + '</span></div>'
+    + '<div class="calgrid"><div class="cal-t"><b>' + esc(faNum(cal.title)) + '</b></div><div class="cal-wd">' + WD_FA.map((w) => '<span>' + w + '</span>').join('') + '</div><div class="cal-ds">' + cells + '</div></div>'
+    + bookingBox(slug, opts) + '</section>';
+}
+
+function splitTitle(text, cands) {
+  let best = -1;
+  for (const c of cands) { const i = text.indexOf(c); if (i > 8 && (best < 0 || i < best)) best = i; }
+  return best < 0 ? null : [text.slice(0, best).trim(), text.slice(best).trim()];
+}
+const SPEC_CANDS = [' انواع', ' ارائه ', ' رسیدگی ', ' تنظیم، بازنگری', ' مشاوره ', ' پیگیری '];
+const PROC_CANDS = [' در نخستین مرحله', ' اطلاعات و مستندات', ' براساس نتایج', ' پس از تعیین', ' روند انجام', ' در پایان هر'];
+const ulFlat = (bs) => bs.filter((b) => b.t === 'ul' || b.t === 'ol').flatMap((b) => b.x);
+
+/* رندر هر سکشن h2 صفحه‌ی راهبر (تقویم جدا رندر می‌شود) */
+function teamSection(key, blob, postsByTitle) {
+  const h2 = '<h2>' + esc(key) + '</h2>';
+  if (/تحصیلات/.test(key)) return '<section class="rich">' + h2 + '<ul class="edug">' + ulFlat(blob).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul></section>';
+  if (/مسیر حرفه|سوابق شغلی/.test(key)) {
+    let html = '', open = false;
+    for (const it of ulFlat(blob)) {
+      if (/^\s*(13|14)\d\d\s*-/.test(it)) { if (open) html += '</ul></div>'; html += '<div class="job"><h4>' + esc(it) + '</h4><ul>'; open = true; }
+      else if (open) html += '<li>' + esc(it) + '</li>';
+      else html += '<p>' + esc(it) + '</p>';
+    }
+    if (open) html += '</ul></div>';
+    return '<section class="rich">' + h2 + html + '</section>';
+  }
+  if (/تخصص/.test(key)) {
+    const cards = ulFlat(blob).map((it) => {
+      const sp = splitTitle(it, SPEC_CANDS);
+      return sp ? '<div class="spcard"><b>' + esc(sp[0]) + '</b><p>' + esc(sp[1]) + '</p></div>' : '<div class="spcard"><p>' + esc(it) + '</p></div>';
+    }).join('');
+    return '<section class="rich">' + h2 + '<div class="spgrid">' + cards + '</div></section>';
+  }
+  if (/دوره|گواهینامه|افتخارات|عضویت/.test(key)) return '<section class="rich">' + h2 + '<ul class="cseg">' + ulFlat(blob).map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul></section>';
+  if (/فرآیند همکاری/.test(key)) {
+    const steps = ulFlat(blob).map((it, n) => {
+      const txt = String(it).replace(/^\s*\d+\s+/, '');
+      const sp = splitTitle(txt, PROC_CANDS);
+      return '<div class="pstep"><i>' + faNum(n + 1) + '</i><div>' + (sp ? '<b>' + esc(sp[0]) + '</b><p>' + esc(sp[1]) + '</p>' : '<p>' + esc(txt) + '</p>') + '</div></div>';
+    }).join('');
+    return '<section class="rich">' + h2 + steps + '</section>';
+  }
+  if (/ماتریس/.test(key)) {
+    const uls = blob.filter((b) => b.t === 'ul').map((b) => b.x);
+    const chips = (uls[0] || []).map((c) => '<em>' + esc(c) + '</em>').join('');
+    const bars = (uls[1] || []).map((b2) => {
+      const m2 = String(b2).match(/^\s*(\d+)\s*%\s*(.+)$/);
+      if (!m2) return '';
+      const p = Math.min(100, parseInt(m2[1], 10));
+      return '<div class="skrow"><span class="sr1"><span>' + esc(m2[2]) + '</span><em>' + faNum(m2[1]) + '٪</em></span><span class="trk"><i style="width:' + p + '%"></i></span></div>';
+    }).join('');
+    return '<section class="rich">' + h2 + (chips ? '<div class="skchips">' + chips + '</div>' : '') + (bars ? '<div class="skbars">' + bars + '</div>' : '') + '</section>';
+  }
+  if (/سؤالات متداول|سوالات متداول/.test(key)) {
+    const qa = ulFlat(blob).map((i) => { const j = String(i).indexOf('؟'); if (j < 0) return null; const q = String(i).slice(0, j + 1); const a = String(i).slice(j + 1).trim(); return a ? { q, a } : null; }).filter(Boolean);
+    return '<section class="faq"><h2 class="faq-h">' + esc(key) + '</h2>' + qa.map((v) => '<details class="qa"><summary>' + esc(v.q) + '</summary><p>' + esc(v.a) + '</p></details>').join('') + '</section>';
+  }
+  if (/مقالات/.test(key)) {
+    const cards = [];
+    for (const b of blob) {
+      if (b.t === 'h3') cards.push({ title: b.x });
+      else if (b.t === 'p' && cards.length && !cards[cards.length - 1].ex) cards[cards.length - 1].ex = b.x;
+    }
+    const html = cards.map((c) => {
+      const p = postsByTitle[c.title];
+      return '<div class="artcard"><b>' + esc(c.title) + '</b>' + (c.ex ? '<p>' + esc(c.ex) + '</p>' : '') + (p ? '<a class="card-link" href="/blog/' + esc(p.slug) + '">مطالعه مقاله<span class="ar">←</span></a>' : '') + '</div>';
+    }).join('');
+    return '<section class="rich">' + h2 + '<div class="artgrid">' + html + '</div></section>';
+  }
+  return '<section class="rich">' + h2 + blocksHTML(blob) + '</section>';
+}
+
 function teamDetail(x) {
   const meta = [['نقش', x.role], ['سوابق', x.exp], ['ایمیل', x.email], ['شماره تماس', x.phone]];
-  const bio = x.bio_blocks && x.bio_blocks.length ? `<div class="rich"><h2>بیوگرافی و معرفی کامل</h2>${blocksHTML(x.bio_blocks)}</div>` : '';
-  return {
-    t: x.name, l: x.role || 'عضو تیم دادگر',
-    body: detailHead({ photo: x.photo, badge: x.role, meta })
-      + (x.desc ? `<div class="rich"><p>${esc(x.desc)}</p></div>` : '') + bio
-      + moreHTML([['تیم دادگر', '/team'], ['درباره ما', '/about-us'], ['تماس با ما', '/contact-us']])
-  };
+  const bs = x.bio_blocks || [];
+  const postsByTitle = {};
+  D.posts.forEach((p) => { postsByTitle[p.title] = p; });
+  const intro = []; const order = []; const secs = {}; let cur = null;
+  for (const b of bs) {
+    if (b.t === 'h2') { cur = b.x; if (!secs[cur]) { secs[cur] = []; order.push(cur); } continue; }
+    if (cur === null) intro.push(b); else secs[cur].push(b);
+  }
+  let body = detailHead({ photo: x.photo, badge: x.role, meta });
+  if (intro.length) {
+    const quote = intro.length >= 2 && intro[0].t === 'p' ? '<div class="tbq">' + esc(intro[0].x) + '</div>' : '';
+    const ps = intro.slice(quote ? 1 : 0).filter((b) => b.t === 'p').map((b) => '<p>' + esc(b.x) + '</p>').join('');
+    body += '<section class="rich"><h2>بیوگرافی و معرفی کامل</h2>' + quote + ps + '</section>';
+  } else if (x.desc) {
+    body += '<section class="rich"><h2>بیوگرافی و معرفی کامل</h2><p>' + esc(x.desc) + '</p></section>';
+  }
+  for (const key of order) {
+    if (/تقویم حضور/.test(key)) continue;
+    body += teamSection(key, secs[key], postsByTitle);
+  }
+  const t = jalToday();
+  const cal = leaderCal(bs);
+  body += calSection(cal, bkOptions(cal, t), x.slug, t);
+  body += moreHTML([['تیم دادگر', '/team'], ['وکلای موسسه', '/lawyers'], ['تماس با ما', '/contact-us']]);
+  return { t: x.name, l: x.role || 'عضو تیم دادگر', body };
 }
 function officesPage() {
   const cards = D.offices.map((o) => `<article class="mcard"><div class="cbody"><h2>${esc(o)}</h2><p>ارائه خدمات حقوقی دادگر در ${esc(o.replace(/^نمایندگی /, ''))} — هماهنگی جلسات و پیگیری پرونده‌ها از طریق دفتر مرکزی.</p></div></article>`);

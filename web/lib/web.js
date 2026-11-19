@@ -14,6 +14,8 @@
  * ===================================================================== */
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const cfg = require('./config'), sec = require('./security'), { db, sql, now, audit, tx, toPg } = require('./db.pg'), sendSms = require('./sms');
+/* CMD-061 — لیست سفید راهبران برای فرم نوبت از داده‌ی مهاجرت (همان منبع صفحه‌های /team) */
+const DAD = require('./dadgar-data');
 const PUB = path.join(__dirname, '..', 'dynamic');
 const COOKIE = cfg.cookieSecure ? '__Host-sid' : 'sid';
 class HttpError extends Error { constructor(s, m) { super(m); this.s = s; } }
@@ -1197,6 +1199,49 @@ route('GET', '/api/media/:name:s', {}, async (c) => {
   try { buf = sec.decFile(Buffer.from(row.file, 'base64'), 'media.content'); } catch { throw new HttpError(500, 'تصویر قابل بازیابی نیست.'); }
   c.res.writeHead(200, { 'Content-Type': row.mime, 'Content-Length': buf.length, 'Cache-Control': 'public, max-age=60' });
   return c.res.end(buf);
+});
+
+/* ---------- CMD-061 — درخواست نوبت از تقویم راهبران (فرم عمومی صفحات /team) ----------
+ * جدول booking_requests (بدون نیازمند ورود؛ درخواست از صفحه‌ی عمومی راهبر):
+ *   POST /api/booking    عمومی — slug از لیست سفید، نام، موبایل، روزِ انتخابی از تقویم، توضیح
+ *   GET  /api/booking    مدیر — ۲۰۰ درخواست آخر با شماره‌ی کامل تماس
+ *   PATCH /api/booking/:id مدیر — وضعیت new→contacted→scheduled→done|canceled
+ * تلفن با sec.encText (AES-256-GCM، aad=booking.phone) ذخیره می‌شود؛ نرخ ۵/ساعت از هر IP. */
+const BK_STATUSES = ['new', 'contacted', 'scheduled', 'done', 'canceled'];
+route('POST', '/api/booking', {}, async (c) => {
+  if (!(await rl('bk:' + c.ip, 5, 3600e3))) throw new HttpError(429, 'سقف ثبت درخواست نوبت در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const slug = str(c.body.slug, 4, 60, 'شناسه راهبر');
+  if (!DAD.team.some((t) => t.slug === slug)) throw new HttpError(400, 'راهبر انتخابی معتبر نیست.');
+  const name = str(c.body.name, 2, 80, 'نام');
+  const phone = normPhone(c.body.phone);
+  if (!/^09\d{9}$/.test(phone)) throw new HttpError(400, 'شماره‌ی موبایل معتبر وارد کنید (مثل ۰۹۱۲۳۴۵۶۷۸۹).');
+  const day = str(c.body.day, 3, 60, 'روز نوبت');
+  const note = c.body.note == null || c.body.note === '' ? '' : str(c.body.note, 1, 500, 'توضیح');
+  const n = now();
+  try {
+    await db.prepare("INSERT INTO booking_requests(slug,name,phone_enc,phone_last4,day_label,note,status,created_at,ip) VALUES(?,?,?,?,?,?,'new',?,?)")
+      .run(slug, name, sec.encText(phone, 'booking.phone'), phone.slice(-4), day, note || null, n, c.ip);
+  } catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ثبت نوبت هنوز فعال نشده است (جدول booking_requests روی دیتابیس اعمال نشده — طبق CMD-061).'); throw e; }
+  await audit(null, 'booking_request', 'booking:' + slug + ' day:' + day + ' last4:' + phone.slice(-4), c.ip);
+  return { ok: true };
+});
+
+route('GET', '/api/booking', ROLE('admin'), async () => {
+  let rows;
+  try { rows = await db.prepare('SELECT id,slug,name,phone_enc,phone_last4,day_label,note,status,created_at FROM booking_requests ORDER BY created_at DESC,id DESC LIMIT 200').all(); }
+  catch (e) { if (e.code === '42P01') return { ok: true, ready: false, rows: [] }; throw e; }
+  return { ok: true, ready: true, rows: rows.map((r) => ({ id: r.id, slug: r.slug, name: r.name, phone: sec.decText(r.phone_enc, 'booking.phone') || '', last4: r.phone_last4, day: r.day_label, note: r.note || '', status: r.status, created_at: r.created_at })) };
+});
+
+route('PATCH', '/api/booking/:id', ROLE('admin'), async (c) => {
+  const st = oneOf(c.body.status, BK_STATUSES, 'وضعیت');
+  let r;
+  try { r = await db.prepare('SELECT id FROM booking_requests WHERE id=?').get(c.params.id); }
+  catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ثبت نوبت هنوز فعال نشده است (طبق CMD-061).'); throw e; }
+  if (!r) throw new HttpError(404, 'درخواست یافت نشد.');
+  await db.prepare('UPDATE booking_requests SET status=? WHERE id=?').run(st, r.id);
+  await audit(c.user.id, 'booking_status', 'booking:' + r.id + ':' + st, c.ip);
+  return { ok: true };
 });
 
 /* ---------- API dispatcher (identical flow) ---------- */
