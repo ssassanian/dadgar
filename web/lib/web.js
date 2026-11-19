@@ -1244,6 +1244,49 @@ route('PATCH', '/api/booking/:id', ROLE('admin'), async (c) => {
   return { ok: true };
 });
 
+/* ---------- CMD-064 — انتقادات و پیشنهادات (فرم عمومی /criticism-and-suggestions) ----------
+ * جدول feedback_messages (بدون نیازمند ورود؛ متن مقدمه و ساختار فرم از خود صفحه‌ی مبدأ):
+ *   POST /api/feedback     عمومی — نام، نام خانوادگی، ایمیل اختیاری، موبایل، متن پیام
+ *   GET  /api/feedback     مدیر — ۲۰۰ پیام آخر با شماره‌ی کامل تماس
+ *   PATCH /api/feedback/:id مدیر — وضعیت new→read→archived
+ * تلفن با sec.encText (AES-256-GCM، aad=feedback.phone) ذخیره می‌شود؛ نرخ ۵/ساعت از هر IP. */
+const FB_STATUSES = ['new', 'read', 'archived'];
+route('POST', '/api/feedback', {}, async (c) => {
+  if (!(await rl('fb:' + c.ip, 5, 3600e3))) throw new HttpError(429, 'سقف ثبت پیام در یک ساعت تکمیل شده است. بعداً تلاش کنید.');
+  const name = str(c.body.name, 2, 80, 'نام');
+  const family = c.body.family == null || c.body.family === '' ? '' : str(c.body.family, 1, 80, 'نام خانوادگی');
+  const email = c.body.email == null || c.body.email === '' ? '' : str(c.body.email, 5, 120, 'ایمیل');
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new HttpError(400, 'ایمیل معتبر وارد کنید.');
+  const phone = normPhone(c.body.phone);
+  if (!/^09\d{9}$/.test(phone)) throw new HttpError(400, 'شماره‌ی موبایل معتبر وارد کنید (مثل ۰۹۱۲۳۴۵۶۷۸۹).');
+  const message = str(c.body.message, 10, 2000, 'متن پیام');
+  const n = now();
+  try {
+    await db.prepare("INSERT INTO feedback_messages(name,family,email,phone_enc,phone_last4,message,status,created_at,ip) VALUES(?,?,?,?,?,?,'new',?,?)")
+      .run(family ? name + ' ' + family : name, family || null, email || null, sec.encText(phone, 'feedback.phone'), phone.slice(-4), message, n, c.ip);
+  } catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ثبت پیام هنوز فعال نشده است (جدول feedback_messages روی دیتابیس اعمال نشده — طبق CMD-064).'); throw e; }
+  await audit(null, 'feedback_message', 'feedback last4:' + phone.slice(-4) + ' len:' + message.length, c.ip);
+  return { ok: true };
+});
+
+route('GET', '/api/feedback', ROLE('admin'), async () => {
+  let rows;
+  try { rows = await db.prepare('SELECT id,name,family,email,phone_enc,phone_last4,message,status,created_at FROM feedback_messages ORDER BY created_at DESC,id DESC LIMIT 200').all(); }
+  catch (e) { if (e.code === '42P01') return { ok: true, ready: false, rows: [] }; throw e; }
+  return { ok: true, ready: true, rows: rows.map((r) => ({ id: r.id, name: r.name, family: r.family || '', email: r.email || '', phone: sec.decText(r.phone_enc, 'feedback.phone') || '', last4: r.phone_last4, message: r.message, status: r.status, created_at: r.created_at })) };
+});
+
+route('PATCH', '/api/feedback/:id', ROLE('admin'), async (c) => {
+  const st = oneOf(c.body.status, FB_STATUSES, 'وضعیت');
+  let r;
+  try { r = await db.prepare('SELECT id FROM feedback_messages WHERE id=?').get(c.params.id); }
+  catch (e) { if (e.code === '42P01') throw new HttpError(503, 'ثبت پیام هنوز فعال نشده است (طبق CMD-064).'); throw e; }
+  if (!r) throw new HttpError(404, 'پیام یافت نشد.');
+  await db.prepare('UPDATE feedback_messages SET status=? WHERE id=?').run(st, r.id);
+  await audit(c.user.id, 'feedback_status', 'feedback:' + r.id + ':' + st, c.ip);
+  return { ok: true };
+});
+
 /* ---------- API dispatcher (identical flow) ---------- */
 async function api(req, res, url, ip) {
   baseHeaders(res);

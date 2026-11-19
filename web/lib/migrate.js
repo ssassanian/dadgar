@@ -35,10 +35,11 @@ function blocksHTML(bs, { skipH1 = true } = {}) {
 }
 
 /* ---------- کارت‌ها ---------- */
-function card(route, { title, excerpt, photo, badge }, i) {
+function card(route, { title, excerpt, photo, badge }, i, cats) {
   const pic = photo ? `<figure class="cimg"><img src="${esc(photo)}" alt="${esc(title)}" loading="lazy" width="360" height="240"></figure>` : '';
   const bd = badge ? `<em class="badge">${esc(badge)}</em>` : '';
-  return `<article class="mcard">${pic}<div class="cbody">${bd}<h2>${esc(title)}</h2><p>${esc(excerpt || '')}</p><a class="card-link" href="${esc(route)}">مشاهده<span class="ar">←</span></a></div></article>`;
+  const dc = cats ? ` data-cats="${esc(cats)}"` : '';
+  return `<article class="mcard"${dc}>${pic}<div class="cbody">${bd}<h2>${esc(title)}</h2><p>${esc(excerpt || '')}</p><a class="card-link" href="${esc(route)}">مشاهده<span class="ar">←</span></a></div></article>`;
 }
 function cardGrid(cards) { return `<div class="cgrid">${cards.join('')}</div>`; }
 
@@ -55,7 +56,8 @@ function detailHead({ photo, badge, meta }) {
 }
 
 /* ---------- پرسش‌های متداول ---------- */
-function faqHTML(items) { return `<section class="faq"><h2 class="faq-h">پرسش‌های متداول</h2>${items.map((x) => `<details class="qa"><summary>${esc(x.q)}</summary><p>${x.a}</p></details>`).join('')}</section>`; }
+function qaList(items) { return items.map((x) => `<details class="qa"><summary>${esc(x.q)}</summary><p>${x.a}</p></details>`).join(''); }
+function faqHTML(items) { return `<section class="faq"><h2 class="faq-h">پرسش‌های متداول</h2>${qaList(items)}</section>`; }
 
 /* ---------- لینک‌های مرتبط ---------- */
 function moreHTML(pairs) {
@@ -70,11 +72,18 @@ function staticBody(slug) {
 }
 
 /* ---------- صفحات فهرست ---------- */
+/* CMD-064 — فهرست وکلا با فیلتر دپارتمان (نگاشت از آرشیوهای lawyers-department مبدأ) */
+function chipBar(cats, gridId, allLabel) {
+  return `<div class="fchips" data-for="${gridId}"><button class="fchip on" data-fc="all" type="button">${esc(allLabel)}</button>${cats.map((c, i) => `<button class="fchip" data-fc="${c.key}" type="button">${esc(c.name)} (${faNum(c.n)})</button>`).join('')}</div>`;
+}
 function lawyersIndex() {
-  const cards = D.lawyers.map((x) => card(`/lawyers/${x.slug}`, { title: x.name, excerpt: [x.rank, x.expertise].filter(Boolean).join(' · '), photo: x.photo }, 0));
+  const depOf = {};
+  D.lawyer_departments.forEach((c, ci) => c.slugs.forEach((s) => { (depOf[s] = depOf[s] || []).push('d' + ci); }));
+  const cards = D.lawyers.map((x) => card(`/lawyers/${x.slug}`, { title: x.name, excerpt: [x.rank, x.expertise].filter(Boolean).join(' · '), photo: x.photo }, 0, (depOf[x.slug] || []).join(' ')));
+  const cats = D.lawyer_departments.map((c, i) => ({ key: 'd' + i, name: c.name, n: c.slugs.length }));
   return {
     t: 'وکلا', l: 'وکلای متخصص موسسه حقوقی و داوری دادگر — با سابقه، تخصص و حوزه پروانه‌ی هر وکیل آشنا شوید.',
-    body: countBar(D.lawyers.length, 'وکیل متخصص در دپارتمان‌های دادگر') + cardGrid(cards)
+    body: chipBar(cats, 'lgrid', 'همه‌ی وکلا') + countBar(D.lawyers.length, 'وکیل متخصص در دپارتمان‌های دادگر') + `<div class="cgrid" id="lgrid">${cards.join('')}</div>`
   };
 }
 function lawyerDetail(x) {
@@ -109,10 +118,14 @@ function departmentsIndex() {
   };
 }
 function postsIndex() {
-  const cards = D.posts.map((x) => card(`/blog/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo, badge: faDate(x.date) }, 0));
+  const catNames = [];
+  D.posts.forEach((x) => (x.cats || []).forEach((c) => { if (!catNames.includes(c)) catNames.push(c); }));
+  const cards = D.posts.map((x) => card(`/blog/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo, badge: faDate(x.date) }, 0, (x.cats || []).map((c) => 'b' + catNames.indexOf(c)).join(' ')));
+  const cats = catNames.map((name, i) => ({ key: 'b' + i, name, n: D.posts.filter((p) => (p.cats || []).includes(name)).length }));
+  const bar = cats.length ? chipBar(cats, 'bgrid', 'همه‌ی مقالات') : '';
   return {
     t: 'بلاگ و مقالات حقوقی', l: 'مقالات آموزشی و تحلیل‌های حقوقی کاربردی؛ از دعاوی ملکی تا قراردادها و خانواده.',
-    body: countBar(D.posts.length, 'مقاله حقوقی منتشرشده') + cardGrid(cards)
+    body: countBar(D.posts.length, 'مقاله حقوقی منتشرشده') + bar + `<div class="cgrid" id="bgrid">${cards.join('')}</div>`
   };
 }
 function postDetail(x) {
@@ -123,17 +136,29 @@ function postDetail(x) {
       + moreHTML([['همه مقالات', '/blog'], ['خدمات موسسه', '/services'], ['دادنامه‌های موفق', '/portfolio']])
   };
 }
+/* CMD-064 — فهرست دادنامه‌ها با فیلتر دسته‌ها (نگاشت از آرشیوهای portfolio-category مبدأ؛ یک دادنامه می‌تواند در چند دسته باشد) */
 function portfolioIndex() {
-  const cards = D.portfolio.map((x) => card(`/portfolio/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo }, 0));
+  const catOf = {};
+  D.portfolio_categories.forEach((c, ci) => c.slugs.forEach((s) => { (catOf[s] = catOf[s] || []).push('c' + ci); }));
+  const cards = D.portfolio.map((x) => card(`/portfolio/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo }, 0, (catOf[x.slug] || []).join(' ')));
+  const cats = D.portfolio_categories.map((c, i) => ({ key: 'c' + i, name: c.name, n: c.slugs.length }));
   return {
     t: 'دادنامه‌ها و پرونده‌های موفق', l: 'گزارش پرونده‌های واقعی دادگر: ماجراجویی حقوقی موکلان و مسیر رسیدن به نتیجه.',
-    body: countBar(D.portfolio.length, 'پرونده گزارش‌شده') + cardGrid(cards)
+    body: chipBar(cats, 'pgrid', 'همه‌ی دادنامه‌ها') + countBar(D.portfolio.length, 'پرونده گزارش‌شده') + `<div class="cgrid" id="pgrid">${cards.join('')}</div>`
   };
 }
+/* CMD-064 — پرسش‌ها با گروه‌بندی دسته‌ها (نگاشت از آرشیوهای faq-category مبدأ) */
 function faqPage() {
+  let body;
+  if (D.faq_categories && D.faq_categories.length) {
+    const inCat = new Set(D.faq_categories.flatMap((c) => c.qs));
+    const rest = D.faqs.filter((x) => !inCat.has(x.q));
+    body = D.faq_categories.map((c) => `<section class="faq"><h2 class="faq-h">${esc(c.name)}</h2>${qaList(D.faqs.filter((x) => c.qs.includes(x.q)))}</section>`).join('');
+    if (rest.length) body += `<section class="faq"><h2 class="faq-h">سایر پرسش‌ها</h2>${qaList(rest)}</section>`;
+  } else body = faqHTML(D.faqs);
   return {
     t: 'سوالات متداول', l: 'پاسخ پرسش‌های پرتکرار شما درباره خدمات حقوقی دادگر، داوری و روند پرونده‌ها.',
-    body: faqHTML(D.faqs) + moreHTML([['درخواست خدمات حقوقی', '/request'], ['تماس با ما', '/contact-us'], ['خدمات موسسه', '/services']])
+    body: body + moreHTML([['درخواست خدمات حقوقی', '/request'], ['تماس با ما', '/contact-us'], ['خدمات موسسه', '/services']])
   };
 }
 function testimonialsPage() {
@@ -143,11 +168,23 @@ function testimonialsPage() {
     body: cardGrid(cards) + moreHTML([['دادنامه‌های موفق', '/portfolio'], ['وکلای موسسه', '/lawyers'], ['درخواست مشاوره', '/request']])
   };
 }
+/* CMD-064 — صفحه‌ی تیم با داده‌ی کامل مبدأ: مقدمه + راهبران + سه زیرگروه پشتوانه + دعوت به گفت‌وگو */
 function teamIndex() {
-  const cards = D.team.map((x) => card(`/team/${x.slug}`, { title: x.name, excerpt: x.role, photo: x.photo }, 0));
+  const tp = D.team_page;
+  const bySlug = {};
+  D.team.forEach((x) => { bySlug[x.slug] = x; });
+  const memCard = (m) => { const x = bySlug[m.slug]; return card(`/team/${m.slug}`, { title: m.name, excerpt: m.role || (x && x.role) || '', photo: x && x.photo }, 0); };
+  const sec = (title, sub, inner) => `<section class="tsec"><h2 class="faq-h">${esc(title)}</h2>${sub ? `<p class="tsub">${esc(sub)}</p>` : ''}${inner}</section>`;
+  const leaderCards = tp.leaders.members.map(memCard).join('');
+  const supportInner = tp.support.groups.map((g) => `<h3 class="tsub3">${esc(g.name)}</h3><div class="cgrid">${g.members.map(memCard).join('')}</div>`).join('');
+  const cta = `<div class="tcta"><p>${esc(tp.cta)}</p><a class="btn" href="/contact-us">شروع گفت‌وگو</a></div>`;
   return {
     t: 'تیم دادگر', l: 'اعضای تیم اجرایی دادگر — چهره‌های کلیدی موسسه، پشت نامی قابل اتکا.',
-    body: cardGrid(cards) + moreHTML([['وکلای موسسه', '/lawyers'], ['درباره ما', '/about-us'], ['فرصت‌های شغلی', '/careers']])
+    body: `<div class="rich tpintro"><p>${esc(tp.intro)}</p></div>`
+      + sec(tp.leaders.title, tp.leaders.sub, `<div class="cgrid">${leaderCards}</div>`)
+      + sec(tp.support.title, tp.support.sub, supportInner)
+      + cta
+      + moreHTML([['وکلای موسسه', '/lawyers'], ['درباره ما', '/about-us'], ['فرصت‌های شغلی', '/careers']])
   };
 }
 /* ---------- CMD-061 — پروفایل کامل راهبران با تقویم حضور و درخواست نوبت ----------
@@ -468,9 +505,35 @@ function resolve(pathname) {
   if (p === '/contact-us') return contactUsPage();
   if (p === '/privacy-policy') { const b = staticBody('privacy-policy'); return b ? { t: 'سیاست‌های حفظ حریم خصوصی دادگر', l: 'حفاظت از اطلاعات موکلان و کاربران دادگر', body: b } : null; }
   if (p === '/terms-of-use') { const b = staticBody('terms-of-use'); return b ? { t: 'قوانین و مقررات استفاده از وب‌سایت دادگر', l: 'چارچوب استفاده از وب‌سایت موسسه حقوقی دادگر', body: b } : null; }
-  if (p === '/criticism-and-suggestions') { const b = staticBody('criticism-and-suggestions'); return b ? { t: 'انتقادات و پیشنهادات', l: 'صدای شما مسیر بهبود ماست — انتقادات و پیشنهادات خود را با ما در میان بگذارید', body: b } : null; }
-  if (p === '/authors') { const b = staticBody('authors'); return b ? { t: 'نویسندگان متخصص دادگر', l: 'نویسندگان متخصص برای ارتقای آگاهی حقوقی شما', body: b } : null; }
+  if (p === '/criticism-and-suggestions') return criticismPage();
+  if (p === '/authors') return authorsPage();
   return null;
+}
+
+/* ---------- CMD-064 — انتقادات و پیشنهادات: متن واقعی مبدأ + فرم عمومی ----------
+ * فرم به POST /api/feedback می‌رود (نرخ ۵/ساعت، تلفن AES-256-GCM با aad=feedback.phone،
+ * جدول feedback_messages — DDL در web/db/feedback-pending-ddl.sql، degrade صادقانه 42P01) */
+function criticismPage() {
+  const form = `<div class="bkbox fbbox"><div class="bk-i"><h3>فرم انتقادات و پیشنهادات</h3><p>نظرات خود را برای ما بنویسید؛ پاسخ‌گو هستیم.</p></div><button class="btn fb-open" type="button">ثبت انتقاد یا پیشنهاد</button><form class="fb-form" hidden><div class="bk-g"><label>نام<input name="fbname" maxlength="80" required></label><label>نام خانوادگی<input name="fbfamily" maxlength="80"></label><label>ایمیل (اختیاری)<input name="fbemail" type="email" maxlength="120" dir="ltr"></label><label>شماره تماس (ضروری)<input name="fbphone" inputmode="tel" maxlength="14" dir="ltr" required placeholder="09xxxxxxxxx"></label><label class="bk-w">انتقاد یا پیشنهاد<textarea name="fbmsg" rows="4" maxlength="2000" required></textarea></label></div><div class="bk-a"><button class="btn" type="submit">ارسال</button><p class="fb-msg bk-msg" hidden></p></div></form></div>`;
+  return {
+    t: 'انتقادات و پیشنهادات', l: 'صدای شما مسیر بهبود ماست — انتقادات و پیشنهادات خود را با ما در میان بگذارید',
+    body: `<div class="rich"><h2>انتقادات و پیشنهادات</h2><p>${esc(D.criticism.intro)}</p></div>` + form
+      + moreHTML([['تماس با ما', '/contact-us'], ['درخواست خدمات حقوقی', '/request'], ['تیم دادگر', '/team']])
+  };
+}
+
+/* CMD-064 — نویسندگان مقالات: کارت‌های واقعی مبدأ (نام، نقش، شمار مقاله، لینک پروفایل) */
+function authorsPage() {
+  const cards = (D.authors || []).map((a) => {
+    const t = D.team.find((x) => x.slug === a.slug);
+    const pic = t && t.photo ? `<figure class="cimg"><img src="${esc(t.photo)}" alt="${esc(a.name)}" loading="lazy" width="360" height="240"></figure>` : '';
+    return `<article class="mcard">${pic}<div class="cbody"><em class="badge">${esc(a.count)}</em><h2>${esc(a.name)}</h2><p>${esc(a.role)}</p><a class="card-link" href="/team/${esc(a.slug)}">مشاهده پروفایل<span class="ar">←</span></a></div></article>`;
+  }).join('');
+  return {
+    t: 'نویسندگان متخصص دادگر', l: 'نویسندگان متخصص برای ارتقای آگاهی حقوقی شما',
+    body: staticBody('authors') + (cards ? `<div class="cgrid">${cards}</div>` : '')
+      + moreHTML([['همه مقالات', '/blog'], ['تیم دادگر', '/team'], ['درباره ما', '/about-us']])
+  };
 }
 
 module.exports = { resolve, blocksHTML };
