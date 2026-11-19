@@ -1124,9 +1124,15 @@ route('GET', '/api/settings/public', {}, async () => {
  * (زیر سقف بدنه‌ی سرورلس Vercel)؛ نرخ: ۳۰ بارگذاری در ساعت برای هر مدیر.
  * degrade (الگوی CMD-010): اگر جدول media اعمال نشده باشد (42P01) — فهرست ready:false
  * و نوشتن با 503 صادقانه؛ سرو عمومی تصویرِ تنظیم‌نشده = 404 و صفحه‌ی اصلی سیلوئت را نشان می‌دهد.
- * تصمیم باز (ثبت‌شده): آپلود «لوگو» تا تعیین جای نمایش در هدر — وارد لیست سفید نشد.
+ * CMD-056 — مهاجرت هویت واقعی dadgar.legal: چهارده کلید تازه (پنج راهبر مؤسسه
+ * lotfi/taheri/hamidi/talkhabi/sarlak و نُه لوگوی مشتریان نوار اعتماد
+ * saderat/bankmeli/pejhan/apex/mellat/dorsa/saman/novincharm/dana) به لیست سفید
+ * افزوده شد؛ همان قواعد امنیتی و سقف‌ها؛ SVG پذیرفته نمی‌شود و لوگوهای وکتور
+ * پیش از بارگذاری به PNG رستر شده‌اند (گارد بایت جادویی بدون استثنا).
  * ========================================================================== */
-const MEDIA_KEYS = ['ali', 'sara', 'mahdi', 'office'];
+const MEDIA_KEYS = ['ali', 'sara', 'mahdi', 'office',
+  'lotfi', 'taheri', 'hamidi', 'talkhabi', 'sarlak',
+  'saderat', 'bankmeli', 'pejhan', 'apex', 'mellat', 'dorsa', 'saman', 'novincharm', 'dana'];
 const MEDIA_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
 const MEDIA_MAX = 2 * 1024 * 1024;
 const mediaGuard = () => { if (!sql) throw new HttpError(503, 'دیتابیس در دسترس نیست.'); };
