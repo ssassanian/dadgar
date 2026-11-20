@@ -73,8 +73,9 @@ function staticBody(slug) {
 
 /* ---------- صفحات فهرست ---------- */
 /* CMD-064 — فهرست وکلا با فیلتر دپارتمان (نگاشت از آرشیوهای lawyers-department مبدأ) */
-function chipBar(cats, gridId, allLabel) {
-  return `<div class="fchips" data-for="${gridId}"><button class="fchip on" data-fc="all" type="button">${esc(allLabel)}</button>${cats.map((c, i) => `<button class="fchip" data-fc="${c.key}" type="button">${esc(c.name)} (${faNum(c.n)})</button>`).join('')}</div>`;
+function chipBar(cats, gridId, allLabel, activeKey) {
+  const isOn = (k) => (activeKey ? (k === activeKey ? ' on' : '') : (k === 'all' ? ' on' : ''));
+  return `<div class="fchips" data-for="${gridId}"><button class="fchip${isOn('all')}" data-fc="all" type="button">${esc(allLabel)}</button>${cats.map((c, i) => `<button class="fchip${isOn(c.key)}" data-fc="${c.key}" type="button">${esc(c.name)} (${faNum(c.n)})</button>`).join('')}</div>`;
 }
 function lawyersIndex() {
   const depOf = {};
@@ -100,7 +101,7 @@ function lawyerDetail(x) {
 function servicesIndex() {
   const cards = D.services.map((x) => card(`/services/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo }, 0));
   return {
-    t: 'خدمات ما', l: 'خدمات تخصصی حقوقی دادگر: از مشاوره و بیمه حقوقی تا وکالت تخصصی در دعاوی، داوری و تنظیم قرارداد.',
+    t: 'خدمات ما', l: 'همراه شما، در دفاع از حق و عدالت — خدمات تخصصی حقوقی دادگر: از مشاوره و بیمه حقوقی تا وکالت تخصصی در دعاوی، داوری و تنظیم قرارداد.',
     body: countBar(D.services.length, 'خدمت تخصصی حقوقی') + cardGrid(cards)
   };
 }
@@ -117,15 +118,22 @@ function departmentsIndex() {
     body: countBar(D.departments.length, 'دپارتمان تخصصی') + cardGrid(cards)
   };
 }
+/* CMD-065 — فهرست وبلاگ وفادار به مبدأ: نمای پیش‌فرض فقط پست‌های دسته «وبلاگ» (۱۰ پست،
+ * مثل آرشیو dadgar.legal/blog)؛ ۳۷ راهنمای خدمت/دپارتمان با دسته REST (خدمات ما/دپارتمان ها)
+ * با چیپ در دسترس‌اند. عنوان H1 مبدأ: «وبلاگ». */
 function postsIndex() {
   const catNames = [];
   D.posts.forEach((x) => (x.cats || []).forEach((c) => { if (!catNames.includes(c)) catNames.push(c); }));
-  const cards = D.posts.map((x) => card(`/blog/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo, badge: faDate(x.date) }, 0, (x.cats || []).map((c) => 'b' + catNames.indexOf(c)).join(' ')));
+  const blogKey = catNames.includes('وبلاگ') ? 'b' + catNames.indexOf('وبلاگ') : null;
+  const cards = D.posts.map((x) => {
+    const c = card(`/blog/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo, badge: faDate(x.date) }, 0, (x.cats || []).map((c) => 'b' + catNames.indexOf(c)).join(' '));
+    return (blogKey && !((x.cats || []).includes('وبلاگ'))) ? c.replace('class="mcard"', 'class="mcard off"') : c;
+  });
   const cats = catNames.map((name, i) => ({ key: 'b' + i, name, n: D.posts.filter((p) => (p.cats || []).includes(name)).length }));
-  const bar = cats.length ? chipBar(cats, 'bgrid', 'همه‌ی مقالات') : '';
+  const bar = cats.length ? chipBar(cats, 'bgrid', 'همه‌ی مقالات', blogKey) : '';
   return {
-    t: 'بلاگ و مقالات حقوقی', l: 'مقالات آموزشی و تحلیل‌های حقوقی کاربردی؛ از دعاوی ملکی تا قراردادها و خانواده.',
-    body: countBar(D.posts.length, 'مقاله حقوقی منتشرشده') + bar + `<div class="cgrid" id="bgrid">${cards.join('')}</div>`
+    t: 'وبلاگ', l: 'مقالات آموزشی و تحلیل‌های حقوقی کاربردی؛ از دعاوی ملکی تا قراردادها و خانواده.',
+    body: countBar(D.posts.length, 'مقاله و راهنمای منتشرشده') + bar + `<div class="cgrid" id="bgrid">${cards.join('')}</div>`
   };
 }
 function postDetail(x) {
@@ -143,7 +151,7 @@ function portfolioIndex() {
   const cards = D.portfolio.map((x) => card(`/portfolio/${x.slug}`, { title: x.title, excerpt: x.excerpt, photo: x.photo }, 0, (catOf[x.slug] || []).join(' ')));
   const cats = D.portfolio_categories.map((c, i) => ({ key: 'c' + i, name: c.name, n: c.slugs.length }));
   return {
-    t: 'دادنامه‌ها و پرونده‌های موفق', l: 'گزارش پرونده‌های واقعی دادگر: ماجراجویی حقوقی موکلان و مسیر رسیدن به نتیجه.',
+    t: 'دادنامه‌ها و پرونده‌های موفق', l: 'نتایج، خود گویای همه چیز است — گزارش پرونده‌های واقعی دادگر و مسیر رسیدن به نتیجه.',
     body: chipBar(cats, 'pgrid', 'همه‌ی دادنامه‌ها') + countBar(D.portfolio.length, 'پرونده گزارش‌شده') + `<div class="cgrid" id="pgrid">${cards.join('')}</div>`
   };
 }
@@ -179,7 +187,7 @@ function teamIndex() {
   const supportInner = tp.support.groups.map((g) => `<h3 class="tsub3">${esc(g.name)}</h3><div class="cgrid">${g.members.map(memCard).join('')}</div>`).join('');
   const cta = `<div class="tcta"><p>${esc(tp.cta)}</p><a class="btn" href="/contact-us">شروع گفت‌وگو</a></div>`;
   return {
-    t: 'تیم دادگر', l: 'اعضای تیم اجرایی دادگر — چهره‌های کلیدی موسسه، پشت نامی قابل اتکا.',
+    t: 'اعضای تیم اجرایی دادگر', l: 'چهره‌های کلیدی موسسه، پشت نامی قابل اتکا.',
     body: `<div class="rich tpintro"><p>${esc(tp.intro)}</p></div>`
       + sec(tp.leaders.title, tp.leaders.sub, `<div class="cgrid">${leaderCards}</div>`)
       + sec(tp.support.title, tp.support.sub, supportInner)
@@ -414,7 +422,7 @@ function aboutPage() {
 }
 function careersPage() {
   return {
-    t: 'فرصت‌های شغلی', l: 'فرصتی برای همکاری با تیمی متعهد، متخصص و پیشرو در عرصه حقوق.',
+    t: 'فرصت‌های شغلی', l: 'همکاری با موسسه حقوقی دادگر — فرصتی برای همکاری با تیمی متعهد، متخصص و پیشرو در عرصه حقوق.',
     body: `<div class="rich">${blocksHTML(D.containers['careers'])}</div>` + moreHTML([['درباره ما', '/about-us'], ['تیم دادگر', '/team'], ['تماس با ما', '/contact-us']])
   };
 }
@@ -432,10 +440,12 @@ function requestPage() {
   };
 }
 function contactUsPage() {
+  /* CMD-065 — وفادار به مبدأ: نشانی کامل شعبه دو (کوی باستانی پاریزی، پلاک ۱۱، طبقه ۴)،
+   * سه شماره شعبه دو، ایمیل support@dadgar.legal، تلگرام dadgar_lawfirm@، اینستاگرام dadgar.legal@ */
   return {
-    t: 'تماس با ما', l: 'آدرس و اطلاعات تماس شعبات دادگر — تهران زعفرانیه و بلوار کشاورز.',
+    t: 'تماس با ما', l: 'راه‌های ارتباطی با دادگر — آدرس و اطلاعات تماس شعبات.',
     body: staticBody('contact-us')
-      + `<div class="facts"><div class="fact"><b>۰۲۱-۹۱۰۰۲۰۲۶</b><span>شعبه یک — زعفرانیه، مقدس اردبیلی، مجتمع اکسیژن، طبقه ۳، واحد ۱</span></div><div class="fact"><b>۰۲۱-۸۸۹۸۵۴۵۸</b><span>شعبه دو — بلوار کشاورز، خیابان وصال شیرازی</span></div><div class="fact"><b>۰۹۹۴۱۴۶۷۷۰۳</b><span>واتس‌اپ دادگر</span></div><div class="fact"><b>۱۰–۱۸</b><span>شنبه تا چهارشنبه · پنجشنبه ۱۰–۱۴</span></div></div>`
+      + `<div class="facts"><div class="fact"><b>۰۲۱-۹۱۰۰۲۰۲۶</b><span>شعبه یک — تهران، زعفرانیه، مقدس اردبیلی، مجتمع اکسیژن، طبقه ۳، واحد ۱</span></div><div class="fact"><b>۰۲۱-۸۸۹۸۵۴۵۸ · ۰۲۱-۸۸۹۶۹۹۰۳ · ۰۲۱-۸۸۹۶۹۹۰۴</b><span>شعبه دو — بلوار کشاورز، خیابان وصال شیرازی، کوی باستانی پاریزی، پلاک ۱۱، طبقه ۴</span></div><div class="fact"><b>۰۹۹۴۱۴۶۷۷۰۳</b><span>واتس‌اپ دادگر</span></div><div class="fact"><b>۱۰–۱۸</b><span>شنبه تا چهارشنبه · پنجشنبه ۱۰–۱۴</span></div><div class="fact"><b dir="ltr">support@dadgar.legal</b><span>ایمیل دادگر</span></div><div class="fact"><b dir="ltr">dadgar_lawfirm@</b><span>تلگرام دادگر</span></div><div class="fact"><b dir="ltr">dadgar.legal@</b><span>اینستاگرام دادگر</span></div></div>`
       + moreHTML([['درخواست خدمات حقوقی', '/request'], ['سوالات متداول', '/faq'], ['فرصت‌های شغلی', '/careers']])
   };
 }
@@ -530,7 +540,7 @@ function authorsPage() {
     return `<article class="mcard">${pic}<div class="cbody"><em class="badge">${esc(a.count)}</em><h2>${esc(a.name)}</h2><p>${esc(a.role)}</p><a class="card-link" href="/team/${esc(a.slug)}">مشاهده پروفایل<span class="ar">←</span></a></div></article>`;
   }).join('');
   return {
-    t: 'نویسندگان متخصص دادگر', l: 'نویسندگان متخصص برای ارتقای آگاهی حقوقی شما',
+    t: 'نویسندگان متخصص برای ارتقای آگاهی حقوقی شما', l: 'نویسندگان متخصص دادگر',
     body: staticBody('authors') + (cards ? `<div class="cgrid">${cards}</div>` : '')
       + moreHTML([['همه مقالات', '/blog'], ['تیم دادگر', '/team'], ['درباره ما', '/about-us']])
   };
