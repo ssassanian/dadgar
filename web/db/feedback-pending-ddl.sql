@@ -2,8 +2,10 @@
 -- دادگر — DDL جدول feedback_messages (CMD-064 — انتقادات و پیشنهادات)
 -- فرم عمومی /criticism-and-suggestions → POST /api/feedback
 -- تلفن با AES-256-GCM (sec.encText، aad=feedback.phone) ذخیره می‌شود.
--- وضعیت: ⏳ در انتظار اعمال (توکن Management API در این نشست در دسترس نبود —
--- الگوی اجرا: cmd061-apply-ddl.py با خواندن SUPABASE_TOKEN از .secrets)
+-- وضعیت: ✅ اعمال شد — 2026-11-20 با Supabase Management API (ACT-123 / رجیستر 2.71)
+-- الگوی اجرا: cmd061-apply-ddl.py / apply-feedback-ddl.py با خواندن SUPABASE_TOKEN از .secrets
+-- وارسی پس از اعمال: ۱۰ ستون، RLS خاموش، GRANT به dadgar_app، count=0،
+-- چرخه‌ی کامل POST /api/feedback روی تولید → ردیف با phone_enc (AES-256-GCM) → پاکسازی تست
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS feedback_messages(
